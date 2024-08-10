@@ -1,6 +1,6 @@
 ## Install Openapi-sync
 
-`npm i openapi-sync --save-dev`
+`npm i openapi-sync`
 
 ## Add a Openapi-sync config file
 
