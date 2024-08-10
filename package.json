@@ -10,7 +10,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "publish": "npm publish",
+    "publish": "npm run build && npm version patch && npm publish",
     "start": "ts-node index.ts"
   },
   "author": "P-Technologies",
