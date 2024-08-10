@@ -8,9 +8,9 @@
     "openapi-sync": "./bin/cli"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"Error: no test specified\"",
     "build": "tsc",
-    "publish": "npm run build && npm version patch && npm publish",
+    "publish": "npm run build && npm version patch && npm publish && exit 0",
     "start": "ts-node index.ts"
   },
   "author": "P-Technologies",

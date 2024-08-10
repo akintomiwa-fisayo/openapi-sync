@@ -6,9 +6,6 @@
 
 Add a `openapi.sync.json` file at the root of your project (check out `openapi.sync.sample.json`)
 
-## import `openapi-sync`
+## Run `openapi-sync`
 
-import openapi-sync anywhere in your project (preferably the entry point)  
-`import 'openapi-sync'`
-
-## Run your app
+Run `openapi-sync` in terminal to start (you can also add it as a script in package.json)
