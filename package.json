@@ -5,24 +5,30 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "openapi-sync": "./bin/cli"
+    "openapi-sync": "./bin/cli.js"
   },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "build": "tsc",
-    "publish": "npm run build && npm version patch && npm publish && exit 0",
+    "publish": "npm run build  npm version patch  npm publish",
     "start": "ts-node index.ts"
   },
   "author": "P-Technologies",
   "license": "ISC",
-  "devDependencies": {
+  "devDependencies": {},
+  "dependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
     "@types/node": "^22.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
-  },
-  "dependencies": {
+    "typescript": "^5.5.4",
     "@redocly/openapi-core": "^1.19.0",
     "axios": "^1.7.3",
     "axios-retry": "^4.5.0",
