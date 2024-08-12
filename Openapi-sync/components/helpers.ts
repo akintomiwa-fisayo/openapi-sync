@@ -1,7 +1,7 @@
 import { IOpenApiSpec, IOpenApSchemaSpec } from "../types";
 import { variableNameChar } from "./regex";
-import propertyExpr from "property-expr";
 import * as yaml from "js-yaml";
+import lodash from "lodash";
 
 export const isJson = (value: any) => {
   return ["object"].includes(typeof value) && !(value instanceof Blob);
@@ -83,8 +83,10 @@ export const parseSchemaToType = (
       let pathToComponentParts = (schema.$ref || "").split("/");
       pathToComponentParts.shift();
       const pathToComponent = pathToComponentParts.join(".");
-      const component = propertyExpr.getter(pathToComponent)(
-        apiDoc
+      const component = lodash.get(
+        apiDoc,
+        pathToComponent,
+        null
       ) as IOpenApSchemaSpec;
 
       if (component) {
