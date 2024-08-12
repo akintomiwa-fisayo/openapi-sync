@@ -22,19 +22,19 @@
   },
   "author": "P-Technologies",
   "license": "ISC",
-  "devDependencies": {},
-  "dependencies": {
+  "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
     "@types/node": "^22.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
     "@redocly/openapi-core": "^1.19.0",
     "axios": "^1.7.3",
     "axios-retry": "^4.5.0",
     "dotenv": "^16.4.5",
     "js-yaml": "^4.1.0",
-    "lodash": "^4.17.21",
-    "property-expr": "^2.0.6"
+    "lodash": "^4.17.21"
   }
 }
