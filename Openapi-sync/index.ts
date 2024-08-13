@@ -23,11 +23,11 @@ import { bundleFromString, createConfig } from "@redocly/openapi-core";
 import { getState, setState } from "./state";
 
 const rootUsingCwd = process.cwd();
-let fetchTimeout: null | NodeJS.Timeout = null;
+let fetchTimeout: Record<string, null | NodeJS.Timeout> = {};
 
 // Create an Axios instance
 const apiClient = axios.create({
-  timeout: 30000, // Timeout after 30 seconds
+  timeout: 60000, // Timeout after 1min
 });
 
 // Configure axios-retry
@@ -44,7 +44,11 @@ axiosRetry(apiClient, {
   },
 });
 
-const OpenapiSync = async (apiUrl: string, apiName: string) => {
+const OpenapiSync = async (
+  apiUrl: string,
+  apiName: string,
+  refetchInterval?: number
+) => {
   const specResponse = await apiClient.get(apiUrl);
 
   const redoclyConfig = await createConfig({
@@ -74,23 +78,23 @@ const OpenapiSync = async (apiUrl: string, apiName: string) => {
       ["production", "prod", "test", "staging"].includes(process.env.NODE_ENV)
     )
   ) {
-    // compare new spec with old spec, continuing only if spec it different
     // auto sync at interval
-    if (fetchTimeout) clearTimeout(fetchTimeout);
+    if (fetchTimeout[apiName]) clearTimeout(fetchTimeout[apiName]);
 
-    if (!isNaN(config.refetchInterval) && config.refetchInterval) {
-      // use config interval or 1 hour
-      fetchTimeout = setTimeout(
-        () => OpenapiSync(apiUrl, apiName),
-        config.refetchInterval || 60000
+    if (refetchInterval && !isNaN(refetchInterval)) {
+      // set next request timeout
+      fetchTimeout[apiName] = setTimeout(
+        () => OpenapiSync(apiUrl, apiName, refetchInterval),
+        refetchInterval
       );
     }
-
-    const prevSpec = getState(apiName);
-    if (isEqual(prevSpec, spec)) return;
-
-    setState(apiName, spec);
   }
+
+  // compare new spec with old spec, continuing only if spec it different
+  const prevSpec = getState(apiName);
+  if (isEqual(prevSpec, spec)) return;
+
+  setState(apiName, spec);
 
   let endpointsFileContent = "";
   let typesFileContent = "";
