@@ -23,6 +23,7 @@
   "files": [
     "bin",
     "dist",
+    "db.json",
     "LICENSE",
     "README.md",
     "package.json"
@@ -31,7 +32,7 @@
     "test": "echo \"Error: no test specified\"",
     "build": "tsc",
     "publish-package": "npm run build && npm version patch &&  npm publish",
-    "start": "ts-node index.ts"
+    "start": "npm run build && openapi-sync"
   },
   "author": "P-Technologies",
   "license": "ISC",
@@ -39,7 +40,6 @@
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
     "@types/node": "^22.1.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
   "dependencies": {
@@ -48,6 +48,7 @@
     "axios-retry": "^4.5.0",
     "dotenv": "^16.4.5",
     "js-yaml": "^4.1.0",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "yargs": "^17.7.2"
   }
 }
