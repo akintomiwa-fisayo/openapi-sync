@@ -12,7 +12,9 @@ export const Init = async (options?: { refetchInterval?: number }) => {
   const config = require(path.join(rootUsingCwd, "openapi.sync.json"));
   const apiNames = Object.keys(config.api);
   const refetchInterval =
-    options?.refetchInterval && !isNaN(options.refetchInterval)
+    options &&
+    "refetchInterval" in options &&
+    !isNaN(options?.refetchInterval as number)
       ? options.refetchInterval
       : config.refetchInterval;
   resetState();

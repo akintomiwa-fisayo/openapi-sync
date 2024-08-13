@@ -72,16 +72,16 @@ const OpenapiSync = async (
 
   const spec: IOpenApiSpec = lintResults.bundle.parsed;
   // auto update only on dev
-  if (
-    !(
-      process.env.NODE_ENV &&
-      ["production", "prod", "test", "staging"].includes(process.env.NODE_ENV)
-    )
-  ) {
-    // auto sync at interval
-    if (fetchTimeout[apiName]) clearTimeout(fetchTimeout[apiName]);
+  if (refetchInterval && !isNaN(refetchInterval)) {
+    if (
+      !(
+        process.env.NODE_ENV &&
+        ["production", "prod", "test", "staging"].includes(process.env.NODE_ENV)
+      )
+    ) {
+      // auto sync at interval
+      if (fetchTimeout[apiName]) clearTimeout(fetchTimeout[apiName]);
 
-    if (refetchInterval && !isNaN(refetchInterval)) {
       // set next request timeout
       fetchTimeout[apiName] = setTimeout(
         () => OpenapiSync(apiUrl, apiName, refetchInterval),
