@@ -7,6 +7,19 @@
   "bin": {
     "openapi-sync": "./bin/cli.js"
   },
+  "keywords": [
+    "openapi",
+    "rest",
+    "api",
+    "swagger",
+    "typescript",
+    "ts",
+    "dts",
+    "node",
+    "codegen",
+    "generation",
+    "generator"
+  ],
   "files": [
     "bin",
     "dist",
