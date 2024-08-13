@@ -133,9 +133,9 @@ export const parseSchemaToType = (
         //parse object key one at a time
         const objKeys = Object.keys(schema.properties);
         const requiredKeys = schema.required || [];
-        type += "{\n";
+        let typeCnt = "";
         objKeys.forEach((key) => {
-          type += `${parseSchemaToType(
+          typeCnt += `${parseSchemaToType(
             apiDoc,
             schema.properties?.[key] as IOpenApSchemaSpec,
             key,
@@ -143,7 +143,11 @@ export const parseSchemaToType = (
             options
           )}`;
         });
-        type += "}";
+        if (typeCnt.length > 0) {
+          type += `{\n${typeCnt}}`;
+        } else {
+          type += "object";
+        }
       }
     }
   }
