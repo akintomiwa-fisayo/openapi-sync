@@ -72,7 +72,7 @@ const OpenapiSync = async (
 
   const spec: IOpenApiSpec = lintResults.bundle.parsed;
   // auto update only on dev
-  if (refetchInterval && !isNaN(refetchInterval)) {
+  if (refetchInterval && !isNaN(refetchInterval) && refetchInterval > 0) {
     if (
       !(
         process.env.NODE_ENV &&
