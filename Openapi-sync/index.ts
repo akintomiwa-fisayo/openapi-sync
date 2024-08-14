@@ -9,6 +9,7 @@ import {
   yamlStringToJson,
 } from "./components/helpers";
 import {
+  IConfigReplaceWord,
   IOpenApiMediaTypeSpec,
   IOpenApiParameterSpec,
   IOpenApiRequestBodySpec,
@@ -140,6 +141,27 @@ const OpenapiSync = async (
     return typeCnt;
   };
 
+  const treatEndpointUrl = (endpointUrl: string) => {
+    if (
+      config?.endpoints?.value?.replaceWords &&
+      Array.isArray(config.endpoints.value.replaceWords)
+    ) {
+      let newEndpointUrl = endpointUrl;
+      config.endpoints.value.replaceWords.forEach(
+        (replaceWord: IConfigReplaceWord, indx: string) => {
+          const regexp = new RegExp(replaceWord.replace, "g");
+          newEndpointUrl = newEndpointUrl.replace(
+            regexp,
+            replaceWord.with || ""
+          );
+        }
+      );
+      return newEndpointUrl;
+    } else {
+      return endpointUrl;
+    }
+  };
+
   Object.keys(spec.paths || {}).forEach((endpointPath) => {
     const endpointSpec = spec.paths[endpointPath];
     const endpointMethods = Object.keys(endpointSpec);
@@ -162,6 +184,10 @@ const OpenapiSync = async (
         const params = endpoint.variables.map((v) => `${v}:string`).join(",");
         endpointUrl = `(${params})=> \`${endpointUrlTxt}\``;
       }
+
+      //treat endpoint url
+      endpointUrl = treatEndpointUrl(endpointUrl);
+
       // Add the endpoint url
       endpointsFileContent += `export const ${endpoint.name} = ${endpointUrl}; 
 `;
