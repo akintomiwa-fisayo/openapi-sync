@@ -41,3 +41,10 @@ export type IOpenApiRequestBodySpec = {
 };
 
 export type IOpenApiResponseSpec = Record<string, IOpenApiRequestBodySpec>;
+
+export type IConfigReplaceWord = {
+  /**  string and regular expression as a string*/
+  replace: string;
+  with: string;
+  type?: "endpoint" | "type";
+};
