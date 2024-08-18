@@ -24,9 +24,9 @@ npx openapi-sync
 
 You can also add it as a script in your package.json for easy access:
 
-```bash
+```json
 "scripts": {
-  "api-sync": "openapi-sync",
+  "api-sync": "npx openapi-sync",
 }
 ```
 
