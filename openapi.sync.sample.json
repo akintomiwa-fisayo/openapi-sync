@@ -1,8 +1,27 @@
 {
   "refetchInterval": 5000,
-  "folder": "inputed/path",
+  "folder": "/inputed/path/",
   "api": {
     "example1": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.json",
-    "example2": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml"
+    "example2": "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml",
+  },
+  "naming": {
+    "replaceWords": [
+      {
+        "replace": "Api",
+        "with": "",
+        "type": "endpoint"
+      }
+    ]
+  },
+  "endpoints": {
+    "value": {
+      "replaceWords": [
+        {
+          "replace": "/api/v\\d/",
+          "with": ""
+        }
+      ]
+    }
   }
 }
