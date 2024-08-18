@@ -10,7 +10,7 @@ const argv = yargs(hideBin(process.argv))
   .option("refreshinterval", {
     alias: "ri",
     type: "number",
-    description: "Interval at which to refretch specifiations",
+    description: "Interval at which to refetch specifiations",
   })
   .help().argv;
 
