@@ -45,8 +45,23 @@ export const getEndpointDetails = (path: string, method: string) => {
   const variables: string[] = [];
   pathParts.forEach((part) => {
     // check if part is a variable
+    //api/{userId}
     if (part[0] === "{" && part[part.length - 1] === "}") {
       const s = part.replace(/{/, "").replace(/}/, "");
+      variables.push(s);
+      part = `$${s}`;
+    }
+
+    //api/<userId>
+    else if (part[0] === "<" && part[part.length - 1] === ">") {
+      const s = part.replace(/</, "").replace(/>/, "");
+      variables.push(s);
+      part = `$${s}`;
+    }
+
+    //api/:userId
+    else if (part[0] === ":") {
+      const s = part.replace(/:/, "");
       variables.push(s);
       part = `$${s}`;
     }
