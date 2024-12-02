@@ -170,7 +170,6 @@ const OpenapiSync = async (
 
       const endpointUrlTxt = endpoint.pathParts
         .map((part) => {
-          console.log("2nd part", part);
           // check if part is a variable
           if (part[0] === "{" && part[part.length - 1] === "}") {
             const s = part.replace(/{/, "").replace(/}/, "");
