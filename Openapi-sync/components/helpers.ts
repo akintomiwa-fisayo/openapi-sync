@@ -118,6 +118,18 @@ export const parseSchemaToType = (
         type += "";
         //TODO $ref is a uri - use axios to fetch doc
       }
+    } else if (schema.anyOf) {
+      type += `(${schema.anyOf
+        .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+        .join("|")})`;
+    } else if (schema.oneOf) {
+      type += `(${schema.oneOf
+        .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+        .join("|")})`;
+    } else if (schema.allOf) {
+      type += `(${schema.allOf
+        .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+        .join("&")})`;
     } else if (schema.type) {
       if (schema.enum && schema.enum.length > 0) {
         if (schema.enum.length > 1) type += "(";
@@ -127,11 +139,11 @@ export const parseSchemaToType = (
           .toString();
         if (schema.enum.length > 1) type += ")";
       } else if (
-        ["string", "integer", "number", "array"].includes(schema.type)
+        ["string", "integer", "number", "array", "boolean"].includes(
+          schema.type
+        )
       ) {
-        if (schema.type === "string") {
-          type += `string`;
-        } else if (["integer", "number"].includes(schema.type)) {
+        if (["integer", "number"].includes(schema.type)) {
           type += `number`;
         } else if (schema.type === "array") {
           if (schema.items) {
@@ -145,6 +157,8 @@ export const parseSchemaToType = (
           } else {
             type += "any[]";
           }
+        } else {
+          type += schema.type;
         }
       } else if (schema.type === "object") {
         if (schema.properties) {
@@ -166,10 +180,18 @@ export const parseSchemaToType = (
           } else {
             type += "object";
           }
+        } else {
+          type += "object";
         }
       }
     }
+  } else {
+    //Default type to string if no schema provided
+    type = "string";
   }
 
-  return type.length > 0 ? `${typeName}${type}${name ? ";\n" : ""}` : "";
+  const nullable = schema?.nullable ? " | null" : "";
+  return type.length > 0
+    ? `${typeName}${type}${nullable}${name ? ";\n" : ""}`
+    : "";
 };

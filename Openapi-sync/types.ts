@@ -1,6 +1,7 @@
 export type IOpenApiSpec = Record<"openapi", string> & Record<string, any>;
 
 export type IOpenApSchemaSpec = {
+  nullable?: boolean;
   type: "string" | "integer" | "number" | "array" | "object";
   example?: any;
   enum?: string[];
@@ -9,6 +10,9 @@ export type IOpenApSchemaSpec = {
   required?: string[];
   $ref?: string;
   properties?: Record<string, IOpenApSchemaSpec>;
+  anyOf?: IOpenApSchemaSpec[];
+  oneOf?: IOpenApSchemaSpec[];
+  allOf?: IOpenApSchemaSpec[];
 };
 
 export type IOpenApiParameterSpec = {
