@@ -10,6 +10,7 @@ export type IOpenApSchemaSpec = {
   required?: string[];
   $ref?: string;
   properties?: Record<string, IOpenApSchemaSpec>;
+  additionalProperties?: IOpenApSchemaSpec;
   anyOf?: IOpenApSchemaSpec[];
   oneOf?: IOpenApSchemaSpec[];
   allOf?: IOpenApSchemaSpec[];

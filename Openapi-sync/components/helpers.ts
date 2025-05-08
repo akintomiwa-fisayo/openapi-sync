@@ -91,7 +91,7 @@ export const parseSchemaToType = (
     noSharedImport?: boolean;
   }
 ) => {
-  let typeName = name ? `\t${name}${isRequired ? "" : "?"}: ` : "";
+  let typeName = name ? `\t"${name}"${isRequired ? "" : "?"}: ` : "";
   let type = "";
   if (schema) {
     if (schema.$ref) {
@@ -130,6 +130,33 @@ export const parseSchemaToType = (
       type += `(${schema.allOf
         .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
         .join("&")})`;
+    } else if (schema.items) {
+      type += `${parseSchemaToType(
+        apiDoc,
+        schema.items,
+        "",
+        false,
+        options
+      )}[]`;
+    } else if (schema.properties) {
+      //parse object key one at a time
+      const objKeys = Object.keys(schema.properties);
+      const requiredKeys = schema.required || [];
+      let typeCnt = "";
+      objKeys.forEach((key) => {
+        typeCnt += `${parseSchemaToType(
+          apiDoc,
+          schema.properties?.[key] as IOpenApSchemaSpec,
+          key,
+          requiredKeys.includes(key),
+          options
+        )}`;
+      });
+      if (typeCnt.length > 0) {
+        type += `{\n${typeCnt}}`;
+      } else {
+        type += "{[k: string]: any}";
+      }
     } else if (schema.type) {
       if (schema.enum && schema.enum.length > 0) {
         if (schema.enum.length > 1) type += "(";
@@ -146,7 +173,9 @@ export const parseSchemaToType = (
         if (["integer", "number"].includes(schema.type)) {
           type += `number`;
         } else if (schema.type === "array") {
-          if (schema.items) {
+          //Since we would have already parsed the arrays keys above "schema.items" if it exists
+          type += "any[]";
+          /* if (schema.items) {
             type += `${parseSchemaToType(
               apiDoc,
               schema.items,
@@ -156,32 +185,22 @@ export const parseSchemaToType = (
             )}[]`;
           } else {
             type += "any[]";
-          }
+          } */
         } else {
           type += schema.type;
         }
       } else if (schema.type === "object") {
-        if (schema.properties) {
-          //parse object key one at a time
-          const objKeys = Object.keys(schema.properties);
-          const requiredKeys = schema.required || [];
-          let typeCnt = "";
-          objKeys.forEach((key) => {
-            typeCnt += `${parseSchemaToType(
-              apiDoc,
-              schema.properties?.[key] as IOpenApSchemaSpec,
-              key,
-              requiredKeys.includes(key),
-              options
-            )}`;
-          });
-          if (typeCnt.length > 0) {
-            type += `{\n${typeCnt}}`;
-          } else {
-            type += "object";
-          }
+        //Since we would have already parsed the object keys above "schema.properties" if it exists
+        if (schema.additionalProperties) {
+          type += `{[k: string]: ${parseSchemaToType(
+            apiDoc,
+            schema.additionalProperties,
+            "",
+            true,
+            options
+          )}}`;
         } else {
-          type += "object";
+          type += "{[k: string]: any}";
         }
       }
     }
