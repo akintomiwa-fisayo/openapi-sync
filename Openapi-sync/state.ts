@@ -3,7 +3,13 @@ import { IOpenApiSpec } from "./types";
 import fs from "fs";
 
 const dbPath = path.join(__dirname, "../", "../db.json");
-let state: Record<string, IOpenApiSpec> = require(dbPath);
+let db: Record<string, IOpenApiSpec> = {};
+try {
+  db = require(dbPath);
+} catch (error) {
+  db = {};
+}
+let state: Record<string, IOpenApiSpec> = db || {};
 
 const updateDB = (data: typeof state) => {
   fs.writeFileSync(dbPath, JSON.stringify(data));
