@@ -192,13 +192,15 @@ export const parseSchemaToType = (
       } else if (schema.type === "object") {
         //Since we would have already parsed the object keys above "schema.properties" if it exists
         if (schema.additionalProperties) {
-          type += `{[k: string]: ${parseSchemaToType(
-            apiDoc,
-            schema.additionalProperties,
-            "",
-            true,
-            options
-          )}}`;
+          type += `{[k: string]: ${
+            parseSchemaToType(
+              apiDoc,
+              schema.additionalProperties,
+              "",
+              true,
+              options
+            ) || "any"
+          }}`;
         } else {
           type += "{[k: string]: any}";
         }
