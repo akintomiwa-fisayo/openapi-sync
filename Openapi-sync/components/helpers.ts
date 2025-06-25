@@ -36,8 +36,17 @@ export const capitalize = (text: string) => {
   return capitalizedWord;
 };
 
-export const getSharedComponentName = (componentName: string) =>
-  `IApi${capitalize(componentName)}`;
+export const getSharedComponentName = (
+  componentName: string,
+  componentType?:
+    | "parameters"
+    | "responses"
+    | "schemas"
+    | "requestBodies"
+    | "headers"
+    | "links"
+    | "callbacks"
+) => `IApi${capitalize(componentName)}`;
 
 export const getEndpointDetails = (path: string, method: string) => {
   const pathParts = path.split("/");
@@ -89,12 +98,15 @@ export const parseSchemaToType = (
   isRequired?: boolean,
   options?: {
     noSharedImport?: boolean;
+    useComponentName?: boolean;
   }
 ) => {
-  let typeName = name ? `\t"${name}"${isRequired ? "" : "?"}: ` : "";
+  let overrideName = "";
+  let componentName = "";
   let type = "";
   if (schema) {
     if (schema.$ref) {
+      // console.log("Type schema 2");
       if (schema.$ref[0] === "#") {
         let pathToComponentParts = (schema.$ref || "").split("/");
         pathToComponentParts.shift();
@@ -104,10 +116,14 @@ export const parseSchemaToType = (
           pathToComponent,
           null
         ) as IOpenApSchemaSpec;
+        // console.log("Type schema 3", pathToComponentParts);
 
         if (component) {
-          const componentName =
-            pathToComponentParts[pathToComponentParts.length - 1];
+          if ((component as any)?.name) {
+            overrideName = (component as any).name;
+          }
+          componentName = pathToComponentParts[pathToComponentParts.length - 1];
+
           // Reference component via import instead of parsing
           type += `${
             options?.noSharedImport ? "" : "Shared."
@@ -211,8 +227,15 @@ export const parseSchemaToType = (
     type = "string";
   }
 
+  let _name = overrideName || name;
+  if (options?.useComponentName && !_name) {
+    _name = componentName;
+  }
+
+  let typeName = _name ? `\t"${_name}"${isRequired ? "" : "?"}: ` : "";
+
   const nullable = schema?.nullable ? " | null" : "";
   return type.length > 0
-    ? `${typeName}${type}${nullable}${name ? ";\n" : ""}`
+    ? `${typeName}${type}${nullable}${_name ? ";\n" : ""}`
     : "";
 };

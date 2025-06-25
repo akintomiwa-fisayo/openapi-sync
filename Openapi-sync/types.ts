@@ -17,6 +17,7 @@ export type IOpenApSchemaSpec = {
 };
 
 export type IOpenApiParameterSpec = {
+  $ref?: string;
   name: string;
   in: string;
   enum?: string[];

@@ -99,28 +99,55 @@ const OpenapiSync = async (
 
   let endpointsFileContent = "";
   let typesFileContent = "";
-  let sharedTypesFileContent = "";
+  let sharedTypesFileContent: Record<string, string> = {};
 
-  if (spec.components && spec.components.schemas) {
-    // Create components (shared) types
-    const components: Record<string, IOpenApiMediaTypeSpec> =
-      spec.components.schemas;
-    const contentKeys = Object.keys(components);
-    // only need 1 schema so will us the first schema provided
-    contentKeys.forEach((key) => {
-      const typeCnt = `${parseSchemaToType(
-        spec,
-        components[key] as IOpenApSchemaSpec,
-        "",
-        true,
-        {
-          noSharedImport: true,
-        }
-      )}`;
-      if (typeCnt) {
-        sharedTypesFileContent += `export type ${getSharedComponentName(
-          key
-        )} = ${typeCnt};\n`;
+  if (spec.components) {
+    Object.keys(spec.components).forEach((key) => {
+      if (
+        [
+          "schemas",
+          "responses",
+          "parameters",
+          "examples",
+          "requestBodies",
+          "headers",
+          "links",
+          "callbacks",
+        ].includes(key)
+      ) {
+        // Create components (shared) types
+        const components: Record<string, IOpenApiMediaTypeSpec> =
+          spec.components[key];
+        const contentKeys = Object.keys(components);
+
+        // only need 1 schema so will us the first schema provided
+        contentKeys.forEach((contentKey) => {
+          /*  const schema = (() => {
+            switch (key) {
+              case "parameters":
+                return components[contentKey].schema;
+              default:
+                return components[contentKey];
+            }
+          })() as IOpenApSchemaSpec; */
+          const schema = (
+            components[contentKey]?.schema
+              ? components[contentKey].schema
+              : components[contentKey]
+          ) as IOpenApSchemaSpec;
+          const typeCnt = `${parseSchemaToType(spec, schema, "", true, {
+            noSharedImport: true,
+            useComponentName: ["parameters"].includes(key),
+          })}`;
+
+          if (typeCnt) {
+            sharedTypesFileContent[key] =
+              (sharedTypesFileContent[key] ?? "") +
+              `export type ${getSharedComponentName(
+                contentKey
+              )} = ${typeCnt};\n`;
+          }
+        });
       }
     });
   }
@@ -209,12 +236,12 @@ const OpenapiSync = async (
         const parameters: IOpenApiParameterSpec[] =
           endpointSpec[method]?.parameters;
         let typeCnt = "";
-        parameters.forEach((param) => {
-          if (param.in === "query" && param.name) {
+        parameters.forEach((param, i) => {
+          if (param.$ref || (param.in === "query" && param.name)) {
             typeCnt += `${parseSchemaToType(
               spec,
-              param.schema as any,
-              param.name,
+              param.$ref ? (param as any) : (param.schema as any),
+              param.name || "",
               param.required
             )}`;
           }
@@ -256,7 +283,7 @@ const OpenapiSync = async (
   // Create the file asynchronously
   await fs.promises.writeFile(endpointsFilePath, endpointsFileContent);
 
-  if (sharedTypesFileContent.length > 0) {
+  if (Object.values(sharedTypesFileContent).length > 0) {
     // Create the necessary directories
     const sharedTypesFilePath = path.join(
       rootUsingCwd,
@@ -268,7 +295,10 @@ const OpenapiSync = async (
       recursive: true,
     });
     // Create the file asynchronously
-    await fs.promises.writeFile(sharedTypesFilePath, sharedTypesFileContent);
+    await fs.promises.writeFile(
+      sharedTypesFilePath,
+      Object.values(sharedTypesFileContent).join("\n")
+    );
   }
 
   if (typesFileContent.length > 0) {
@@ -284,7 +314,7 @@ const OpenapiSync = async (
     await fs.promises.writeFile(
       typesFilePath,
       `${
-        sharedTypesFileContent.length > 0
+        Object.values(sharedTypesFileContent).length > 0
           ? `import * as  Shared from "./shared";\n\n`
           : ""
       }${typesFileContent}`
