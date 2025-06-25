@@ -81,17 +81,18 @@ npx openapi-sync --refreshinterval 30000
 ### Programmatic Usage
 
 ```typescript
-import { Init } from 'openapi-sync';
+import { Init } from "openapi-sync";
 
 // Initialize with custom options
 await Init({
-  refetchInterval: 30000 // optional, defaults to config value
+  refetchInterval: 30000, // optional, defaults to config value
 });
 ```
 
 ## Output Generation
 
 The tool generates:
+
 1. TypeScript interfaces for API endpoints
 2. Type definitions for request/response bodies
 3. Shared component types
@@ -100,6 +101,7 @@ The tool generates:
 ## Type Generation
 
 The tool supports:
+
 - Primitive types (string, number, boolean, etc.)
 - Complex types (objects, arrays)
 - Enums
@@ -111,6 +113,7 @@ The tool supports:
 ## Error Handling
 
 The tool includes:
+
 - Network error retries
 - Schema validation
 - Type generation error handling
@@ -119,14 +122,6 @@ The tool includes:
 ## API Documentation
 
 For detailed API documentation, please refer to the [OpenAPI specification](https://spec.openapis.org/oas/v3.0.3).
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## License
 
