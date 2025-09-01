@@ -1,3 +1,5 @@
+import { Method } from "axios";
+
 export type IOpenApiSpec = Record<"openapi", string> & Record<string, any>;
 
 export type IOpenApSchemaSpec = {
@@ -53,4 +55,39 @@ export type IConfigReplaceWord = {
   replace: string;
   with: string;
   type?: "endpoint" | "type";
+};
+
+export type IConfig = {
+  refetchInterval?: number;
+  folder?: string;
+  api: Record<string, string>;
+  types?: {
+    name?: {
+      prefix?: string;
+      format?: (
+        source: "shared" | "endpoint",
+        data: {
+          name?: string;
+          type?: "response" | "dto" | "query";
+          code?: string;
+          method?: Method;
+          path?: string;
+          summary?: string;
+        }
+      ) => string | null | undefined;
+    };
+  };
+  endpoints?: {
+    value?: {
+      replaceWords?: IConfigReplaceWord[];
+    };
+    name?: {
+      format?: (data: {
+        method: Method;
+        path: string;
+        summary: string;
+      }) => string | null;
+      prefix?: string;
+    };
+  };
 };

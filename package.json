@@ -24,6 +24,7 @@
     "bin",
     "dist",
     "db.json",
+    "types.ts",
     "LICENSE",
     "README.md",
     "package.json"
@@ -31,7 +32,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "build": "tsc",
-    "publish-package": "npm run build && npm version patch &&  npm publish",
+    "publish-package": "npm run build && npm version major &&  npm publish",
     "start": "npm run build && openapi-sync"
   },
   "author": "P-Technologies",

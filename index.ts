@@ -2,6 +2,7 @@ import OpenapiSync from "./Openapi-sync";
 import dotenv from "dotenv";
 import path from "path";
 import { resetState } from "./Openapi-sync/state";
+import { IConfig } from "./types";
 
 dotenv.config();
 
@@ -9,7 +10,20 @@ const rootUsingCwd = process.cwd();
 
 export const Init = async (options?: { refetchInterval?: number }) => {
   // Load config file
-  const config = require(path.join(rootUsingCwd, "openapi.sync.json"));
+  let configJS, configJson;
+  try {
+    configJS = require(path.join(rootUsingCwd, "openapi.sync.js"));
+  } catch (e) {
+    // console.log(e);
+  }
+
+  try {
+    configJson = require(path.join(rootUsingCwd, "openapi.sync.json"));
+  } catch (e) {
+    // console.log(e);
+  }
+  const config: IConfig = configJS || configJson;
+
   const apiNames = Object.keys(config.api);
   const refetchInterval =
     options &&
@@ -22,6 +36,6 @@ export const Init = async (options?: { refetchInterval?: number }) => {
     const apiName = apiNames[i];
     const apiUrl = config.api[apiName];
 
-    OpenapiSync(apiUrl, apiName, refetchInterval);
+    OpenapiSync(apiUrl, apiName, config, refetchInterval);
   }
 };

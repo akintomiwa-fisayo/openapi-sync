@@ -1,5 +1,5 @@
 import path from "path";
-import { IOpenApiSpec } from "./types";
+import { IOpenApiSpec } from "../types";
 import fs from "fs";
 
 const dbPath = path.join(__dirname, "../", "../db.json");

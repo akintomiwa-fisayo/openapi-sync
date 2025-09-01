@@ -1,7 +1,6 @@
-import { IOpenApiSpec, IOpenApSchemaSpec } from "../types";
+import { IOpenApiSpec, IOpenApSchemaSpec } from "../../types";
 import { variableNameChar } from "./regex";
 import * as yaml from "js-yaml";
-import lodash from "lodash";
 
 export const isJson = (value: any) => {
   return ["object"].includes(typeof value) && !(value instanceof Blob);
@@ -35,18 +34,6 @@ export const capitalize = (text: string) => {
     text.substring(0, 1).toUpperCase() + text.substring(1);
   return capitalizedWord;
 };
-
-export const getSharedComponentName = (
-  componentName: string,
-  componentType?:
-    | "parameters"
-    | "responses"
-    | "schemas"
-    | "requestBodies"
-    | "headers"
-    | "links"
-    | "callbacks"
-) => `IApi${capitalize(componentName)}`;
 
 export const getEndpointDetails = (path: string, method: string) => {
   const pathParts = path.split("/");
@@ -91,151 +78,27 @@ export const getEndpointDetails = (path: string, method: string) => {
   return { name, variables, pathParts };
 };
 
-export const parseSchemaToType = (
-  apiDoc: IOpenApiSpec,
-  schema: IOpenApSchemaSpec,
-  name: string,
-  isRequired?: boolean,
-  options?: {
-    noSharedImport?: boolean;
-    useComponentName?: boolean;
-  }
-) => {
-  let overrideName = "";
-  let componentName = "";
-  let type = "";
-  if (schema) {
-    if (schema.$ref) {
-      // console.log("Type schema 2");
-      if (schema.$ref[0] === "#") {
-        let pathToComponentParts = (schema.$ref || "").split("/");
-        pathToComponentParts.shift();
-        const pathToComponent = pathToComponentParts.join(".");
-        const component = lodash.get(
-          apiDoc,
-          pathToComponent,
-          null
-        ) as IOpenApSchemaSpec;
-        // console.log("Type schema 3", pathToComponentParts);
+export const JSONStringify = (obj: Record<string, any>) => {
+  let result = "{";
+  const keys = Object.keys(obj);
 
-        if (component) {
-          if ((component as any)?.name) {
-            overrideName = (component as any).name;
-          }
-          componentName = pathToComponentParts[pathToComponentParts.length - 1];
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const value = obj[key];
 
-          // Reference component via import instead of parsing
-          type += `${
-            options?.noSharedImport ? "" : "Shared."
-          }${getSharedComponentName(componentName)}`;
-          // type += `${parseSchemaToType(apiDoc, component, "", isRequired)}`;
-        }
-      } else {
-        type += "";
-        //TODO $ref is a uri - use axios to fetch doc
-      }
-    } else if (schema.anyOf) {
-      type += `(${schema.anyOf
-        .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
-        .join("|")})`;
-    } else if (schema.oneOf) {
-      type += `(${schema.oneOf
-        .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
-        .join("|")})`;
-    } else if (schema.allOf) {
-      type += `(${schema.allOf
-        .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
-        .join("&")})`;
-    } else if (schema.items) {
-      type += `${parseSchemaToType(
-        apiDoc,
-        schema.items,
-        "",
-        false,
-        options
-      )}[]`;
-    } else if (schema.properties) {
-      //parse object key one at a time
-      const objKeys = Object.keys(schema.properties);
-      const requiredKeys = schema.required || [];
-      let typeCnt = "";
-      objKeys.forEach((key) => {
-        typeCnt += `${parseSchemaToType(
-          apiDoc,
-          schema.properties?.[key] as IOpenApSchemaSpec,
-          key,
-          requiredKeys.includes(key),
-          options
-        )}`;
-      });
-      if (typeCnt.length > 0) {
-        type += `{\n${typeCnt}}`;
-      } else {
-        type += "{[k: string]: any}";
-      }
-    } else if (schema.type) {
-      if (schema.enum && schema.enum.length > 0) {
-        if (schema.enum.length > 1) type += "(";
-        type += schema.enum
-          .map((v) => `"${v}"`)
-          .join("|")
-          .toString();
-        if (schema.enum.length > 1) type += ")";
-      } else if (
-        ["string", "integer", "number", "array", "boolean"].includes(
-          schema.type
-        )
-      ) {
-        if (["integer", "number"].includes(schema.type)) {
-          type += `number`;
-        } else if (schema.type === "array") {
-          //Since we would have already parsed the arrays keys above "schema.items" if it exists
-          type += "any[]";
-          /* if (schema.items) {
-            type += `${parseSchemaToType(
-              apiDoc,
-              schema.items,
-              "",
-              false,
-              options
-            )}[]`;
-          } else {
-            type += "any[]";
-          } */
-        } else {
-          type += schema.type;
-        }
-      } else if (schema.type === "object") {
-        //Since we would have already parsed the object keys above "schema.properties" if it exists
-        if (schema.additionalProperties) {
-          type += `{[k: string]: ${
-            parseSchemaToType(
-              apiDoc,
-              schema.additionalProperties,
-              "",
-              true,
-              options
-            ) || "any"
-          }}`;
-        } else {
-          type += "{[k: string]: any}";
-        }
-      }
+    result += key + ": ";
+
+    if (typeof value === "object" && value !== null) {
+      result += JSONStringify(value);
+    } else {
+      result += value;
     }
-  } else {
-    //Default type to string if no schema provided
-    type = "string";
+
+    if (i < keys.length - 1) {
+      result += ", ";
+    }
   }
 
-  let _name = overrideName || name;
-  if (options?.useComponentName && !_name) {
-    _name = componentName;
-  }
-
-  let typeName = _name ? `\t"${_name}"${isRequired ? "" : "?"}: ` : "";
-
-  const nullable = schema?.nullable ? " | null" : "";
-  return type.length > 0
-    ? `${typeName}${type}${nullable}${_name ? ";\n" : ""}`
-    : "";
+  result += "}";
+  return result;
 };
