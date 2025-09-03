@@ -6,6 +6,7 @@ import {
   getEndpointDetails,
   isJson,
   JSONStringify,
+  renderTypeRefMD,
   yamlStringToJson,
 } from "./components/helpers";
 import {
@@ -116,6 +117,9 @@ const OpenapiSync = async (
     let componentName = "";
     let type = "";
     if (schema) {
+      if (schema.description) {
+        // type += `/**\n ${schema.description}\n */\n`;
+      }
       if (schema.$ref) {
         if (schema.$ref[0] === "#") {
           let pathToComponentParts = (schema.$ref || "").split("/");
@@ -314,6 +318,7 @@ const OpenapiSync = async (
           spec.components[key];
 
         const componentInterfaces: Record<string, string> = {};
+        const componentSchema: Record<string, string> = {};
 
         const contentKeys = Object.keys(components);
 
@@ -341,6 +346,7 @@ const OpenapiSync = async (
           if (typeCnt) {
             const parts = contentKey.split(".");
             let currentLevel: any = componentInterfaces;
+            let currentSchemaLevel: any = componentSchema;
 
             // Navigate or create the nested structure
             for (let i = 0; i < parts.length; i++) {
@@ -349,11 +355,14 @@ const OpenapiSync = async (
                 // If it's not the last part, create a nested object if it doesn't exist
                 if (!(part in currentLevel)) {
                   currentLevel[part] = {}; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentInterfaces
+                  currentSchemaLevel[part] = {}; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentSchema
                 }
                 currentLevel = currentLevel[part]; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentInterfaces
+                currentSchemaLevel = currentSchemaLevel[part]; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentSchema
               } else {
                 // This is the last part, assign the original schema value
                 currentLevel[part] = typeCnt; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentInterfaces
+                currentSchemaLevel[part] = schema; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentSchema
               }
             }
           }
@@ -363,6 +372,13 @@ const OpenapiSync = async (
         Object.keys(componentInterfaces).forEach((key) => {
           const name = getSharedComponentName(key);
           const cnt = componentInterfaces[key];
+
+          //@ts-expect-error
+          if (key in components && components[key]?.description) {
+            //@ts-expect-error
+            doc = components[key].description;
+          }
+
           sharedTypesFileContent[key] =
             (sharedTypesFileContent[key] ?? "") +
             "export type " +
@@ -414,7 +430,7 @@ const OpenapiSync = async (
 
   Object.keys(spec.paths || {}).forEach((endpointPath) => {
     const endpointSpec = spec.paths[endpointPath];
-    // console.log("Endpoint Path:", { endpointPath, endpointSpec });
+
     const endpointMethods = Object.keys(endpointSpec);
     endpointMethods.forEach((_method) => {
       const method = _method as Method;
@@ -452,28 +468,25 @@ const OpenapiSync = async (
       //treat endpoint url
       endpointUrl = treatEndpointUrl(endpointUrl);
 
+      const eSpec = endpointSpec[method];
       let name = `${endpoint.name}`;
       if (config?.endpoints?.name?.format) {
         const formattedName = config.endpoints.name.format({
           method,
           path: endpointPath,
-          summary: endpointSpec[method]?.summary,
+          summary: eSpec?.summary,
         });
         if (formattedName) name = formattedName;
       }
 
-      // Add the endpoint url
-      endpointsFileContent += `export const ${endpointPrefix}${name} = ${endpointUrl}; 
-`;
+      let queryTypeCnt = "";
 
-      if (endpointSpec[method]?.parameters) {
+      if (eSpec?.parameters) {
         // create query parameters types
-        const parameters: IOpenApiParameterSpec[] =
-          endpointSpec[method]?.parameters;
-        let typeCnt = "";
+        const parameters: IOpenApiParameterSpec[] = eSpec?.parameters;
         parameters.forEach((param, i) => {
           if (param.$ref || (param.in === "query" && param.name)) {
-            typeCnt += `${parseSchemaToType(
+            queryTypeCnt += `${parseSchemaToType(
               spec,
               param.$ref ? (param as any) : (param.schema as any),
               param.name || "",
@@ -482,7 +495,8 @@ const OpenapiSync = async (
           }
         });
 
-        if (typeCnt) {
+        if (queryTypeCnt) {
+          queryTypeCnt = `{\n${queryTypeCnt}}`;
           let name = `${endpoint.name}Query`;
           if (config?.types?.name?.format) {
             const formattedName = config.types.name.format("endpoint", {
@@ -490,21 +504,21 @@ const OpenapiSync = async (
               type: "query",
               method,
               path: endpointPath,
-              summary: endpointSpec[method]?.summary,
+              summary: eSpec?.summary,
             });
             if (formattedName) name = formattedName;
           }
-          typesFileContent += `export type ${typePrefix}${name} = {\n${typeCnt}};\n`;
+          typesFileContent += `export type ${typePrefix}${name} = ${queryTypeCnt};\n`;
         }
       }
 
-      if (endpointSpec[method]?.requestBody) {
+      const requestBody: IOpenApiRequestBodySpec = eSpec?.requestBody;
+      let dtoTypeCnt = "";
+      if (requestBody) {
         //create requestBody types
-        const requestBody: IOpenApiRequestBodySpec =
-          endpointSpec[method]?.requestBody;
+        dtoTypeCnt = getBodySchemaType(requestBody);
 
-        let typeCnt = getBodySchemaType(requestBody);
-        if (typeCnt) {
+        if (dtoTypeCnt) {
           let name = `${endpoint.name}DTO`;
           if (config?.types?.name?.format) {
             const formattedName = config.types.name.format("endpoint", {
@@ -512,37 +526,93 @@ const OpenapiSync = async (
               type: "dto",
               method,
               path: endpointPath,
-              summary: endpointSpec[method]?.summary,
+              summary: eSpec?.summary,
             });
             if (formattedName) name = formattedName;
           }
-          typesFileContent += `export type ${typePrefix}${name} = ${typeCnt};\n`;
+          typesFileContent += `export type ${typePrefix}${name} = ${dtoTypeCnt};\n`;
         }
       }
 
-      if (endpointSpec[method]?.responses) {
+      const responseTypeObject: Record<string, string> = {};
+
+      let responseTypeCnt = "";
+      if (eSpec?.responses) {
         // create request response types
-        const responses: IOpenApiResponseSpec = endpointSpec[method]?.responses;
+        const responses: IOpenApiResponseSpec = eSpec?.responses;
         const resCodes = Object.keys(responses);
         resCodes.forEach((code) => {
-          let typeCnt = getBodySchemaType(responses[code]);
-
-          if (typeCnt) {
+          responseTypeCnt = getBodySchemaType(responses[code]);
+          responseTypeObject[code] = responseTypeCnt;
+          if (responseTypeCnt) {
             let name = `${endpoint.name}${code}Response`;
+
             if (config?.types?.name?.format) {
               const formattedName = config.types.name.format("endpoint", {
                 code,
                 type: "response",
                 method,
                 path: endpointPath,
-                summary: endpointSpec[method]?.summary,
+                summary: eSpec?.summary,
               });
               if (formattedName) name = formattedName;
             }
-            typesFileContent += `export type ${typePrefix}${name} = ${typeCnt};\n`;
+            typesFileContent += `export type ${typePrefix}${name} = ${responseTypeCnt};\n`;
           }
         });
       }
+
+      // Function to format security requirements
+      const formatSecuritySpec = (
+        security: Array<Record<string, string[]>>
+      ) => {
+        if (!security || !security.length) return "";
+
+        return security
+          .map((securityRequirement) => {
+            const requirements = Object.entries(securityRequirement)
+              .map(([scheme, scopes]) => {
+                let sch = scheme;
+                let scopeText = "";
+                if (Array.isArray(scopes) && scopes.length) {
+                  scopeText = `\n      - Scopes: [\`${scopes.join("`, `")}\`]`;
+                  sch = `**${sch}**`;
+                }
+
+                return `\n    - ${sch}${scopeText}`;
+              })
+              .join("");
+            return requirements;
+          })
+          .join("\n");
+      };
+
+      // Get formatted security specification
+      const securitySpec = eSpec?.security
+        ? formatSecuritySpec(eSpec.security)
+        : "";
+
+      // Add the endpoint url
+      endpointsFileContent += `
+/**${eSpec?.description ? `\n* ${eSpec?.description}  ` : ""}
+* **Method**: \`${method.toUpperCase()}\`  
+* **Summary**: ${eSpec?.summary || ""}  
+* **Tags**: [${eSpec?.tags?.join(", ") || ""}]  
+* **OperationId**: ${eSpec?.operationId || ""}  ${
+        queryTypeCnt ? `\n* **Query**: ${renderTypeRefMD(queryTypeCnt)}  ` : ""
+      }${dtoTypeCnt ? `\n* **DTO**: ${renderTypeRefMD(dtoTypeCnt)}  ` : ""}${
+        responseTypeCnt
+          ? `\n* **Response**: ${Object.entries(responseTypeObject)
+              .map(
+                ([code, type]) =>
+                  `\n    - **${code}**:  ${renderTypeRefMD(type, 2)}  `
+              )
+              .join("")}`
+          : ""
+      }${securitySpec ? `\n* **Security**:  ${securitySpec}\n` : ""}
+*/
+export const ${endpointPrefix}${name} = ${endpointUrl}; 
+`;
     });
   });
 

@@ -10,6 +10,7 @@ export type IOpenApSchemaSpec = {
   format?: string;
   items?: IOpenApSchemaSpec;
   required?: string[];
+  description?: string;
   $ref?: string;
   properties?: Record<string, IOpenApSchemaSpec>;
   additionalProperties?: IOpenApSchemaSpec;
@@ -68,6 +69,7 @@ export type IConfig = {
         source: "shared" | "endpoint",
         data: {
           name?: string;
+          ////. endpoint source //////
           type?: "response" | "dto" | "query";
           code?: string;
           method?: Method;
