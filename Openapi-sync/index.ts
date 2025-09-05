@@ -767,11 +767,15 @@ const OpenapiSync = async (
 --key client-private-key.key \
 --cacert ca-certificate.crt`;
                   } else if (securitySchema.type === "apiKey") {
-                    headers["X-API-Key"] = `{API_KEY_VALUE}`;
+                    headers[
+                      securitySchema?.name || "X-API-KEY"
+                    ] = `{API_KEY_VALUE}`;
                   } else {
                     headers["Authorization"] = `${
                       securitySchema?.scheme === "basic" ? "Basic" : "Bearer"
-                    } {API_KEY_VALUE}`;
+                    } {${
+                      securitySchema?.scheme === "basic" ? "VALUE" : "TOKEN"
+                    }}`;
                   }
                 }
               });
