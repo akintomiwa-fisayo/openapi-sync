@@ -3,6 +3,9 @@ import { IOpenApiSpec } from "../types";
 import fs from "fs";
 
 const dbPath = path.join(__dirname, "../", "../db.json");
+if (!fs.existsSync(dbPath)) {
+  fs.writeFileSync(dbPath, "{}");
+}
 let db: Record<string, IOpenApiSpec> = {};
 try {
   db = require(dbPath);

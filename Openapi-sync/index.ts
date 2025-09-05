@@ -16,6 +16,7 @@ import {
   IOpenApiParameterSpec,
   IOpenApiRequestBodySpec,
   IOpenApiResponseSpec,
+  IOpenApiSecuritySchemes,
   IOpenApiSpec,
   IOpenApSchemaSpec,
 } from "../types";
@@ -24,6 +25,7 @@ import axios, { Method } from "axios";
 import axiosRetry from "axios-retry";
 import { bundleFromString, createConfig } from "@redocly/openapi-core";
 import { getState, setState } from "./state";
+import { CurlGenerator } from "curl-generator";
 
 const rootUsingCwd = process.cwd();
 let fetchTimeout: Record<string, null | NodeJS.Timeout> = {};
@@ -70,17 +72,17 @@ const OpenapiSync = async (
     config: redoclyConfig,
   });
 
-  const folderPath = path.join(config.folder || "", apiName);
+  const folderPath = path.join(config?.folder || "", apiName);
 
   const spec: IOpenApiSpec = lintResults.bundle.parsed;
-
+  const serverUrl = spec.servers[config?.server || 0]?.url;
   const typePrefix =
     typeof config?.types?.name?.prefix === "string"
-      ? config.types.name.prefix
+      ? config?.types.name.prefix
       : "I";
   const endpointPrefix =
     typeof config?.endpoints?.name?.prefix === "string"
-      ? config.endpoints.name.prefix
+      ? config?.endpoints.name.prefix
       : "";
 
   const getSharedComponentName = (
@@ -95,7 +97,7 @@ const OpenapiSync = async (
       | "callbacks"
   ) => {
     if (config?.types?.name?.format) {
-      const formattedName = config.types.name.format("shared", {
+      const formattedName = config?.types.name.format("shared", {
         name: componentName,
       });
       if (formattedName) return `${typePrefix}${formattedName}`;
@@ -111,15 +113,13 @@ const OpenapiSync = async (
     options?: {
       noSharedImport?: boolean;
       useComponentName?: boolean;
-    }
+    },
+    indentLevel: number = 0
   ) => {
     let overrideName = "";
     let componentName = "";
     let type = "";
     if (schema) {
-      if (schema.description) {
-        // type += `/**\n ${schema.description}\n */\n`;
-      }
       if (schema.$ref) {
         if (schema.$ref[0] === "#") {
           let pathToComponentParts = (schema.$ref || "").split("/");
@@ -188,16 +188,35 @@ const OpenapiSync = async (
         const requiredKeys = schema.required || [];
         let typeCnt = "";
         objKeys.forEach((key) => {
-          typeCnt += `${parseSchemaToType(
-            apiDoc,
-            schema.properties?.[key] as IOpenApSchemaSpec,
-            key,
-            requiredKeys.includes(key),
-            options
-          )}`;
+          let doc: string = "";
+
+          if (
+            !config?.types?.doc?.disable &&
+            schema.properties?.[key]?.description
+          ) {
+            doc =
+              " *  " +
+              schema.properties?.[key].description
+                .split("\n")
+                .filter((line: string) => line.trim() !== "")
+                .join(`  \n *${"  ".repeat(1)}`);
+          }
+
+          typeCnt +=
+            (doc ? `/**\n${doc}\n */\n` : "") +
+            `${parseSchemaToType(
+              apiDoc,
+              schema.properties?.[key] as IOpenApSchemaSpec,
+              key,
+              requiredKeys.includes(key),
+              options,
+              indentLevel + 1
+            )}`;
         });
         if (typeCnt.length > 0) {
-          type += `{\n${typeCnt}}`;
+          type += `{\n${"    ".repeat(indentLevel)}${typeCnt}${"    ".repeat(
+            indentLevel
+          )}}`;
         } else {
           type += "{[k: string]: any}";
         }
@@ -268,6 +287,99 @@ const OpenapiSync = async (
     return type.length > 0
       ? `${typeName}${type}${nullable}${_name ? ";\n" : ""}`
       : "";
+  };
+
+  const getSchemaExamples = (
+    apiDoc: IOpenApiSpec,
+    schema: IOpenApSchemaSpec
+  ) => {
+    let overrideName = "";
+    let componentName = "";
+    let type = "";
+    if (schema) {
+      if (schema.$ref) {
+        if (schema.$ref[0] === "#") {
+          let pathToComponentParts = (schema.$ref || "").split("/");
+          pathToComponentParts.shift();
+
+          const pathToComponent = pathToComponentParts;
+          const component = lodash.get(
+            apiDoc,
+            pathToComponent,
+            null
+          ) as IOpenApSchemaSpec;
+
+          if (component) {
+            if ((component as any)?.name) {
+              overrideName = (component as any).name;
+            }
+            componentName =
+              pathToComponentParts[pathToComponentParts.length - 1];
+
+            type += getSchemaExamples(apiDoc, component);
+          }
+        } else {
+          type += "";
+          //TODO $ref is a uri - use axios to fetch doc
+        }
+      } else if (schema.anyOf) {
+        type += getSchemaExamples(apiDoc, schema.anyOf[0]);
+      } else if (schema.oneOf) {
+        type += getSchemaExamples(apiDoc, schema.oneOf[0]);
+      } else if (schema.allOf) {
+        type += `{${schema.allOf
+          .map((v) => `...(${getSchemaExamples(apiDoc, v)})`)
+          .join(",")}}`;
+      } else if (schema.items) {
+        type += `[${getSchemaExamples(apiDoc, schema.items)}]`;
+      } else if (schema.properties) {
+        //parse object key one at a time
+        const objKeys = Object.keys(schema.properties);
+        const arr = objKeys.map((key) => {
+          return `        "${key}": ${getSchemaExamples(
+            apiDoc,
+            schema.properties?.[key] as IOpenApSchemaSpec
+          )}`;
+        });
+        let typeCnt = arr.join(",\n");
+        if (typeCnt.length > 0) {
+          type += `{\n${typeCnt}\n     }`;
+        } else {
+          type += "{}";
+        }
+      } else if (schema.enum && schema.enum.length > 0) {
+        if (schema.enum.length > 1) type += schema.enum[0];
+      } else if (schema.type) {
+        if (schema.example) {
+          type += JSON.stringify(schema.example);
+        } else {
+          if (
+            ["string", "integer", "number", "array", "boolean"].includes(
+              schema.type
+            )
+          ) {
+            if (["integer", "number"].includes(schema.type)) {
+              type += `123`;
+            } else if (schema.type === "array") {
+              //Since we would have already parsed the arrays keys above "schema.items" if it exists
+              type += "[]";
+            } else if (schema.type === "boolean") {
+              type += `true`;
+            } else {
+              type += `"${schema.type}"`;
+            }
+          } else if (schema.type === "object") {
+            //Since we would have already parsed the object keys above "schema.properties" if it exists
+            type += "{}";
+          }
+        }
+      }
+    } else {
+      //Default type to string if no schema provided
+      type = "string";
+    }
+
+    return type;
   };
 
   // auto update only on dev
@@ -372,15 +484,25 @@ const OpenapiSync = async (
         Object.keys(componentInterfaces).forEach((key) => {
           const name = getSharedComponentName(key);
           const cnt = componentInterfaces[key];
-
-          //@ts-expect-error
-          if (key in components && components[key]?.description) {
+          let doc: string = "";
+          if (
+            !config?.types?.doc?.disable &&
+            key in components &&
             //@ts-expect-error
-            doc = components[key].description;
+            components[key]?.description
+          ) {
+            doc =
+              " *  " +
+              //@ts-expect-error
+              components[key].description
+                .split("\n")
+                .filter((line: string) => line.trim() !== "")
+                .join(`  \n *${"  ".repeat(1)}`);
           }
 
           sharedTypesFileContent[key] =
             (sharedTypesFileContent[key] ?? "") +
+            (doc ? `/**\n${doc}\n */\n` : "") +
             "export type " +
             name +
             " = " +
@@ -410,7 +532,7 @@ const OpenapiSync = async (
   const treatEndpointUrl = (endpointUrl: string) => {
     if (
       config?.endpoints?.value?.replaceWords &&
-      Array.isArray(config.endpoints.value.replaceWords)
+      Array.isArray(config?.endpoints.value.replaceWords)
     ) {
       let newEndpointUrl = endpointUrl;
       config?.endpoints?.value?.replaceWords?.forEach(
@@ -436,28 +558,30 @@ const OpenapiSync = async (
       const method = _method as Method;
       const endpoint = getEndpointDetails(endpointPath, method);
 
-      const endpointUrlTxt = endpoint.pathParts
-        .map((part) => {
-          // check if part is a variable
-          if (part[0] === "{" && part[part.length - 1] === "}") {
-            const s = part.replace(/{/, "").replace(/}/, "");
-            part = `\${${s}}`;
-          }
+      const endpointUrlTxt =
+        (config?.endpoints?.value?.includeServer ? serverUrl : "") +
+        endpoint.pathParts
+          .map((part) => {
+            // check if part is a variable
+            if (part[0] === "{" && part[part.length - 1] === "}") {
+              const s = part.replace(/{/, "").replace(/}/, "");
+              part = `\${${s}}`;
+            }
 
-          //api/<userId>
-          else if (part[0] === "<" && part[part.length - 1] === ">") {
-            const s = part.replace(/</, "").replace(/>/, "");
-            part = `\${${s}}`;
-          }
+            //api/<userId>
+            else if (part[0] === "<" && part[part.length - 1] === ">") {
+              const s = part.replace(/</, "").replace(/>/, "");
+              part = `\${${s}}`;
+            }
 
-          //api/:userId
-          else if (part[0] === ":") {
-            const s = part.replace(/:/, "");
-            part = `\${${s}}`;
-          }
-          return part;
-        })
-        .join("/");
+            //api/:userId
+            else if (part[0] === ":") {
+              const s = part.replace(/:/, "");
+              part = `\${${s}}`;
+            }
+            return part;
+          })
+          .join("/");
 
       let endpointUrl = `"${endpointUrlTxt}"`;
       if (endpoint.variables.length > 0) {
@@ -471,7 +595,7 @@ const OpenapiSync = async (
       const eSpec = endpointSpec[method];
       let name = `${endpoint.name}`;
       if (config?.endpoints?.name?.format) {
-        const formattedName = config.endpoints.name.format({
+        const formattedName = config?.endpoints.name.format({
           method,
           path: endpointPath,
           summary: eSpec?.summary,
@@ -499,7 +623,7 @@ const OpenapiSync = async (
           queryTypeCnt = `{\n${queryTypeCnt}}`;
           let name = `${endpoint.name}Query`;
           if (config?.types?.name?.format) {
-            const formattedName = config.types.name.format("endpoint", {
+            const formattedName = config?.types.name.format("endpoint", {
               code: "",
               type: "query",
               method,
@@ -521,7 +645,7 @@ const OpenapiSync = async (
         if (dtoTypeCnt) {
           let name = `${endpoint.name}DTO`;
           if (config?.types?.name?.format) {
-            const formattedName = config.types.name.format("endpoint", {
+            const formattedName = config?.types.name.format("endpoint", {
               code: "",
               type: "dto",
               method,
@@ -548,7 +672,7 @@ const OpenapiSync = async (
             let name = `${endpoint.name}${code}Response`;
 
             if (config?.types?.name?.format) {
-              const formattedName = config.types.name.format("endpoint", {
+              const formattedName = config?.types.name.format("endpoint", {
                 code,
                 type: "response",
                 method,
@@ -592,26 +716,111 @@ const OpenapiSync = async (
         ? formatSecuritySpec(eSpec.security)
         : "";
 
+      let doc = "";
+      if (!config?.endpoints?.doc?.disable) {
+        let curl = "";
+        if (config?.endpoints?.doc?.showCurl) {
+          // console.log("cirl data", {
+          //   body: eSpec?.requestBody,
+          //   bodyContent:
+          //     eSpec?.requestBody?.content["application/json"]?.schema
+          //       ?.properties,
+          //   security: eSpec?.security,
+          // });
+          const headers: Record<string, string | string[]> = {};
+          let body = "";
+          let extras = "";
+
+          if (eSpec.requestBody?.content) {
+            const contentTypes = Object.keys(eSpec.requestBody.content);
+            contentTypes.forEach((contentType) => {
+              // console.log("requestBody content", {
+              //   contentType,
+              //   schema: eSpec.requestBody.content[contentType].schema,
+              // });
+              const schema = eSpec.requestBody.content[contentType].schema;
+              if (schema) {
+                if (Array.isArray(headers["Content-type"])) {
+                  headers["Content-type"].push(contentType);
+                } else {
+                  headers["Content-type"] = [contentType];
+                }
+                const schemaType = getSchemaExamples(
+                  spec,
+                  schema as IOpenApSchemaSpec
+                );
+                if (schemaType) body = schemaType;
+              }
+            });
+          }
+
+          if (eSpec?.security) {
+            eSpec.security.forEach((securityItem: Record<string, string[]>) => {
+              Object.keys(securityItem).forEach((security) => {
+                const securitySchema: IOpenApiSecuritySchemes[string] =
+                  spec.components?.securitySchemes?.[security];
+
+                if (securitySchema) {
+                  // headers["Authorization"] = securitySchema;
+                  if (securitySchema.type === "mutualTLS") {
+                    extras += `\n--cert client-certificate.crt \
+--key client-private-key.key \
+--cacert ca-certificate.crt`;
+                  } else if (securitySchema.type === "apiKey") {
+                    headers["X-API-Key"] = `{API_KEY_VALUE}`;
+                  } else {
+                    headers["Authorization"] = `${
+                      securitySchema?.scheme === "basic" ? "Basic" : "Bearer"
+                    } {API_KEY_VALUE}`;
+                  }
+                }
+              });
+            });
+          }
+
+          const curlHeaders: Record<string, string> = {};
+          Object.keys(headers).forEach((header) => {
+            if (Array.isArray(headers[header])) {
+              curlHeaders[header] = headers[header].join("; ");
+            } else {
+              curlHeaders[header] = headers[header];
+            }
+          });
+
+          // console.log("curlHeaders", { headers, curlHeaders, body });
+
+          curl = `\n\`\`\`bash  
+${CurlGenerator({
+  url: serverUrl + endpointPath,
+  method: method.toUpperCase() as any,
+  headers: curlHeaders,
+  body,
+})}${extras}
+\`\`\``;
+        }
+
+        doc = `/**${eSpec?.description ? `\n* ${eSpec?.description}  ` : ""}
+ * **Method**: \`${method.toUpperCase()}\`  
+ * **Summary**: ${eSpec?.summary || ""}  
+ * **Tags**: [${eSpec?.tags?.join(", ") || ""}]  
+ * **OperationId**: ${eSpec?.operationId || ""}  ${
+          queryTypeCnt
+            ? `\n * **Query**: ${renderTypeRefMD(queryTypeCnt)}  `
+            : ""
+        }${dtoTypeCnt ? `\n * **DTO**: ${renderTypeRefMD(dtoTypeCnt)}  ` : ""}${
+          responseTypeCnt
+            ? `\n * **Response**: ${Object.entries(responseTypeObject)
+                .map(
+                  ([code, type]) =>
+                    `\n    - **${code}**:  ${renderTypeRefMD(type, 2)}  `
+                )
+                .join("")}`
+            : ""
+        }${securitySpec ? `\n * **Security**:  ${securitySpec}\n` : ""}${curl}
+ */\n`;
+      }
       // Add the endpoint url
-      endpointsFileContent += `
-/**${eSpec?.description ? `\n* ${eSpec?.description}  ` : ""}
-* **Method**: \`${method.toUpperCase()}\`  
-* **Summary**: ${eSpec?.summary || ""}  
-* **Tags**: [${eSpec?.tags?.join(", ") || ""}]  
-* **OperationId**: ${eSpec?.operationId || ""}  ${
-        queryTypeCnt ? `\n* **Query**: ${renderTypeRefMD(queryTypeCnt)}  ` : ""
-      }${dtoTypeCnt ? `\n* **DTO**: ${renderTypeRefMD(dtoTypeCnt)}  ` : ""}${
-        responseTypeCnt
-          ? `\n* **Response**: ${Object.entries(responseTypeObject)
-              .map(
-                ([code, type]) =>
-                  `\n    - **${code}**:  ${renderTypeRefMD(type, 2)}  `
-              )
-              .join("")}`
-          : ""
-      }${securitySpec ? `\n* **Security**:  ${securitySpec}\n` : ""}
-*/
-export const ${endpointPrefix}${name} = ${endpointUrl}; 
+      endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${endpointUrl}; 
 `;
     });
   });

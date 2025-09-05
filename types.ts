@@ -58,10 +58,16 @@ export type IConfigReplaceWord = {
   type?: "endpoint" | "type";
 };
 
+export type IConfigDoc = {
+  disable?: boolean;
+  showCurl?: boolean;
+};
+
 export type IConfig = {
   refetchInterval?: number;
   folder?: string;
   api: Record<string, string>;
+  server?: number;
   types?: {
     name?: {
       prefix?: string;
@@ -78,10 +84,12 @@ export type IConfig = {
         }
       ) => string | null | undefined;
     };
+    doc: IConfigDoc;
   };
   endpoints?: {
     value?: {
       replaceWords?: IConfigReplaceWord[];
+      includeServer?: boolean;
     };
     name?: {
       format?: (data: {
@@ -91,5 +99,26 @@ export type IConfig = {
       }) => string | null;
       prefix?: string;
     };
+    doc: IConfigDoc;
+  };
+};
+
+export type IOpenApiSecuritySchemes = {
+  [key: string]: {
+    type: "http" | "apiKey" | "oauth2" | "openIdConnect" | "mutualTLS";
+    scheme?: "bearer" | "basic";
+    in?: "query" | "header" | "cookie";
+    flows?: {
+      authorizationCode: {
+        authorizationUrl: "https://example.com/auth";
+        tokenUrl: "https://example.com/token";
+        scopes: {
+          "read:data": "Grants read access";
+        };
+      };
+    };
+    bearerFormat?: "JWT";
+    openIdConnectUrl?: string;
+    name?: string;
   };
 };
