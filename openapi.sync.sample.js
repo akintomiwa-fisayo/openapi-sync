@@ -37,9 +37,11 @@ module.exports = {
       includeServer: true,
     },
     name: {
-      format: (value) => {
-        if (value === "/") return "root";
-        return value.replace(/\//g, "_").replace(/{|}/g, "");
+      prefix: "",
+      useOperationId: true,
+      format: ({ method, path, summary, operationId }) => {
+        if (path === "/") return "root";
+        return path.replace(/\//g, "_").replace(/{|}/g, "");
       },
     },
     doc: {

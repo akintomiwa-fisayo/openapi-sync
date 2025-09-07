@@ -96,8 +96,10 @@ export type IConfig = {
         method: Method;
         path: string;
         summary: string;
+        operationId: string;
       }) => string | null;
       prefix?: string;
+      useOperationId?: boolean;
     };
     doc: IConfigDoc;
   };

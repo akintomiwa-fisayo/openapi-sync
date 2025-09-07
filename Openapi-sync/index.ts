@@ -75,7 +75,7 @@ const OpenapiSync = async (
   const folderPath = path.join(config?.folder || "", apiName);
 
   const spec: IOpenApiSpec = lintResults.bundle.parsed;
-  const serverUrl = spec.servers[config?.server || 0]?.url;
+  const serverUrl = spec?.servers?.[config?.server || 0]?.url || "";
   const typePrefix =
     typeof config?.types?.name?.prefix === "string"
       ? config?.types.name.prefix
@@ -593,15 +593,6 @@ const OpenapiSync = async (
       endpointUrl = treatEndpointUrl(endpointUrl);
 
       const eSpec = endpointSpec[method];
-      let name = `${endpoint.name}`;
-      if (config?.endpoints?.name?.format) {
-        const formattedName = config?.endpoints.name.format({
-          method,
-          path: endpointPath,
-          summary: eSpec?.summary,
-        });
-        if (formattedName) name = formattedName;
-      }
 
       let queryTypeCnt = "";
 
@@ -823,6 +814,24 @@ ${CurlGenerator({
         }${securitySpec ? `\n * **Security**:  ${securitySpec}\n` : ""}${curl}
  */\n`;
       }
+
+      let name =
+        config?.endpoints?.name?.useOperationId &&
+        eSpec?.operationId?.length > 0
+          ? eSpec.operationId
+          : `${endpoint.name}`;
+
+      console.log("endpoint.name", eSpec);
+      if (config?.endpoints?.name?.format) {
+        const formattedName = config?.endpoints.name.format({
+          method,
+          path: endpointPath,
+          summary: eSpec?.summary,
+          operationId: eSpec?.operationId,
+        });
+        if (formattedName) name = formattedName;
+      }
+
       // Add the endpoint url
       endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${endpointUrl}; 
 `;
