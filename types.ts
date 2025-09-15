@@ -67,7 +67,7 @@ export type IConfig = {
   refetchInterval?: number;
   folder?: string;
   api: Record<string, string>;
-  server?: number;
+  server?: number | string;
   types?: {
     name?: {
       prefix?: string;
@@ -90,6 +90,7 @@ export type IConfig = {
     value?: {
       replaceWords?: IConfigReplaceWord[];
       includeServer?: boolean;
+      type?: "string" | "object";
     };
     name?: {
       format?: (data: {

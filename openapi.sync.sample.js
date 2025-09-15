@@ -6,9 +6,10 @@ module.exports = {
       "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.json",
     example2:
       "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml",
-    example3: "https://api.dev.korensi.com/api/schema",
   },
   server: 0,
+  server:
+    "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0",
   types: {
     name: {
       prefix: "",
@@ -35,6 +36,7 @@ module.exports = {
         },
       ],
       includeServer: true,
+      type: "object",
     },
     name: {
       prefix: "",

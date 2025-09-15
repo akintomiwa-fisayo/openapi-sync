@@ -75,7 +75,10 @@ const OpenapiSync = async (
   const folderPath = path.join(config?.folder || "", apiName);
 
   const spec: IOpenApiSpec = lintResults.bundle.parsed;
-  const serverUrl = spec?.servers?.[config?.server || 0]?.url || "";
+  const serverUrl =
+    typeof config?.server === "string"
+      ? config?.server
+      : spec?.servers?.[config?.server || 0]?.url || "";
   const typePrefix =
     typeof config?.types?.name?.prefix === "string"
       ? config?.types.name.prefix
@@ -821,7 +824,6 @@ ${CurlGenerator({
           ? eSpec.operationId
           : `${endpoint.name}`;
 
-      console.log("endpoint.name", eSpec);
       if (config?.endpoints?.name?.format) {
         const formattedName = config?.endpoints.name.format({
           method,
@@ -832,8 +834,17 @@ ${CurlGenerator({
         if (formattedName) name = formattedName;
       }
 
+      const content = {
+        method: method,
+        operationId: eSpec?.operationId,
+        url: endpointUrl,
+      };
       // Add the endpoint url
-      endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${endpointUrl}; 
+      endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${
+        config?.endpoints?.value?.type === "object"
+          ? JSON.stringify(content)
+          : endpointUrl
+      }; 
 `;
     });
   });
