@@ -835,14 +835,14 @@ ${CurlGenerator({
       }
 
       const content = {
-        method: method,
-        operationId: eSpec?.operationId,
+        method: `"${method}"`,
+        operationId: `"${eSpec?.operationId}"`,
         url: endpointUrl,
       };
       // Add the endpoint url
       endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${
         config?.endpoints?.value?.type === "object"
-          ? JSON.stringify(content)
+          ? JSONStringify(content)
           : endpointUrl
       }; 
 `;
