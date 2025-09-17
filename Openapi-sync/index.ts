@@ -168,14 +168,17 @@ const OpenapiSync = async (
       } else if (schema.anyOf) {
         type += `(${schema.anyOf
           .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+          .filter((v) => !!v)
           .join("|")})`;
       } else if (schema.oneOf) {
         type += `(${schema.oneOf
           .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+          .filter((v) => !!v)
           .join("|")})`;
       } else if (schema.allOf) {
         type += `(${schema.allOf
           .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+          .filter((v) => !!v)
           .join("&")})`;
       } else if (schema.items) {
         type += `${parseSchemaToType(
@@ -225,26 +228,35 @@ const OpenapiSync = async (
         }
       } else if (schema.enum && schema.enum.length > 0) {
         if (schema.enum.length > 1) type += "(";
-        schema.enum.forEach((v) => {
-          let val = JSON.stringify(v);
-
-          if (val) type += `|${val}`;
-        });
+        schema.enum
+          .map((v) => JSON.stringify(v))
+          .filter((v) => !!v)
+          .forEach((v, i) => {
+            type += `${i === 0 ? "" : "|"}${v}`;
+          });
 
         if (schema.enum.length > 1) type += ")";
       } else if (schema.type) {
-        if (
-          ["string", "integer", "number", "array", "boolean"].includes(
-            schema.type
-          )
-        ) {
-          if (["integer", "number"].includes(schema.type)) {
-            type += `number`;
-          } else if (schema.type === "array") {
-            //Since we would have already parsed the arrays keys above "schema.items" if it exists
-            type += "any[]";
-            /* if (schema.items) {
-              type += `${parseSchemaToType(
+        const handleType = (_type: typeof schema.type) => {
+          let typeCnt = "";
+          if (typeof _type === "string") {
+            if (
+              [
+                "string",
+                "integer",
+                "number",
+                "array",
+                "boolean",
+                "null",
+              ].includes(_type)
+            ) {
+              if (["integer", "number"].includes(_type)) {
+                typeCnt += `number`;
+              } else if (_type === "array") {
+                //Since we would have already parsed the arrays keys above "schema.items" if it exists
+                typeCnt += "any[]";
+                /* if (schema.items) {
+              typeCnt += `${parseSchemaToType(
                 apiDoc,
                 schema.items,
                 "",
@@ -252,27 +264,38 @@ const OpenapiSync = async (
                 options
               )}[]`;
             } else {
-              type += "any[]";
+              typeCnt += "any[]";
             } */
+              } else {
+                typeCnt += _type;
+              }
+            } else if (_type === "object") {
+              //Since we would have already parsed the object keys above "schema.properties" if it exists
+              if (schema.additionalProperties) {
+                typeCnt += `{[k: string]: ${
+                  parseSchemaToType(
+                    apiDoc,
+                    schema.additionalProperties,
+                    "",
+                    true,
+                    options
+                  ) || "any"
+                }}`;
+              } else {
+                typeCnt += "{[k: string]: any}";
+              }
+            }
+          } else if (Array.isArray(_type)) {
+            const arrType = _type.map((v) => handleType(v));
+            arrType.filter((v) => v !== "");
+            if (arrType.length > 1) typeCnt += "(" + arrType.join("|") + ")";
           } else {
-            type += schema.type;
+            typeCnt += "any";
           }
-        } else if (schema.type === "object") {
-          //Since we would have already parsed the object keys above "schema.properties" if it exists
-          if (schema.additionalProperties) {
-            type += `{[k: string]: ${
-              parseSchemaToType(
-                apiDoc,
-                schema.additionalProperties,
-                "",
-                true,
-                options
-              ) || "any"
-            }}`;
-          } else {
-            type += "{[k: string]: any}";
-          }
-        }
+
+          return typeCnt;
+        };
+        type = handleType(schema.type);
       }
     } else {
       //Default type to string if no schema provided
@@ -356,25 +379,46 @@ const OpenapiSync = async (
         if (schema.example) {
           type += JSON.stringify(schema.example);
         } else {
-          if (
-            ["string", "integer", "number", "array", "boolean"].includes(
-              schema.type
-            )
-          ) {
-            if (["integer", "number"].includes(schema.type)) {
-              type += `123`;
-            } else if (schema.type === "array") {
-              //Since we would have already parsed the arrays keys above "schema.items" if it exists
-              type += "[]";
-            } else if (schema.type === "boolean") {
-              type += `true`;
+          const handleType = (_type: typeof schema.type) => {
+            let typeCnt = "";
+            if (typeof _type === "string") {
+              if (
+                [
+                  "string",
+                  "integer",
+                  "number",
+                  "array",
+                  "boolean",
+                  "null",
+                ].includes(_type)
+              ) {
+                if (["integer", "number"].includes(_type)) {
+                  typeCnt += `123`;
+                } else if (_type === "array") {
+                  //Since we would have already parsed the arrays keys above "schema.items" if it exists
+                  typeCnt += "[]";
+                } else if (_type === "boolean") {
+                  typeCnt += `true`;
+                } else if (_type === "null") {
+                  typeCnt += `null`;
+                } else {
+                  typeCnt += `"${_type}"`;
+                }
+              } else if (_type === "object") {
+                //Since we would have already parsed the object keys above "schema.properties" if it exists
+                typeCnt += "{}";
+              }
+            } else if (Array.isArray(_type)) {
+              const arrType = _type.map((v) => handleType(v));
+              arrType.filter((v) => v !== "");
+              if (arrType.length > 1) typeCnt += arrType.join("|");
             } else {
-              type += `"${schema.type}"`;
+              typeCnt += "any";
             }
-          } else if (schema.type === "object") {
-            //Since we would have already parsed the object keys above "schema.properties" if it exists
-            type += "{}";
-          }
+
+            return typeCnt;
+          };
+          type = handleType(schema.type);
         }
       }
     } else {

@@ -4,7 +4,15 @@ export type IOpenApiSpec = Record<"openapi", string> & Record<string, any>;
 
 export type IOpenApSchemaSpec = {
   nullable?: boolean;
-  type: "string" | "integer" | "number" | "array" | "object" | "boolean";
+  type:
+    | "string"
+    | "integer"
+    | "number"
+    | "array"
+    | "object"
+    | "boolean"
+    | "null"
+    | any[];
   example?: any;
   enum?: string[];
   format?: string;
@@ -84,7 +92,7 @@ export type IConfig = {
         }
       ) => string | null | undefined;
     };
-    doc: IConfigDoc;
+    doc?: IConfigDoc;
   };
   endpoints?: {
     value?: {
@@ -102,7 +110,7 @@ export type IConfig = {
       prefix?: string;
       useOperationId?: boolean;
     };
-    doc: IConfigDoc;
+    doc?: IConfigDoc;
   };
 };
 
