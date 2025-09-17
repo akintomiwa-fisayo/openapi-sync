@@ -1,6 +1,7 @@
 import OpenapiSync from "./Openapi-sync";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { resetState } from "./Openapi-sync/state";
 import { IConfig } from "./types";
 
@@ -10,7 +11,7 @@ const rootUsingCwd = process.cwd();
 
 export const Init = async (options?: { refetchInterval?: number }) => {
   // Load config file
-  let configJS, configJson;
+  let configJS, configJson, configTS;
   try {
     configJS = require(path.join(rootUsingCwd, "openapi.sync.js"));
   } catch (e) {
@@ -22,7 +23,24 @@ export const Init = async (options?: { refetchInterval?: number }) => {
   } catch (e) {
     // console.log(e);
   }
-  const config: IConfig = configJS || configJson;
+
+  try {
+    // Check if TypeScript config file exists first
+    const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
+    if (fs.existsSync(tsConfigPath)) {
+      // Register TypeScript loader before requiring the file
+      try {
+        require("esbuild-register");
+      } catch (registerError) {
+        throw registerError;
+      }
+
+      // Now try to load TypeScript config
+      configTS = require(tsConfigPath);
+    }
+  } catch (e) {}
+
+  const config: IConfig = configTS || configJS || configJson;
 
   const apiNames = Object.keys(config.api);
   const refetchInterval =

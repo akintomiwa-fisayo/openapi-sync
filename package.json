@@ -41,6 +41,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
     "@types/node": "^22.1.0",
+    "esbuild-register": "^3.6.0",
     "typescript": "^5.5.4"
   },
   "dependencies": {

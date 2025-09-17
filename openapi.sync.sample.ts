@@ -1,4 +1,12 @@
-module.exports = {
+// TypeScript config file for openapi-sync
+// To use this file, install a TypeScript loader:
+// npm install --save-dev esbuild-register  (recommended - fastest & lightest)
+// or: npm install --save-dev tsx
+// or: npm install --save-dev @swc/register
+
+import { IConfig } from "./types";
+
+const config: IConfig = {
   refetchInterval: 5000,
   folder: "/inputed/path/",
   api: {
@@ -8,8 +16,6 @@ module.exports = {
       "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml",
   },
   server: 0,
-  server:
-    "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0",
   types: {
     name: {
       prefix: "",
@@ -17,8 +23,8 @@ module.exports = {
         if (source === "shared") {
           return `${data.name}`;
         } else if (source === "endpoint") {
-          return `${data.method.toLowerCase()}${data.path
-            .replace(/\//g, "_")
+          return `${data.method!.toLowerCase()}${data
+            .path!.replace(/\//g, "_")
             .replace(/{|}/g, "")}${data.code}${data.type}`;
         }
       },
@@ -52,3 +58,5 @@ module.exports = {
     },
   },
 };
+
+module.exports = config;
