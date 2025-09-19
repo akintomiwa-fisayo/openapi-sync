@@ -25,6 +25,8 @@
     "dist",
     "db.json",
     "types.ts",
+    "helpers.ts",
+    "regex.ts",
     "LICENSE",
     "README.md",
     "package.json"
@@ -41,13 +43,13 @@
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
     "@types/node": "^22.1.0",
-    "esbuild-register": "^3.6.0",
     "typescript": "^5.5.4"
   },
   "dependencies": {
     "@redocly/openapi-core": "^1.19.0",
     "axios": "^1.7.3",
     "axios-retry": "^4.5.0",
+    "esbuild-register": "^3.6.0",
     "curl-generator": "^0.4.2",
     "dotenv": "^16.4.5",
     "js-yaml": "^4.1.0",

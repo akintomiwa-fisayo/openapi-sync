@@ -89,7 +89,8 @@ export type IConfig = {
           method?: Method;
           path?: string;
           summary?: string;
-        }
+        },
+        defaultName: string
       ) => string | null | undefined;
     };
     doc?: IConfigDoc;
@@ -101,12 +102,15 @@ export type IConfig = {
       type?: "string" | "object";
     };
     name?: {
-      format?: (data: {
-        method: Method;
-        path: string;
-        summary: string;
-        operationId: string;
-      }) => string | null;
+      format?: (
+        data: {
+          method: Method;
+          path: string;
+          summary: string;
+          operationId: string;
+        },
+        defaultName: string
+      ) => string | null;
       prefix?: string;
       useOperationId?: boolean;
     };

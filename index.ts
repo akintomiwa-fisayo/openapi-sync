@@ -11,37 +11,37 @@ const rootUsingCwd = process.cwd();
 
 export const Init = async (options?: { refetchInterval?: number }) => {
   // Load config file
-  let configJS, configJson, configTS;
+  let configJS;
+  // Register TypeScript loader before requiring the file
   try {
-    configJS = require(path.join(rootUsingCwd, "openapi.sync.js"));
-  } catch (e) {
-    // console.log(e);
+    require("esbuild-register");
+  } catch (registerError) {
+    throw registerError;
   }
 
+  const jsConfigPath = path.join(rootUsingCwd, "openapi.sync.");
+  const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
+  const jsonConfigPath = path.join(rootUsingCwd, "openapi.sync.json");
+  const configPaths = [jsConfigPath, tsConfigPath, jsonConfigPath];
   try {
-    configJson = require(path.join(rootUsingCwd, "openapi.sync.json"));
-  } catch (e) {
-    // console.log(e);
-  }
+    for (const configPath of configPaths) {
+      if (fs.existsSync(configPath)) {
+        configJS = require(configPath);
 
-  try {
-    // Check if TypeScript config file exists first
-    const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
-    if (fs.existsSync(tsConfigPath)) {
-      // Register TypeScript loader before requiring the file
-      try {
-        require("esbuild-register");
-      } catch (registerError) {
-        throw registerError;
+        if (Object.keys(configJS).length === 1 && configJS.default) {
+          configJS = configJS.default;
+        }
       }
-
-      // Now try to load TypeScript config
-      configTS = require(tsConfigPath);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.log(e);
+  }
 
-  const config: IConfig = configTS || configJS || configJson;
+  const config: IConfig = configJS;
 
+  if (!config) {
+    throw new Error("No config found");
+  }
   const apiNames = Object.keys(config.api);
   const refetchInterval =
     options &&

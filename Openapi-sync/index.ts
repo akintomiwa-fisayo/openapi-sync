@@ -8,7 +8,7 @@ import {
   JSONStringify,
   renderTypeRefMD,
   yamlStringToJson,
-} from "./components/helpers";
+} from "../helpers";
 import {
   IConfig,
   IConfigReplaceWord,
@@ -99,13 +99,18 @@ const OpenapiSync = async (
       | "links"
       | "callbacks"
   ) => {
+    const defaultName = capitalize(componentName);
     if (config?.types?.name?.format) {
-      const formattedName = config?.types.name.format("shared", {
-        name: componentName,
-      });
+      const formattedName = config?.types.name.format(
+        "shared",
+        {
+          name: componentName,
+        },
+        defaultName
+      );
       if (formattedName) return `${typePrefix}${formattedName}`;
     }
-    return `${typePrefix}${capitalize(componentName)}`;
+    return `${typePrefix}${defaultName}`;
   };
 
   const parseSchemaToType = (
@@ -661,13 +666,17 @@ const OpenapiSync = async (
           queryTypeCnt = `{\n${queryTypeCnt}}`;
           let name = `${endpoint.name}Query`;
           if (config?.types?.name?.format) {
-            const formattedName = config?.types.name.format("endpoint", {
-              code: "",
-              type: "query",
-              method,
-              path: endpointPath,
-              summary: eSpec?.summary,
-            });
+            const formattedName = config?.types.name.format(
+              "endpoint",
+              {
+                code: "",
+                type: "query",
+                method,
+                path: endpointPath,
+                summary: eSpec?.summary,
+              },
+              name
+            );
             if (formattedName) name = formattedName;
           }
           typesFileContent += `export type ${typePrefix}${name} = ${queryTypeCnt};\n`;
@@ -683,13 +692,17 @@ const OpenapiSync = async (
         if (dtoTypeCnt) {
           let name = `${endpoint.name}DTO`;
           if (config?.types?.name?.format) {
-            const formattedName = config?.types.name.format("endpoint", {
-              code: "",
-              type: "dto",
-              method,
-              path: endpointPath,
-              summary: eSpec?.summary,
-            });
+            const formattedName = config?.types.name.format(
+              "endpoint",
+              {
+                code: "",
+                type: "dto",
+                method,
+                path: endpointPath,
+                summary: eSpec?.summary,
+              },
+              name
+            );
             if (formattedName) name = formattedName;
           }
           typesFileContent += `export type ${typePrefix}${name} = ${dtoTypeCnt};\n`;
@@ -710,13 +723,17 @@ const OpenapiSync = async (
             let name = `${endpoint.name}${code}Response`;
 
             if (config?.types?.name?.format) {
-              const formattedName = config?.types.name.format("endpoint", {
-                code,
-                type: "response",
-                method,
-                path: endpointPath,
-                summary: eSpec?.summary,
-              });
+              const formattedName = config?.types.name.format(
+                "endpoint",
+                {
+                  code,
+                  type: "response",
+                  method,
+                  path: endpointPath,
+                  summary: eSpec?.summary,
+                },
+                name
+              );
               if (formattedName) name = formattedName;
             }
             typesFileContent += `export type ${typePrefix}${name} = ${responseTypeCnt};\n`;
@@ -869,12 +886,15 @@ ${CurlGenerator({
           : `${endpoint.name}`;
 
       if (config?.endpoints?.name?.format) {
-        const formattedName = config?.endpoints.name.format({
-          method,
-          path: endpointPath,
-          summary: eSpec?.summary,
-          operationId: eSpec?.operationId,
-        });
+        const formattedName = config?.endpoints.name.format(
+          {
+            method,
+            path: endpointPath,
+            summary: eSpec?.summary,
+            operationId: eSpec?.operationId,
+          },
+          name
+        );
         if (formattedName) name = formattedName;
       }
 
