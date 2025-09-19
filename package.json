@@ -1,6 +1,6 @@
 {
   "name": "openapi-sync",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "A developer-friendly tool designed to keep your API up-to-date by leveraging OpenAPI schemas. It automates the generation of endpoint URIs and type definitions, including shared types, directly from your OpenAPI specification.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
