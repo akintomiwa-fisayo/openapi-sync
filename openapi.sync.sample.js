@@ -13,7 +13,7 @@ module.exports = {
   types: {
     name: {
       prefix: "",
-      format: (source, data) => {
+      format: (source, data, defaultName) => {
         if (source === "shared") {
           return `${data.name}`;
         } else if (source === "endpoint") {
@@ -41,7 +41,7 @@ module.exports = {
     name: {
       prefix: "",
       useOperationId: true,
-      format: ({ method, path, summary, operationId }) => {
+      format: ({ method, path, summary, operationId }, defaultName) => {
         if (path === "/") return "root";
         return path.replace(/\//g, "_").replace(/{|}/g, "");
       },

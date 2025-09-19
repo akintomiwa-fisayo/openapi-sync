@@ -1,9 +1,3 @@
-// TypeScript config file for openapi-sync
-// To use this file, install a TypeScript loader:
-// npm install --save-dev esbuild-register  (recommended - fastest & lightest)
-// or: npm install --save-dev tsx
-// or: npm install --save-dev @swc/register
-
 import { IConfig } from "./types";
 
 const config: IConfig = {
@@ -19,7 +13,7 @@ const config: IConfig = {
   types: {
     name: {
       prefix: "",
-      format: (source, data) => {
+      format: (source, data, defaultName) => {
         if (source === "shared") {
           return `${data.name}`;
         } else if (source === "endpoint") {
@@ -47,7 +41,7 @@ const config: IConfig = {
     name: {
       prefix: "",
       useOperationId: true,
-      format: ({ method, path, summary, operationId }) => {
+      format: ({ method, path, summary, operationId }, defaultName) => {
         if (path === "/") return "root";
         return path.replace(/\//g, "_").replace(/{|}/g, "");
       },
