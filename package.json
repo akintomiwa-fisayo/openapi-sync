@@ -52,7 +52,7 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\"",
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "publish-package": "npm run build && npm version patch &&  npm publish",
     "start": "npm run build && openapi-sync"
   },

@@ -42,6 +42,9 @@ export const Init = async (options?: { refetchInterval?: number }) => {
     console.log(e);
   }
 
+  if (typeof configJS === "function") {
+    configJS = configJS();
+  }
   const config: IConfig = configJS;
 
   if (!config) {
