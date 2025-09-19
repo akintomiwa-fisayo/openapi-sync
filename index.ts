@@ -5,6 +5,11 @@ import fs from "fs";
 import { resetState } from "./Openapi-sync/state";
 import { IConfig } from "./types";
 
+// Re-export modules for user consumption
+export * from "./types";
+export * from "./helpers";
+export * from "./regex";
+
 dotenv.config();
 
 const rootUsingCwd = process.cwd();
