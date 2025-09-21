@@ -50,6 +50,14 @@
     "README.md",
     "package.json"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akintomiwa-fisayo/openapi-sync"
+  },
+  "homepage": "https://github.com/akintomiwa-fisayo/openapi-sync#readme",
+  "bugs": {
+    "url": "https://github.com/akintomiwa-fisayo/openapi-sync/issues"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "build": "rm -rf dist && tsc",
