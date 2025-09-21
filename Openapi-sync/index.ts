@@ -902,6 +902,7 @@ ${CurlGenerator({
         method: `"${method}"`,
         operationId: `"${eSpec?.operationId}"`,
         url: endpointUrl,
+        tags: eSpec?.tags || [],
       };
       // Add the endpoint url
       endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${

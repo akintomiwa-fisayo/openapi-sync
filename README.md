@@ -1,5 +1,3 @@
-# OpenAPI Sync - Comprehensive Documentation
-
 [![NPM Version](https://img.shields.io/npm/v/openapi-sync.svg)](https://www.npmjs.com/package/openapi-sync)
 [![License](https://img.shields.io/npm/l/openapi-sync.svg)](https://github.com/akintomiwa-fisayo/openapi-sync/blob/main/LICENSE)
 
@@ -351,6 +349,8 @@ src/api/
 
 ### Generated Endpoints
 
+When `endpoints.value.type` is set to `"string"`
+
 #### String Format (Default)
 
 ````typescript
@@ -386,11 +386,14 @@ export const addPet = "/pet";
 
 #### Object Format
 
+When `endpoints.value.type` is set to `"object"`, each endpoint is generated as an object containing metadata:
+
 ````typescript
 // endpoints.ts (with type: "object")
 /**
  * **Method**: `POST`
  * **Summary**: Add a new pet to the store
+ * **Tags**: [pet]
  * **DTO**:
  *   ```typescript
  *     {
@@ -404,12 +407,14 @@ export const addPet = {
   method: "POST",
   operationId: "addPet",
   url: "/pet",
+  tags: ["pet"],
 };
 
 export const getPetById = {
   method: "GET",
   operationId: "getPetById",
   url: (petId: string) => `/pet/${petId}`,
+  tags: ["pet"],
 };
 ````
 
