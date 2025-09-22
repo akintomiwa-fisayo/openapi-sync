@@ -88,7 +88,21 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
 
     result += "\n" + "    ".repeat(indent) + key + ": ";
 
-    if (typeof value === "object" && value !== null) {
+    if (Array.isArray(value)) {
+      result += "[";
+      for (let j = 0; j < value.length; j++) {
+        const item = value[j];
+        if (typeof item === "object" && item !== null) {
+          result += JSONStringify(item, indent + 1);
+        } else {
+          result += typeof item === "string" ? `"${item}"` : item;
+        }
+        if (j < value.length - 1) {
+          result += ", ";
+        }
+      }
+      result += "]";
+    } else if (typeof value === "object" && value !== null) {
       result += "" + JSONStringify(value, indent + 1);
     } else {
       result += value
