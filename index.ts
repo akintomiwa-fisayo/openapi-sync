@@ -24,7 +24,7 @@ export const Init = async (options?: { refetchInterval?: number }) => {
     throw registerError;
   }
 
-  const jsConfigPath = path.join(rootUsingCwd, "openapi.sync.");
+  const jsConfigPath = path.join(rootUsingCwd, "openapi.sync.js");
   const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
   const jsonConfigPath = path.join(rootUsingCwd, "openapi.sync.json");
   const configPaths = [jsConfigPath, tsConfigPath, jsonConfigPath];
