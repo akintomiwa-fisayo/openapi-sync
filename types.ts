@@ -63,7 +63,7 @@ export type IConfigReplaceWord = {
   /**  string and regular expression as a string*/
   replace: string;
   with: string;
-  type?: "endpoint" | "type";
+  // type?: "endpoint" | "type";
 };
 
 export type IConfigDoc = {
@@ -71,14 +71,32 @@ export type IConfigDoc = {
   showCurl?: boolean;
 };
 
+export type IConfigExclude = {
+  /** Exclude/Include endpoints by tags */
+  tags?: string[];
+  /** Exclude/Include individual endpoints by path and method */
+  endpoints?: Array<{
+    /** Exact path match (regex will be ignore when provided)*/
+    path?: string;
+    /** Regular expression pattern for path matching */
+    regex?: string;
+    /** Don't specify method to exclude all methods */
+    method?: Method;
+  }>;
+};
+
+export interface IConfigInclude extends IConfigExclude {}
+
 export type IConfig = {
   refetchInterval?: number;
   folder?: string;
   api: Record<string, string>;
   server?: number | string;
+  /** Configuration for excluding endpoints from code generation */
   types?: {
     name?: {
       prefix?: string;
+      useOperationId?: boolean;
       format?: (
         source: "shared" | "endpoint",
         data: {
@@ -89,6 +107,7 @@ export type IConfig = {
           method?: Method;
           path?: string;
           summary?: string;
+          operationId?: string;
         },
         defaultName: string
       ) => string | null | undefined;
@@ -115,6 +134,8 @@ export type IConfig = {
       useOperationId?: boolean;
     };
     doc?: IConfigDoc;
+    exclude?: IConfigExclude;
+    include?: IConfigInclude;
   };
 };
 

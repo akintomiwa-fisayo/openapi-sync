@@ -602,6 +602,89 @@ const OpenapiSync = async (
     }
   };
 
+  // Helper function to check if an endpoint should be excluded
+  const shouldExcludeEndpoint = (
+    path: string,
+    method: Method,
+    tags: string[] = []
+  ) => {
+    const excludeConfig = config?.endpoints?.exclude;
+    const includeConfig = config?.endpoints?.include;
+
+    // If include is specified
+    if (includeConfig) {
+      // Check if endpoint matches include criteria
+      const matchesIncludeTags =
+        includeConfig.tags && includeConfig.tags.length > 0
+          ? tags.some((tag) => includeConfig.tags!.includes(tag))
+          : true;
+
+      const matchesIncludeEndpoints =
+        includeConfig.endpoints && includeConfig.endpoints.length > 0
+          ? includeConfig.endpoints.some((endpoint) => {
+              const methodMatches =
+                !endpoint.method ||
+                endpoint.method.toLowerCase() === method.toLowerCase();
+
+              // Use exact path match if path is provided
+              if (endpoint.path) {
+                return path === endpoint.path && methodMatches;
+              }
+              // Use regex match if regex is provided
+              else if (endpoint.regex) {
+                const pathRegex = new RegExp(endpoint.regex);
+                return pathRegex.test(path) && methodMatches;
+              }
+
+              return false;
+            })
+          : true;
+
+      // If include is specified but endpoint doesn't match, exclude it
+      if (!matchesIncludeTags || !matchesIncludeEndpoints) {
+        return true;
+      }
+    }
+
+    // Check exclude criteria, it takes precedence over include
+    if (excludeConfig) {
+      // Check tags exclusion
+      if (excludeConfig.tags && excludeConfig.tags.length > 0) {
+        const hasExcludedTag = tags.some((tag) =>
+          excludeConfig.tags!.includes(tag)
+        );
+        if (hasExcludedTag) return true;
+      }
+
+      // Check endpoint exclusion
+      if (excludeConfig.endpoints && excludeConfig.endpoints.length > 0) {
+        const matchesExcludedEndpoint = excludeConfig.endpoints.some(
+          (endpoint) => {
+            const methodMatches =
+              !endpoint.method ||
+              endpoint.method.toLowerCase() === method.toLowerCase();
+
+            // Use exact path match if path is provided
+            if (endpoint.path) {
+              return path === endpoint.path && methodMatches;
+            }
+
+            // Use regex match if regex is provided
+            else if (endpoint.regex) {
+              const pathRegex = new RegExp(endpoint.regex);
+              return pathRegex.test(path) && methodMatches;
+            }
+
+            return false;
+          }
+        );
+        if (matchesExcludedEndpoint) return true;
+      }
+    }
+
+    return false;
+  };
+
   Object.keys(spec.paths || {}).forEach((endpointPath) => {
     const endpointSpec = spec.paths[endpointPath];
 
@@ -609,6 +692,14 @@ const OpenapiSync = async (
     endpointMethods.forEach((_method) => {
       const method = _method as Method;
       const endpoint = getEndpointDetails(endpointPath, method);
+
+      // Get endpoint tags for filtering
+      const endpointTags = endpointSpec[method]?.tags || [];
+
+      // Check if this endpoint should be excluded
+      if (shouldExcludeEndpoint(endpointPath, method, endpointTags)) {
+        return; // Skip this endpoint
+      }
 
       const endpointUrlTxt =
         (config?.endpoints?.value?.includeServer ? serverUrl : "") +
@@ -665,6 +756,13 @@ const OpenapiSync = async (
         if (queryTypeCnt) {
           queryTypeCnt = `{\n${queryTypeCnt}}`;
           let name = `${endpoint.name}Query`;
+
+          // Use operationId if configured and available
+          if (config?.types?.name?.useOperationId && eSpec?.operationId) {
+            name = `${eSpec.operationId}Query`;
+          }
+          name = capitalize(`${typePrefix}${name}`);
+
           if (config?.types?.name?.format) {
             const formattedName = config?.types.name.format(
               "endpoint",
@@ -674,12 +772,13 @@ const OpenapiSync = async (
                 method,
                 path: endpointPath,
                 summary: eSpec?.summary,
+                operationId: eSpec?.operationId,
               },
               name
             );
-            if (formattedName) name = formattedName;
+            if (formattedName) name = `${typePrefix}${formattedName}`;
           }
-          typesFileContent += `export type ${typePrefix}${name} = ${queryTypeCnt};\n`;
+          typesFileContent += `export type ${name} = ${queryTypeCnt};\n`;
         }
       }
 
@@ -691,6 +790,14 @@ const OpenapiSync = async (
 
         if (dtoTypeCnt) {
           let name = `${endpoint.name}DTO`;
+
+          // Use operationId if configured and available
+          if (config?.types?.name?.useOperationId && eSpec?.operationId) {
+            name = `${eSpec.operationId}DTO`;
+          }
+
+          name = capitalize(`${typePrefix}${name}`);
+
           if (config?.types?.name?.format) {
             const formattedName = config?.types.name.format(
               "endpoint",
@@ -700,12 +807,13 @@ const OpenapiSync = async (
                 method,
                 path: endpointPath,
                 summary: eSpec?.summary,
+                operationId: eSpec?.operationId,
               },
               name
             );
-            if (formattedName) name = formattedName;
+            if (formattedName) name = `${typePrefix}${formattedName}`;
           }
-          typesFileContent += `export type ${typePrefix}${name} = ${dtoTypeCnt};\n`;
+          typesFileContent += `export type ${name} = ${dtoTypeCnt};\n`;
         }
       }
 
@@ -722,6 +830,13 @@ const OpenapiSync = async (
           if (responseTypeCnt) {
             let name = `${endpoint.name}${code}Response`;
 
+            // Use operationId if configured and available
+            if (config?.types?.name?.useOperationId && eSpec?.operationId) {
+              name = `${eSpec.operationId}${code}Response`;
+            }
+
+            name = capitalize(`${typePrefix}${name}`);
+
             if (config?.types?.name?.format) {
               const formattedName = config?.types.name.format(
                 "endpoint",
@@ -731,12 +846,13 @@ const OpenapiSync = async (
                   method,
                   path: endpointPath,
                   summary: eSpec?.summary,
+                  operationId: eSpec?.operationId,
                 },
                 name
               );
-              if (formattedName) name = formattedName;
+              if (formattedName) name = `${typePrefix}${formattedName}`;
             }
-            typesFileContent += `export type ${typePrefix}${name} = ${responseTypeCnt};\n`;
+            typesFileContent += `export type ${name} = ${responseTypeCnt};\n`;
           }
         });
       }

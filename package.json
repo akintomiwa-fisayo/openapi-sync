@@ -78,7 +78,6 @@
     "axios-retry": "^4.5.0",
     "esbuild-register": "^3.6.0",
     "curl-generator": "^0.4.2",
-    "dotenv": "^16.4.5",
     "js-yaml": "^4.1.0",
     "lodash": "^4.17.21",
     "yargs": "^17.7.2"

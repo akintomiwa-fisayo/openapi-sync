@@ -10,13 +10,19 @@ const config: IConfig = {
       "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml",
   },
   server: 0,
+  // Configuration for excluding endpoints from code generation
   types: {
     name: {
       prefix: "",
+      useOperationId: true, // Use operationId for type naming when available
       format: (source, data, defaultName) => {
         if (source === "shared") {
           return `${data.name}`;
         } else if (source === "endpoint") {
+          // Use operationId if available, otherwise fall back to path-based naming
+          if (data.operationId) {
+            return `${data.operationId}${data.code}${data.type}`;
+          }
           return `${data.method!.toLowerCase()}${data
             .path!.replace(/\//g, "_")
             .replace(/{|}/g, "")}${data.code}${data.type}`;
@@ -49,6 +55,34 @@ const config: IConfig = {
     doc: {
       disable: false,
       showCurl: true,
+    },
+    exclude: {
+      // Exclude endpoints by tags
+      tags: ["deprecated", "internal"],
+      // Exclude individual endpoints by path and method
+      endpoints: [
+        // Exact path match
+        { path: "/admin/users", method: "DELETE" },
+        // Regex pattern match
+        { regex: "^/internal/.*", method: "GET" },
+        { regex: ".*/debug$", method: "GET" },
+        // Don't specify method to exclude all methods
+        { path: "/debug/logs" },
+      ],
+    },
+    include: {
+      // Include endpoints by tags
+      tags: ["public"],
+      // Include individual endpoints by path and method
+      endpoints: [
+        // Exact path match
+        { path: "/public/users", method: "GET" },
+        // Regex pattern match
+        { regex: "^/public/.*", method: "GET" },
+        { regex: ".*/logs$", method: "GET" },
+        // Don't specify method to include all methods
+        { path: "/public/logs" },
+      ],
     },
   },
 };
