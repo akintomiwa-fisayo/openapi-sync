@@ -35,6 +35,8 @@
 ### 🔧 **Highly Configurable**
 
 - Customizable naming conventions for types and endpoints
+- Exclude/include endpoints by exact path or regex patterns
+- Tag-based filtering, method-specific filtering, and pattern matching
 - Flexible output directory structure
 - URL transformation and text replacement rules
 - Configurable documentation generation
@@ -201,6 +203,34 @@ const config: IConfig = {
       disable: false,
       showCurl: true, // Include cURL examples in documentation
     },
+    exclude: {
+      // Exclude endpoints by tags
+      tags: ["deprecated", "internal"],
+      // Exclude individual endpoints by path and method
+      endpoints: [
+        // Exact path match
+        { path: "/admin/users", method: "DELETE" },
+        // Regex pattern match
+        { regex: "^/internal/.*", method: "GET" },
+        { regex: ".*/debug$", method: "GET" },
+        // Don't specify method to exclude all methods
+        { path: "/debug/logs" },
+      ],
+    },
+    include: {
+      // Include endpoints by tags
+      tags: ["public"],
+      // Include individual endpoints by path and method
+      endpoints: [
+        // Exact path match
+        { path: "/public/users", method: "GET" },
+        // Regex pattern match
+        { regex: "^/public/.*", method: "GET" },
+        { regex: ".*/logs$", method: "GET" },
+        // Don't specify method to include all methods
+        { path: "/public/logs" },
+      ],
+    },
   },
 };
 
@@ -220,24 +250,39 @@ export default config;
 
 #### Type Configuration (`types`)
 
-| Property      | Type       | Description                        |
-| ------------- | ---------- | ---------------------------------- |
-| `name.prefix` | `string`   | Prefix for generated type names    |
-| `name.format` | `function` | Custom naming function for types   |
-| `doc.disable` | `boolean`  | Disable JSDoc generation for types |
+| Property              | Type       | Description                                             |
+| --------------------- | ---------- | ------------------------------------------------------- |
+| `name.prefix`         | `string`   | Prefix for generated type names                         |
+| `name.useOperationId` | `boolean`  | Use OpenAPI operationId for type naming when available  |
+| `name.format`         | `function` | Custom naming function with source context and metadata |
+| `doc.disable`         | `boolean`  | Disable JSDoc generation for types                      |
+
+**OperationId-based Type Naming:**
+
+When `useOperationId` is set to `true`, the system will use the OpenAPI `operationId` for type naming:
+
+- **Query Types**: `{operationId}Query` (e.g., `getUserByIdQuery`)
+- **DTO Types**: `{operationId}DTO` (e.g., `createUserDTO`)
+- **Response Types**: `{operationId}{code}Response` (e.g., `getUserById200Response`)
+
+If `operationId` is not available, the system falls back to the default path-based naming convention.
 
 #### Endpoint Configuration (`endpoints`)
 
-| Property              | Type                   | Description                            |
-| --------------------- | ---------------------- | -------------------------------------- |
-| `value.replaceWords`  | `IConfigReplaceWord[]` | URL transformation rules               |
-| `value.includeServer` | `boolean`              | Include server URL in endpoints        |
-| `value.type`          | `"string" \| "object"` | Output format for endpoints            |
-| `name.prefix`         | `string`               | Prefix for endpoint names              |
-| `name.useOperationId` | `boolean`              | Use OpenAPI operationId for naming     |
-| `name.format`         | `function`             | Custom naming function for endpoints   |
-| `doc.disable`         | `boolean`              | Disable JSDoc generation for endpoints |
-| `doc.showCurl`        | `boolean`              | Include cURL examples in documentation |
+| Property              | Type                                                      | Description                                               |
+| --------------------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| `value.replaceWords`  | `IConfigReplaceWord[]`                                    | URL transformation rules                                  |
+| `value.includeServer` | `boolean`                                                 | Include server URL in endpoints                           |
+| `value.type`          | `"string" \| "object"`                                    | Output format for endpoints                               |
+| `name.prefix`         | `string`                                                  | Prefix for endpoint names                                 |
+| `name.useOperationId` | `boolean`                                                 | Use OpenAPI operationId for naming                        |
+| `name.format`         | `function`                                                | Custom naming function for endpoints                      |
+| `doc.disable`         | `boolean`                                                 | Disable JSDoc generation for endpoints                    |
+| `doc.showCurl`        | `boolean`                                                 | Include cURL examples in documentation                    |
+| `exclude.tags`        | `string[]`                                                | Exclude endpoints by tags                                 |
+| `exclude.endpoints`   | `Array<{path?: string, regex?: string, method?: Method}>` | Exclude specific endpoints by exact path or regex pattern |
+| `include.tags`        | `string[]`                                                | Include endpoints by tags                                 |
+| `include.endpoints`   | `Array<{path?: string, regex?: string, method?: Method}>` | Include specific endpoints by exact path or regex pattern |
 
 ## Usage
 
@@ -512,6 +557,9 @@ import {
   IOpenApiSpec,
   IOpenApSchemaSpec,
   IConfigReplaceWord,
+  IConfigExclude,
+  IConfigInclude,
+  IConfigDoc,
 } from "openapi-sync/types";
 ```
 
@@ -570,17 +618,33 @@ export default getConfig;
 ### Custom Type Formatting
 
 ```typescript
-// Advanced type name formatting
+// Advanced type name formatting with operationId support
 const config: IConfig = {
   // ... other config
   types: {
     name: {
       prefix: "",
+      useOperationId: true, // Use operationId when available
       format: (source, data, defaultName) => {
         if (source === "shared") {
           // Shared types: UserProfile, OrderStatus, etc.
           return `${data.name}`;
         } else if (source === "endpoint") {
+          // Use operationId if available and configured
+          if (data.operationId) {
+            switch (data.type) {
+              case "query":
+                return `${data.operationId}Query`;
+              case "dto":
+                return `${data.operationId}DTO`;
+              case "response":
+                return `${data.operationId}${data.code}Response`;
+              default:
+                return defaultName;
+            }
+          }
+
+          // Fallback to path-based naming
           const method = data.method?.toUpperCase();
           const cleanPath = data.path
             ?.replace(/[{}\/]/g, "_")
@@ -599,6 +663,72 @@ const config: IConfig = {
         }
         return defaultName;
       },
+    },
+  },
+};
+```
+
+### Endpoint Filtering and Selection
+
+```typescript
+// Advanced endpoint filtering configuration
+const config: IConfig = {
+  // ... other config
+  endpoints: {
+    // ... other endpoint config
+    exclude: {
+      // Exclude endpoints by tags
+      tags: ["deprecated", "internal", "admin"],
+      // Exclude specific endpoints by exact path or regex pattern
+      endpoints: [
+        // Exact path matches
+        { path: "/admin/users", method: "DELETE" },
+        { path: "/admin/settings", method: "PUT" },
+        // Regex pattern matches
+        { regex: "^/internal/.*", method: "GET" },
+        { regex: ".*/debug$", method: "POST" },
+        // Exclude all methods for a specific path
+        { path: "/debug/logs" },
+      ],
+    },
+    include: {
+      // Include only public endpoints
+      tags: ["public", "user"],
+      // Include specific endpoints by exact path or regex pattern
+      endpoints: [
+        // Exact path matches
+        { path: "/public/users", method: "GET" },
+        { path: "/public/profile", method: "PUT" },
+        // Regex pattern matches
+        { regex: "^/public/.*", method: "GET" },
+        { regex: ".*/health$", method: "GET" },
+      ],
+    },
+  },
+};
+```
+
+### Path vs Regex Filtering
+
+```typescript
+// Demonstrating the difference between path and regex filtering
+const config: IConfig = {
+  // ... other config
+  endpoints: {
+    exclude: {
+      endpoints: [
+        // Exact path match - only excludes exactly "/api/users"
+        { path: "/api/users", method: "GET" },
+
+        // Regex match - excludes all paths starting with "/api/users"
+        { regex: "^/api/users.*", method: "GET" },
+
+        // Regex match - excludes all paths ending with "/debug"
+        { regex: ".*/debug$", method: "GET" },
+
+        // Regex match - excludes paths with specific pattern
+        { regex: "^/internal/.*/admin$", method: "POST" },
+      ],
     },
   },
 };

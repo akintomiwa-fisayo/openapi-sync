@@ -1,5 +1,4 @@
 import OpenapiSync from "./Openapi-sync";
-import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import { resetState } from "./Openapi-sync/state";
@@ -9,8 +8,6 @@ import { IConfig } from "./types";
 export * from "./types";
 export * from "./helpers";
 export * from "./regex";
-
-dotenv.config();
 
 const rootUsingCwd = process.cwd();
 
