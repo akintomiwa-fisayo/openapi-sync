@@ -75,6 +75,47 @@ const OpenapiSync = async (
   const folderPath = path.join(config?.folder || "", apiName);
 
   const spec: IOpenApiSpec = lintResults.bundle.parsed;
+
+  // Initialize folder splitting data structures
+  const folderGroups: Record<
+    string,
+    {
+      endpoints: string;
+      types: string;
+    }
+  > = {};
+
+  // Helper function to determine folder name for an endpoint
+  const getFolderName = (endpointData: {
+    method: Method;
+    path: string;
+    summary?: string;
+    operationId?: string;
+    tags?: string[];
+    parameters?: IOpenApiParameterSpec[];
+    requestBody?: IOpenApiRequestBodySpec;
+    responses?: IOpenApiResponseSpec;
+  }): string => {
+    // Use custom folder function if provided
+    if (config?.folderSplit?.customFolder) {
+      const customFolder = config.folderSplit.customFolder(endpointData);
+      console.log("customFolder", customFolder);
+      if (customFolder) return customFolder;
+    }
+
+    // Use tag-based splitting if enabled
+    if (
+      config?.folderSplit?.byTags &&
+      endpointData.tags &&
+      endpointData.tags.length > 0
+    ) {
+      return endpointData.tags[0].toLowerCase().replace(/\s+/g, "-");
+    }
+
+    // Default folder
+    return "default";
+  };
+
   const serverUrl =
     typeof config?.server === "string"
       ? config?.server
@@ -701,6 +742,27 @@ const OpenapiSync = async (
         return; // Skip this endpoint
       }
 
+      // Determine folder name for this endpoint
+      const enSpec = endpointSpec[method];
+      const folderName = getFolderName({
+        method,
+        path: endpointPath,
+        summary: enSpec?.summary,
+        operationId: enSpec?.operationId,
+        tags: endpointTags,
+        parameters: enSpec?.parameters,
+        requestBody: enSpec?.requestBody,
+        responses: enSpec?.responses,
+      });
+
+      // Initialize folder group if it doesn't exist
+      if (!folderGroups[folderName]) {
+        folderGroups[folderName] = {
+          endpoints: "",
+          types: "",
+        };
+      }
+
       const endpointUrlTxt =
         (config?.endpoints?.value?.includeServer ? serverUrl : "") +
         endpoint.pathParts
@@ -778,7 +840,12 @@ const OpenapiSync = async (
             );
             if (formattedName) name = `${typePrefix}${formattedName}`;
           }
-          typesFileContent += `export type ${name} = ${queryTypeCnt};\n`;
+          const typeContent = `export type ${name} = ${queryTypeCnt};\n`;
+          if (config?.folderSplit) {
+            folderGroups[folderName].types += typeContent;
+          } else {
+            typesFileContent += typeContent;
+          }
         }
       }
 
@@ -813,7 +880,12 @@ const OpenapiSync = async (
             );
             if (formattedName) name = `${typePrefix}${formattedName}`;
           }
-          typesFileContent += `export type ${name} = ${dtoTypeCnt};\n`;
+          const typeContent = `export type ${name} = ${dtoTypeCnt};\n`;
+          if (config?.folderSplit) {
+            folderGroups[folderName].types += typeContent;
+          } else {
+            typesFileContent += typeContent;
+          }
         }
       }
 
@@ -852,7 +924,12 @@ const OpenapiSync = async (
               );
               if (formattedName) name = `${typePrefix}${formattedName}`;
             }
-            typesFileContent += `export type ${name} = ${responseTypeCnt};\n`;
+            const typeContent = `export type ${name} = ${responseTypeCnt};\n`;
+            if (config?.folderSplit) {
+              folderGroups[folderName].types += typeContent;
+            } else {
+              typesFileContent += typeContent;
+            }
           }
         });
       }
@@ -1020,34 +1097,87 @@ ${CurlGenerator({
         url: endpointUrl,
         tags: eSpec?.tags || [],
       };
-      // Add the endpoint url
-      endpointsFileContent += `${doc}export const ${endpointPrefix}${name} = ${
+      // Add the endpoint url to the specific folder group
+      const endpointContent = `${doc}export const ${endpointPrefix}${name} = ${
         config?.endpoints?.value?.type === "object"
           ? JSONStringify(content)
           : endpointUrl
       }; 
 `;
+
+      // Add to folder group if folder splitting is enabled, otherwise add to global content
+      if (config?.folderSplit) {
+        folderGroups[folderName].endpoints += endpointContent;
+      } else {
+        endpointsFileContent += endpointContent;
+      }
     });
   });
 
-  // Create the necessary directories
-  const endpointsFilePath = path.join(rootUsingCwd, folderPath, "endpoints.ts");
-  await fs.promises.mkdir(path.dirname(endpointsFilePath), { recursive: true });
-  // Create the file asynchronously
-  await fs.promises.writeFile(endpointsFilePath, endpointsFileContent);
+  // Write files based on folder splitting configuration
+  if (config?.folderSplit) {
+    // Write files for each folder group
+    for (const [folderName, group] of Object.entries(folderGroups)) {
+      if (group.endpoints || group.types) {
+        const folderPathForGroup = path.join(folderPath, folderName);
 
+        // Write endpoints file
+        if (group.endpoints) {
+          const endpointsFilePath = path.join(
+            rootUsingCwd,
+            folderPathForGroup,
+            "endpoints.ts"
+          );
+          await fs.promises.mkdir(path.dirname(endpointsFilePath), {
+            recursive: true,
+          });
+          await fs.promises.writeFile(endpointsFilePath, group.endpoints);
+        }
+
+        // Write types file
+        if (group.types) {
+          const typesFilePath = path.join(
+            rootUsingCwd,
+            folderPathForGroup,
+            "types.ts"
+          );
+          await fs.promises.mkdir(path.dirname(typesFilePath), {
+            recursive: true,
+          });
+
+          const typesContent =
+            Object.values(sharedTypesFileContent).length > 0
+              ? `import * as Shared from "../shared";\n\n${group.types}`
+              : group.types;
+
+          await fs.promises.writeFile(typesFilePath, typesContent);
+        }
+      }
+    }
+  }
+
+  if (endpointsFileContent.length > 0) {
+    // Original behavior - write to single files
+    const endpointsFilePath = path.join(
+      rootUsingCwd,
+      folderPath,
+      "endpoints.ts"
+    );
+    await fs.promises.mkdir(path.dirname(endpointsFilePath), {
+      recursive: true,
+    });
+    await fs.promises.writeFile(endpointsFilePath, endpointsFileContent);
+  }
   if (Object.values(sharedTypesFileContent).length > 0) {
-    // Create the necessary directories
     const sharedTypesFilePath = path.join(
       rootUsingCwd,
       folderPath,
-      "types",
+      !config?.folderSplit ? "types" : "",
       "shared.ts"
     );
     await fs.promises.mkdir(path.dirname(sharedTypesFilePath), {
       recursive: true,
     });
-    // Create the file asynchronously
     await fs.promises.writeFile(
       sharedTypesFilePath,
       Object.values(sharedTypesFileContent).join("\n")
@@ -1055,7 +1185,6 @@ ${CurlGenerator({
   }
 
   if (typesFileContent.length > 0) {
-    // Create the necessary directories
     const typesFilePath = path.join(
       rootUsingCwd,
       folderPath,
@@ -1063,7 +1192,6 @@ ${CurlGenerator({
       "index.ts"
     );
     await fs.promises.mkdir(path.dirname(typesFilePath), { recursive: true });
-    // Create the file asynchronously
     await fs.promises.writeFile(
       typesFilePath,
       `${
