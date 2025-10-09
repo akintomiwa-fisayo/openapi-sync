@@ -1,31 +1,9 @@
 {
   "name": "openapi-sync",
-  "version": "2.1.11",
+  "version": "2.1.12",
   "description": "A developer-friendly tool designed to keep your API up-to-date by leveraging OpenAPI schemas. It automates the generation of endpoint URIs and type definitions, including shared types, directly from your OpenAPI specification.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
-      "import": "./dist/index.js"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts",
-      "require": "./dist/types.js",
-      "import": "./dist/types.js"
-    },
-    "./helpers": {
-      "types": "./dist/helpers.d.ts",
-      "require": "./dist/helpers.js",
-      "import": "./dist/helpers.js"
-    },
-    "./regex": {
-      "types": "./dist/regex.d.ts",
-      "require": "./dist/regex.js",
-      "import": "./dist/regex.js"
-    }
-  },
   "bin": {
     "openapi-sync": "./bin/cli.js"
   },
@@ -60,7 +38,7 @@
   },
   "scripts": {
     "build-tsc": "rm -rf dist && tsc",
-    "build": "rm -rf dist && tsup index.ts --format cjs,esm --dts --clean --minify",
+    "build": "rm -rf dist && tsup",
     "publish-package": "npm run build && npm publish"
   },
   "author": "P-Technologies",
@@ -68,6 +46,8 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
+    "@types/lodash.get": "^4.4.9",
+    "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^22.1.0",
     "typescript": "^5.5.4"
   },
@@ -75,10 +55,12 @@
     "@redocly/openapi-core": "^1.19.0",
     "axios": "^1.7.3",
     "axios-retry": "^4.5.0",
-    "esbuild-register": "^3.6.0",
     "curl-generator": "^0.4.2",
+    "esbuild-register": "^3.6.0",
     "js-yaml": "^4.1.0",
-    "lodash": "^4.17.21",
+    "lodash.get": "^4.4.2",
+    "lodash.isequal": "^4.5.0",
+    "tsup": "^8.5.0",
     "yargs": "^17.7.2"
   }
 }
