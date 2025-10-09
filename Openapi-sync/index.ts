@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import lodash from "lodash";
 import {
   capitalize,
   getEndpointDetails,
@@ -20,7 +19,8 @@ import {
   IOpenApiSpec,
   IOpenApSchemaSpec,
 } from "../types";
-import { isEqual } from "lodash";
+import isEqual from "lodash.isequal";
+import lodashget from "lodash.get";
 import axios, { Method } from "axios";
 import axiosRetry from "axios-retry";
 import { bundleFromString, createConfig } from "@redocly/openapi-core";
@@ -177,7 +177,7 @@ const OpenapiSync = async (
           partsClone.pop();
 
           const pathToComponent = pathToComponentParts;
-          const component = lodash.get(
+          const component = lodashget(
             apiDoc,
             pathToComponent,
             null
@@ -375,7 +375,7 @@ const OpenapiSync = async (
           pathToComponentParts.shift();
 
           const pathToComponent = pathToComponentParts;
-          const component = lodash.get(
+          const component = lodashget(
             apiDoc,
             pathToComponent,
             null
