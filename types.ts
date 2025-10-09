@@ -87,11 +87,29 @@ export type IConfigExclude = {
 
 export interface IConfigInclude extends IConfigExclude {}
 
+export type IConfigFolderSplit = {
+  /** Split folders by tags - creates folders named after each tag */
+  byTags?: boolean;
+  /** Custom function to determine folder name for each endpoint */
+  customFolder?: (data: {
+    method: Method;
+    path: string;
+    summary?: string;
+    operationId?: string;
+    tags?: string[];
+    parameters?: IOpenApiParameterSpec[];
+    requestBody?: IOpenApiRequestBodySpec;
+    responses?: IOpenApiResponseSpec;
+  }) => string | null;
+};
+
 export type IConfig = {
   refetchInterval?: number;
   folder?: string;
   api: Record<string, string>;
   server?: number | string;
+  /** Configuration for splitting generated code into folders */
+  folderSplit?: IConfigFolderSplit;
   /** Configuration for excluding endpoints from code generation */
   types?: {
     name?: {

@@ -37,7 +37,9 @@
 - Customizable naming conventions for types and endpoints
 - Exclude/include endpoints by exact path or regex patterns
 - Tag-based filtering, method-specific filtering, and pattern matching
-- Flexible output directory structure
+- Folder splitting configuration for organized code generation
+- OperationId-based naming for better type and endpoint names
+- Flexible output directory structure with custom folder organization
 - URL transformation and text replacement rules
 - Configurable documentation generation
 - Support for multiple API specifications
@@ -153,6 +155,18 @@ const config: IConfig = {
   },
   server: "https://api.example.com", // Override server URL
 
+  // NEW: Folder splitting configuration
+  folderSplit: {
+    byTags: true, // Create folders based on endpoint tags
+    customFolder: ({ method, path, tags, operationId }) => {
+      // Custom logic to determine folder structure
+      if (tags?.includes("admin")) return "admin";
+      if (tags?.includes("public")) return "public";
+      if (path.startsWith("/api/v1/")) return "v1";
+      return null; // Use default folder structure
+    },
+  },
+
   // Type generation configuration
   types: {
     name: {
@@ -247,6 +261,7 @@ export default config;
 | `folder`          | `string`                 | Output directory for generated files          | `""`     |
 | `api`             | `Record<string, string>` | Map of API names to OpenAPI spec URLs         | Required |
 | `server`          | `number \| string`       | Server index or custom server URL             | `0`      |
+| `folderSplit`     | `IConfigFolderSplit`     | Configuration for folder splitting            | -        |
 
 #### Type Configuration (`types`)
 
@@ -283,6 +298,44 @@ If `operationId` is not available, the system falls back to the default path-bas
 | `exclude.endpoints`   | `Array<{path?: string, regex?: string, method?: Method}>` | Exclude specific endpoints by exact path or regex pattern |
 | `include.tags`        | `string[]`                                                | Include endpoints by tags                                 |
 | `include.endpoints`   | `Array<{path?: string, regex?: string, method?: Method}>` | Include specific endpoints by exact path or regex pattern |
+
+#### Folder Splitting Configuration (`folderSplit`)
+
+| Property       | Type       | Description                                   |
+| -------------- | ---------- | --------------------------------------------- |
+| `byTags`       | `boolean`  | Create folders based on endpoint tags         |
+| `customFolder` | `function` | Custom function to determine folder structure |
+
+**Folder Splitting Examples:**
+
+```typescript
+// Split by tags - creates folders like "admin/", "public/", "user/"
+folderSplit: {
+  byTags: true,
+}
+
+// Custom folder logic
+folderSplit: {
+  customFolder: ({ method, path, tags, operationId }) => {
+    // Admin endpoints go to admin folder
+    if (tags?.includes("admin")) return "admin";
+
+    // Public endpoints go to public folder
+    if (tags?.includes("public")) return "public";
+
+    // API versioning
+    if (path.startsWith("/api/v1/")) return "v1";
+    if (path.startsWith("/api/v2/")) return "v2";
+
+    // Method-based organization
+      const method = data.method.toLowerCase();
+    if (method === "get") return "read";
+    if (method === "post" || method === "PUT") return "write";
+
+    return null; // Use default structure
+  },
+}
+```
 
 ## Usage
 
@@ -378,6 +431,8 @@ export default (): IConfig => {
 
 OpenAPI Sync generates a structured output in your specified folder:
 
+### Default Structure
+
 ```
 src/api/
 ├── petstore/
@@ -390,6 +445,37 @@ src/api/
     └── types/
         ├── index.ts
         └── shared.ts
+```
+
+### Folder Splitting Structure
+
+When `folderSplit.byTags` is enabled or custom folder logic is used:
+
+```
+src/api/
+├── petstore/
+│   ├── admin/                # Endpoints with "admin" tag
+│   │   ├── endpoints.ts
+│   │   └── types/
+│   │       ├── index.ts
+│   │       └── shared.ts
+│   ├── public/               # Endpoints with "public" tag
+│   │   ├── endpoints.ts
+│   │   └── types/
+│   │       ├── index.ts
+│   │       └── shared.ts
+│   └── user/                 # Endpoints with "user" tag
+│       ├── endpoints.ts
+│       └── types/
+│           ├── index.ts
+│           └── shared.ts
+└── auth-api/
+    ├── v1/                   # Custom folder logic
+    │   ├── endpoints.ts
+    │   └── types/
+    └── v2/
+        ├── endpoints.ts
+        └── types/
 ```
 
 ### Generated Endpoints
@@ -564,6 +650,93 @@ import {
 ```
 
 ## Advanced Examples
+
+### Advanced Folder Splitting Configuration
+
+```typescript
+// openapi.sync.ts
+import { IConfig } from "openapi-sync/types";
+
+const config: IConfig = {
+  refetchInterval: 5000,
+  folder: "./src/api",
+  api: {
+    "main-api": "https://api.example.com/openapi.json",
+  },
+
+  // Advanced folder splitting with multiple strategies
+  folderSplit: {
+    byTags: true, // Enable tag-based splitting
+    customFolder: ({ method, path, tags, operationId }) => {
+      // Priority-based folder assignment
+
+      // 1. Admin endpoints always go to admin folder
+      if (tags?.includes("admin")) return "admin";
+
+      // 2. Public API endpoints
+      if (tags?.includes("public")) return "public";
+
+      // 3. Version-based splitting
+      if (path.startsWith("/api/v1/")) return "v1";
+      if (path.startsWith("/api/v2/")) return "v2";
+
+      // 4. Method-based organization for remaining endpoints
+      if (method === "GET") return "read";
+      if (method === "POST" || method === "PUT" || method === "PATCH")
+        return "write";
+      if (method === "DELETE") return "delete";
+
+      // 5. OperationId-based splitting for specific operations
+      if (operationId?.includes("Auth")) return "auth";
+      if (operationId?.includes("User")) return "user";
+
+      return null; // Use default structure
+    },
+  },
+
+  // Enhanced type naming with operationId support
+  types: {
+    name: {
+      prefix: "I",
+      useOperationId: true, // Use operationId when available
+      format: (source, data, defaultName) => {
+        if (source === "endpoint" && data.operationId) {
+          // Use operationId for better naming
+          switch (data.type) {
+            case "query":
+              return `${data.operationId}Query`;
+            case "dto":
+              return `${data.operationId}DTO`;
+            case "response":
+              return `${data.operationId}${data.code}Response`;
+          }
+        }
+        return defaultName;
+      },
+    },
+  },
+
+  // Enhanced endpoint configuration
+  endpoints: {
+    name: {
+      useOperationId: true, // Use operationId for endpoint names
+      format: ({ operationId, method, path }, defaultName) => {
+        if (operationId) return operationId;
+        return defaultName;
+      },
+    },
+    exclude: {
+      tags: ["deprecated", "internal"],
+      endpoints: [
+        { regex: "^/internal/.*" },
+        { path: "/debug", method: "GET" },
+      ],
+    },
+  },
+};
+
+export default config;
+```
 
 ### Multi-Environment Configuration
 
@@ -988,6 +1161,34 @@ The tool maintains state in `db.json` to track changes:
 3. **Feature Requests**: Describe your use case and expected behavior
 
 ---
+
+## Changelog
+
+### v2.1.11 (Latest)
+
+- **NEW**: Folder splitting configuration for organized code generation
+  - `folderSplit.byTags` - Create folders based on endpoint tags
+  - `folderSplit.customFolder` - Custom function for folder structure logic
+- Enhanced folder organization with priority-based assignment
+- Improved code organization for large APIs
+
+### v2.1.10
+
+- OperationId-based naming for types and endpoints
+  - `types.name.useOperationId` - Use OpenAPI operationId for type naming
+  - `endpoints.name.useOperationId` - Use operationId for endpoint naming
+- Enhanced endpoint filtering capabilities
+  - Improved tag-based filtering
+  - Better regex pattern matching
+  - More flexible include/exclude rules
+- Enhanced JSONStringify function with array serialization support
+- Improved endpoint tags support in generated documentation
+
+### Previous Versions
+
+- v2.1.9: Enhanced JSONStringify function improvements
+- v2.1.8: File extension corrections and path handling
+- v2.1.7: Endpoint tags support in API documentation
 
 ## License
 

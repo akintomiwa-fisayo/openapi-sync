@@ -4,12 +4,37 @@ const config: IConfig = {
   refetchInterval: 5000,
   folder: "/inputed/path/",
   api: {
-    example1:
-      "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.json",
-    example2:
-      "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml",
+    example1: "https://openapi.free.beeceptor.com/openapi.json",
   },
   server: 0,
+  // Configuration for splitting generated code into folders
+  folderSplit: {
+    // Split folders by tags - creates folders named after each tag
+    byTags: true,
+    // Custom function to determine folder name for each endpoint
+    customFolder: (data) => {
+      // Example: Group by path prefix
+      if (data.path.startsWith("/auth/")) return "auth";
+      if (data.path.startsWith("/users/")) return "users";
+      if (data.path.startsWith("/admin/")) return "admin";
+      if (data.path.startsWith("/public/")) return "public";
+
+      // Example: Group by HTTP method
+      const method = data.method.toLowerCase();
+      if (method === "get") return "read";
+      if (method === "post") return "create";
+      if (method === "put" || method === "patch") return "update";
+      if (method === "delete") return "delete";
+
+      // Example: Group by tags if available
+      if (data.tags && data.tags.length > 0) {
+        return data.tags[0].toLowerCase().replace(/\s+/g, "-");
+      }
+
+      // Default fallback
+      return "misc";
+    },
+  },
   // Configuration for excluding endpoints from code generation
   types: {
     name: {
