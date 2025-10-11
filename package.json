@@ -1,6 +1,6 @@
 {
   "name": "openapi-sync",
-  "version": "2.1.14",
+  "version": "2.1.17",
   "description": "A developer-friendly tool designed to keep your API up-to-date by leveraging OpenAPI schemas. It automates the generation of endpoint URIs and type definitions, including shared types, directly from your OpenAPI specification.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,7 +23,11 @@
   ],
   "files": [
     "bin",
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.mjs",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.mts",
+    "!dist/**/*.map",
     "db.json",
     "LICENSE",
     "README.md",
@@ -38,8 +42,8 @@
     "url": "https://github.com/akintomiwa-fisayo/openapi-sync/issues"
   },
   "scripts": {
-    "build-tsc": "rm -rf dist && tsc",
-    "build": "rm -rf dist && tsup",
+    "build-tsc": "rm -rf dist db.json && tsc && echo '{}' > db.json",
+    "build": "rm -rf dist db.json && tsup && echo '{}' > db.json",
     "publish-package": "npm run build && npm publish",
     "test": "jest",
     "test:watch": "jest --watch",
