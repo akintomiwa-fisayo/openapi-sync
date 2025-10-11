@@ -3,21 +3,16 @@ import OpenapiSync from "../Openapi-sync";
 import fs from "fs";
 import path from "path";
 import axios from "axios";
-import { bundleFromString, createConfig } from "@redocly/openapi-core";
+import SwaggerParser from "@apidevtools/swagger-parser";
 
 // Mock all dependencies
 jest.mock("axios");
-jest.mock("@redocly/openapi-core");
+jest.mock("@apidevtools/swagger-parser");
 jest.mock("fs");
 jest.mock("path");
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-const mockedBundleFromString = bundleFromString as jest.MockedFunction<
-  typeof bundleFromString
->;
-const mockedCreateConfig = createConfig as jest.MockedFunction<
-  typeof createConfig
->;
+const mockedSwaggerParser = SwaggerParser as jest.Mocked<typeof SwaggerParser>;
 const mockedFs = fs as jest.Mocked<typeof fs>;
 const mockedPath = path as jest.Mocked<typeof path>;
 
@@ -142,13 +137,9 @@ describe.skip("Integration Tests", () => {
       }),
     } as any);
 
-    // Mock Redocly functions
-    mockedCreateConfig.mockResolvedValue({} as any);
-    mockedBundleFromString.mockResolvedValue({
-      bundle: {
-        parsed: mockOpenApiSpec,
-      },
-    } as any);
+    // Mock SwaggerParser functions
+    mockedSwaggerParser.validate.mockResolvedValue(mockOpenApiSpec as any);
+    mockedSwaggerParser.parse.mockResolvedValue(mockOpenApiSpec as any);
 
     // Mock OpenapiSync
     jest.doMock("../Openapi-sync", () => ({
@@ -174,10 +165,7 @@ describe.skip("Integration Tests", () => {
       await Init();
 
       expect(mockedAxios.create).toHaveBeenCalled();
-      expect(mockedCreateConfig).toHaveBeenCalledWith({
-        extends: ["minimal"],
-      });
-      expect(mockedBundleFromString).toHaveBeenCalled();
+      expect(mockedSwaggerParser.parse).toHaveBeenCalledWith(mockOpenApiSpec);
     });
 
     it("should handle multiple APIs in sequence", async () => {
@@ -196,7 +184,7 @@ describe.skip("Integration Tests", () => {
       await Init();
 
       expect(mockedAxios.create).toHaveBeenCalled();
-      expect(mockedBundleFromString).toHaveBeenCalled();
+      expect(mockedSwaggerParser.parse).toHaveBeenCalled();
     });
 
     it("should handle folder splitting workflow", async () => {
@@ -319,7 +307,7 @@ describe.skip("Integration Tests", () => {
       };
 
       // Mock invalid spec
-      mockedBundleFromString.mockRejectedValue(new Error("Invalid spec"));
+      mockedSwaggerParser.parse.mockRejectedValue(new Error("Invalid spec"));
 
       jest.doMock("openapi.sync.json", () => config, { virtual: true });
 
@@ -413,11 +401,7 @@ describe.skip("Integration Tests", () => {
         }),
       } as any);
 
-      mockedBundleFromString.mockResolvedValue({
-        bundle: {
-          parsed: largeSpec,
-        },
-      } as any);
+      mockedSwaggerParser.parse.mockResolvedValue(largeSpec as any);
 
       const config = {
         refetchInterval: 5000,

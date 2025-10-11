@@ -1,21 +1,16 @@
 import { IConfig, IOpenApiSpec } from "../types";
 import axios from "axios";
-import { bundleFromString, createConfig } from "@redocly/openapi-core";
+import SwaggerParser from "@apidevtools/swagger-parser";
 import fs from "fs";
 
 // Mock dependencies
 jest.mock("axios");
-jest.mock("@redocly/openapi-core");
+jest.mock("@apidevtools/swagger-parser");
 jest.mock("fs");
 jest.mock("axios-retry");
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-const mockedBundleFromString = bundleFromString as jest.MockedFunction<
-  typeof bundleFromString
->;
-const mockedCreateConfig = createConfig as jest.MockedFunction<
-  typeof createConfig
->;
+const mockedSwaggerParser = SwaggerParser as jest.Mocked<typeof SwaggerParser>;
 const mockedFs = fs as jest.Mocked<typeof fs>;
 
 describe("OpenapiSync", () => {
@@ -138,13 +133,9 @@ describe("OpenapiSync", () => {
       get: mockGet,
     } as any);
 
-    // Mock Redocly functions
-    mockedCreateConfig.mockResolvedValue({} as any);
-    mockedBundleFromString.mockResolvedValue({
-      bundle: {
-        parsed: mockOpenApiSpec,
-      },
-    } as any);
+    // Mock SwaggerParser functions
+    mockedSwaggerParser.validate.mockResolvedValue(mockOpenApiSpec as any);
+    mockedSwaggerParser.parse.mockResolvedValue(mockOpenApiSpec as any);
 
     // Import OpenapiSync with isolated modules to ensure mocks are applied
     jest.isolateModules(() => {
@@ -169,10 +160,7 @@ describe("OpenapiSync", () => {
       );
 
       expect(mockedAxios.create).toHaveBeenCalled();
-      expect(mockedCreateConfig).toHaveBeenCalledWith({
-        extends: ["minimal"],
-      });
-      expect(mockedBundleFromString).toHaveBeenCalled();
+      expect(mockedSwaggerParser.parse).toHaveBeenCalledWith(mockOpenApiSpec);
     });
 
     it("should handle different server configurations", async () => {
@@ -496,8 +484,23 @@ describe("OpenapiSync", () => {
       ).rejects.toThrow("Network Error");
     });
 
-    it("should handle invalid OpenAPI spec", async () => {
-      mockedBundleFromString.mockRejectedValue(new Error("Invalid spec"));
+    it("should handle invalid OpenAPI spec with lenient parsing", async () => {
+      mockedSwaggerParser.parse.mockResolvedValue(mockOpenApiSpec as any);
+
+      // Should not throw, should use lenient parsing
+      await expect(
+        OpenapiSync(
+          "https://petstore3.swagger.io/api/v3/openapi.json",
+          "petstore",
+          mockConfig
+        )
+      ).resolves.not.toThrow();
+
+      expect(mockedSwaggerParser.parse).toHaveBeenCalled();
+    });
+
+    it("should handle complete parsing failure", async () => {
+      mockedSwaggerParser.parse.mockRejectedValue(new Error("Parse failed"));
 
       await expect(
         OpenapiSync(
@@ -505,7 +508,9 @@ describe("OpenapiSync", () => {
           "petstore",
           mockConfig
         )
-      ).rejects.toThrow("Invalid spec");
+      ).rejects.toThrow(
+        "Failed to parse OpenAPI spec for petstore: Parse failed"
+      );
     });
 
     it("should handle file system errors", async () => {

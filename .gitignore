@@ -6,3 +6,8 @@ inputed
 db.json
 openapi.sync.json
 TODO.md
+# Bundle analysis
+bundle-stats.html
+bundle-stats.json
+bundle-stats.tsv
+BUNDLE_ANALYSIS.md
