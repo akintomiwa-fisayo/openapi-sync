@@ -44,7 +44,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --watchAll=false"
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "analyze:size": "npm run build && du -sh dist/* | sort -h",
+    "analyze:detailed": "npm run build && du -h dist/* && echo '\n📊 Total dist size:' && du -sh dist",
+    "analyze:deps": "npm list --depth=0 --production",
+    "analyze:bundle": "npm run build && node scripts/analyze-bundle.js"
   },
   "author": "P-Technologies",
   "license": "ISC",
@@ -56,11 +60,12 @@
     "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^22.1.0",
     "jest": "^30.2.0",
+    "source-map-explorer": "^2.5.3",
     "ts-jest": "^29.4.4",
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@redocly/openapi-core": "^1.19.0",
+    "@apidevtools/swagger-parser": "^12.0.0",
     "axios": "^1.7.3",
     "axios-retry": "^4.5.0",
     "curl-generator": "^0.4.2",

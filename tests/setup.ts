@@ -39,10 +39,10 @@ jest.mock("axios-retry", () => ({
   default: jest.fn(),
 }));
 
-// Mock @redocly/openapi-core
-jest.mock("@redocly/openapi-core", () => ({
-  createConfig: jest.fn(),
-  bundleFromString: jest.fn(),
+// Mock @apidevtools/swagger-parser
+jest.mock("@apidevtools/swagger-parser", () => ({
+  validate: jest.fn(),
+  parse: jest.fn(),
 }));
 
 // Mock curl-generator

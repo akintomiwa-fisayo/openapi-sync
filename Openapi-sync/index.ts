@@ -23,7 +23,7 @@ import isEqual from "lodash.isequal";
 import lodashget from "lodash.get";
 import axios, { Method } from "axios";
 import axiosRetry from "axios-retry";
-import { bundleFromString, createConfig } from "@redocly/openapi-core";
+import SwaggerParser from "@apidevtools/swagger-parser";
 import { getState, setState } from "./state";
 import { CurlGenerator } from "curl-generator";
 
@@ -57,24 +57,24 @@ const OpenapiSync = async (
 ) => {
   const specResponse = await apiClient.get(apiUrl);
 
-  const redoclyConfig = await createConfig({
-    extends: ["minimal"],
-  });
+  const source = isJson(specResponse.data)
+    ? specResponse.data
+    : yamlStringToJson(specResponse.data);
 
-  const source = JSON.stringify(
-    isJson(specResponse.data)
-      ? specResponse.data
-      : yamlStringToJson(specResponse.data)
-  );
-
-  const lintResults = await bundleFromString({
-    source,
-    config: redoclyConfig,
-  });
+  // Parse the OpenAPI spec using swagger-parser with lenient parsing
+  let spec: IOpenApiSpec;
+  try {
+    // Use lenient parsing by default (similar to redocly behavior)
+    spec = (await SwaggerParser.parse(source)) as IOpenApiSpec;
+  } catch (parseError) {
+    const parseErrorMessage =
+      parseError instanceof Error ? parseError.message : String(parseError);
+    throw new Error(
+      `Failed to parse OpenAPI spec for ${apiName}: ${parseErrorMessage}`
+    );
+  }
 
   const folderPath = path.join(config?.folder || "", apiName);
-
-  const spec: IOpenApiSpec = lintResults.bundle.parsed;
 
   // Initialize folder splitting data structures
   const folderGroups: Record<

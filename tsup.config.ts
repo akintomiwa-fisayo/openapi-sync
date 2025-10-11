@@ -5,7 +5,9 @@ export default defineConfig({
   format: ["cjs", "esm"],
   dts: true,
   clean: true,
-  minify: true,
+  minify: process.env.ANALYZE ? false : true, // Disable minification for analysis
+  sourcemap: true, // Required for source-map-explorer
+  treeshake: true,
   esbuildOptions(options) {
     // Remove pure option that's causing issues
     // options.pure = [
