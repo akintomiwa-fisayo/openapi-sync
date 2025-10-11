@@ -7,6 +7,7 @@ const { hideBin } = require("yargs/helpers");
 
 // Setup yargs
 const argv = yargs(hideBin(process.argv))
+  .usage("Usage: $0 [options]")
   .option("refreshinterval", {
     alias: "ri",
     type: "number",
