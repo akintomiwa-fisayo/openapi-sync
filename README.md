@@ -1,5 +1,6 @@
 [![NPM Version](https://img.shields.io/npm/v/openapi-sync.svg)](https://www.npmjs.com/package/openapi-sync)
 [![License](https://img.shields.io/npm/l/openapi-sync.svg)](https://github.com/akintomiwa-fisayo/openapi-sync/blob/main/LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/akintomiwa-fisayo/openapi-sync)
 
 **OpenAPI Sync** is a powerful developer tool that automates the synchronization of your API documentation with your codebase using OpenAPI (formerly Swagger) specifications. It generates TypeScript types, endpoint definitions, and comprehensive documentation from your OpenAPI schema, ensuring your API documentation stays up-to-date with your code.
 
@@ -436,15 +437,12 @@ OpenAPI Sync generates a structured output in your specified folder:
 ```
 src/api/
 ├── petstore/
-│   ├── endpoints.ts          # Endpoint URLs and metadata
-│   └── types/
-│       ├── index.ts          # Endpoint-specific types
-│       └── shared.ts         # Shared component types
-└── auth-api/
-    ├── endpoints.ts
-    └── types/
-        ├── index.ts
-        └── shared.ts
+│   ├── endpoints.ts      # Endpoint URLs and metadata
+│   └── types.ts          # Endpoint-specific types
+├── auth-api/
+│    ├── endpoints.ts     # Endpoint URLs and metadata
+│    └── types.ts         # Endpoint-specific types
+└── shared.ts             # Shared component types
 ```
 
 ### Folder Splitting Structure
@@ -456,26 +454,21 @@ src/api/
 ├── petstore/
 │   ├── admin/                # Endpoints with "admin" tag
 │   │   ├── endpoints.ts
-│   │   └── types/
-│   │       ├── index.ts
-│   │       └── shared.ts
+│   │   └── types.ts
 │   ├── public/               # Endpoints with "public" tag
 │   │   ├── endpoints.ts
-│   │   └── types/
-│   │       ├── index.ts
-│   │       └── shared.ts
+│   │   └── types.ts
 │   └── user/                 # Endpoints with "user" tag
 │       ├── endpoints.ts
-│       └── types/
-│           ├── index.ts
-│           └── shared.ts
-└── auth-api/
-    ├── v1/                   # Custom folder logic
-    │   ├── endpoints.ts
-    │   └── types/
-    └── v2/
-        ├── endpoints.ts
-        └── types/
+│       └── types.ts
+│── auth-api/
+│   ├── v1/                   # Custom folder logic
+│   │   ├── endpoints.ts
+│   │   └── types.ts
+│   └── v2/
+│       ├── endpoints.ts
+│       └── types.ts
+└── shared.ts             # Shared component types
 ```
 
 ### Generated Endpoints
@@ -1186,9 +1179,21 @@ The tool maintains state in `db.json` to track changes:
 
 ### Previous Versions
 
+- v2.1.13: Fix dts type fixes and Clean up tsup build config and introduction of unit testing
+- v2.1.12: Add automatic sync support for function-based config, improved handling of missing OpenAPI urls
+- v2.1.11: Folder splitting configuration for organized code generation
+- v2.1.10: OperationId-based naming for types and endpoints, enhanced filtering and tag support
 - v2.1.9: Enhanced JSONStringify function improvements
 - v2.1.8: File extension corrections and path handling
 - v2.1.7: Endpoint tags support in API documentation
+- v2.1.6: Improved handling of nullable fields in generated types
+- v2.1.5: Fixed bug with recursive schema references
+- v2.1.4: Enhanced error messages on invalid config
+- v2.1.3: Add more informative debugging logs
+- v2.1.2: Support enum descriptions in output
+- v2.1.1: Update dependencies, minor TypeScript type fixes
+- v2.1.0: Initial v2 major release with new sync engine
+- v2.0.0: Major refactor and breaking changes for v2
 
 ## License
 

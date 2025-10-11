@@ -1,6 +1,6 @@
 {
   "name": "openapi-sync",
-  "version": "2.1.12",
+  "version": "2.1.13",
   "description": "A developer-friendly tool designed to keep your API up-to-date by leveraging OpenAPI schemas. It automates the generation of endpoint URIs and type definitions, including shared types, directly from your OpenAPI specification.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,7 +18,8 @@
     "node",
     "codegen",
     "generation",
-    "generator"
+    "generator",
+    "generate types"
   ],
   "files": [
     "bin",
@@ -39,16 +40,23 @@
   "scripts": {
     "build-tsc": "rm -rf dist && tsc",
     "build": "rm -rf dist && tsup",
-    "publish-package": "npm run build && npm publish"
+    "publish-package": "npm run build && npm publish",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --watchAll=false"
   },
   "author": "P-Technologies",
   "license": "ISC",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
     "@types/lodash.get": "^4.4.9",
     "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^22.1.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.4",
     "typescript": "^5.5.4"
   },
   "dependencies": {
