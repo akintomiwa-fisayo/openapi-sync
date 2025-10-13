@@ -7,6 +7,7 @@ import {
   JSONStringify,
   renderTypeRefMD,
   yamlStringToJson,
+  mergeCustomCode,
 } from "../helpers";
 import {
   IConfig,
@@ -48,6 +49,43 @@ axiosRetry(apiClient, {
     return retryCount * 1000; // Exponential back-off: 1s, 2s, 3s, etc.
   },
 });
+
+/**
+ * Write file with custom code preservation
+ * Reads existing file, preserves custom code sections, and merges with new generated content
+ */
+const writeFileWithCustomCode = async (
+  filePath: string,
+  generatedContent: string,
+  config: IConfig
+): Promise<void> => {
+  // Check if custom code preservation is enabled (default: true)
+  const customCodeEnabled = config?.customCode?.enabled !== false;
+
+  if (!customCodeEnabled) {
+    // No custom code preservation - just write the file directly
+    await fs.promises.writeFile(filePath, generatedContent);
+    return;
+  }
+
+  // Read existing file if it exists
+  let existingContent: string | null = null;
+  try {
+    existingContent = await fs.promises.readFile(filePath, "utf-8");
+  } catch (error) {
+    // File doesn't exist yet - that's okay, we'll create it
+  }
+
+  // Merge with custom code
+  const finalContent = mergeCustomCode(generatedContent, existingContent, {
+    position: config?.customCode?.position || "bottom",
+    markerText: config?.customCode?.markerText,
+    includeInstructions: config?.customCode?.includeInstructions,
+  });
+
+  // Write the merged content
+  await fs.promises.writeFile(filePath, finalContent);
+};
 
 const OpenapiSync = async (
   apiUrl: string,
@@ -1131,7 +1169,11 @@ ${CurlGenerator({
           await fs.promises.mkdir(path.dirname(endpointsFilePath), {
             recursive: true,
           });
-          await fs.promises.writeFile(endpointsFilePath, group.endpoints);
+          await writeFileWithCustomCode(
+            endpointsFilePath,
+            group.endpoints,
+            config
+          );
         }
 
         // Write types file
@@ -1150,7 +1192,7 @@ ${CurlGenerator({
               ? `import * as Shared from "../shared";\n\n${group.types}`
               : group.types;
 
-          await fs.promises.writeFile(typesFilePath, typesContent);
+          await writeFileWithCustomCode(typesFilePath, typesContent, config);
         }
       }
     }
@@ -1166,7 +1208,11 @@ ${CurlGenerator({
     await fs.promises.mkdir(path.dirname(endpointsFilePath), {
       recursive: true,
     });
-    await fs.promises.writeFile(endpointsFilePath, endpointsFileContent);
+    await writeFileWithCustomCode(
+      endpointsFilePath,
+      endpointsFileContent,
+      config
+    );
   }
   if (Object.values(sharedTypesFileContent).length > 0) {
     const sharedTypesFilePath = path.join(
@@ -1178,9 +1224,10 @@ ${CurlGenerator({
     await fs.promises.mkdir(path.dirname(sharedTypesFilePath), {
       recursive: true,
     });
-    await fs.promises.writeFile(
+    await writeFileWithCustomCode(
       sharedTypesFilePath,
-      Object.values(sharedTypesFileContent).join("\n")
+      Object.values(sharedTypesFileContent).join("\n"),
+      config
     );
   }
 
@@ -1192,13 +1239,14 @@ ${CurlGenerator({
       "index.ts"
     );
     await fs.promises.mkdir(path.dirname(typesFilePath), { recursive: true });
-    await fs.promises.writeFile(
+    await writeFileWithCustomCode(
       typesFilePath,
       `${
         Object.values(sharedTypesFileContent).length > 0
           ? `import * as  Shared from "./shared";\n\n`
           : ""
-      }${typesFileContent}`
+      }${typesFileContent}`,
+      config
     );
   }
 };

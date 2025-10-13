@@ -12,6 +12,7 @@
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Generated Output](#generated-output)
+- [Custom Code Injection](#custom-code-injection)
 - [API Reference](#api-reference)
 - [Advanced Examples](#advanced-examples)
 - [Troubleshooting](#troubleshooting)
@@ -44,6 +45,7 @@
 - URL transformation and text replacement rules
 - Configurable documentation generation
 - Support for multiple API specifications
+- Custom code injection, preserve your custom code between regenerations
 
 ### 🛡️ **Enterprise Ready**
 
@@ -606,6 +608,250 @@ export type IPet = {
 };
 ```
 
+## Custom Code Injection
+
+OpenAPI Sync supports preserving custom code between regenerations using special comment markers. This allows you to add your own custom endpoints, types, or utility functions that will survive when the generated code is updated.
+
+### How It Works
+
+Custom code is preserved using special comment markers in the generated files. Any code you add between these markers will be preserved when the files are regenerated.
+
+### Configuration
+
+Add the `customCode` configuration to your `openapi.sync.ts` file:
+
+```typescript
+import { IConfig } from "openapi-sync/types";
+
+export default {
+  refetchInterval: 5000,
+  folder: "./src/api",
+  api: {
+    petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+  },
+  customCode: {
+    enabled: true, // Enable custom code preservation (default: true)
+    position: "bottom", // Position of custom code: "top", "bottom", or "both"
+    markerText: "CUSTOM CODE", // Custom marker text (default: "CUSTOM CODE")
+    includeInstructions: true, // Include helpful instructions (default: true)
+  },
+} as IConfig;
+```
+
+### Configuration Options
+
+| Option                | Type                          | Default         | Description                                |
+| --------------------- | ----------------------------- | --------------- | ------------------------------------------ |
+| `enabled`             | `boolean`                     | `true`          | Enable or disable custom code preservation |
+| `position`            | `"top" \| "bottom" \| "both"` | `"bottom"`      | Where to place custom code markers         |
+| `markerText`          | `string`                      | `"CUSTOM CODE"` | Custom text for markers                    |
+| `includeInstructions` | `boolean`                     | `true`          | Include helpful instructions in markers    |
+
+### Usage Example
+
+After running OpenAPI Sync for the first time, your generated files will include custom code markers:
+
+**endpoints.ts**
+
+```typescript
+// AUTO-GENERATED FILE - DO NOT EDIT OUTSIDE CUSTOM CODE MARKERS
+export const getPet = (petId: string) => `/pet/${petId}`;
+export const createPet = "/pet";
+export const updatePet = (petId: string) => `/pet/${petId}`;
+
+// ============================================================
+// 🔒 CUSTOM CODE START
+// Add your custom code above this line
+// This section will be preserved during regeneration
+// ============================================================
+
+// ============================================================
+// 🔒 CUSTOM CODE END
+// ============================================================
+```
+
+### Adding Custom Code
+
+Simply add your custom code between the markers:
+
+**endpoints.ts**
+
+```typescript
+export const getPet = (petId: string) => `/pet/${petId}`;
+export const createPet = "/pet";
+
+// ============================================================
+// 🔒 CUSTOM CODE START
+// ============================================================
+
+// Custom endpoints for legacy API
+export const legacyGetPet = (petId: string) => `/api/v1/pet/${petId}`;
+export const customSearch = "/api/search";
+
+// Custom utility function
+export const buildPetUrl = (petId: string, includePhotos: boolean) => {
+  const base = getPet(petId);
+  return includePhotos ? `${base}?include=photos` : base;
+};
+
+// ============================================================
+// 🔒 CUSTOM CODE END
+// ============================================================
+
+export const updatePet = (petId: string) => `/pet/${petId}`;
+```
+
+### Custom Types
+
+You can also add custom types in the `types.ts` and `shared.ts` files:
+
+**types.ts**
+
+```typescript
+import * as Shared from "./shared";
+
+export type IGetPetByIdResponse = Shared.IPet;
+export type ICreatePetDTO = {
+  name: string;
+  status?: "available" | "pending" | "sold";
+};
+
+// ============================================================
+// 🔒 CUSTOM CODE START
+// ============================================================
+
+// Custom type extending generated types
+export interface IPetWithMetadata extends Shared.IPet {
+  fetchedAt: Date;
+  cached: boolean;
+}
+
+// Custom utility type
+export type PartialPet = Partial<Shared.IPet>;
+
+// Custom enum
+export enum PetStatus {
+  Available = "available",
+  Pending = "pending",
+  Sold = "sold",
+}
+
+// ============================================================
+// 🔒 CUSTOM CODE END
+// ============================================================
+```
+
+### Position Options
+
+#### Bottom Position (Default)
+
+Custom code markers appear at the bottom of the file:
+
+```typescript
+// Generated code...
+export const endpoint1 = "/api/v1";
+
+// 🔒 CUSTOM CODE START
+// Your custom code here
+// 🔒 CUSTOM CODE END
+```
+
+#### Top Position
+
+Custom code markers appear at the top of the file:
+
+```typescript
+// 🔒 CUSTOM CODE START
+// Your custom code here
+// 🔒 CUSTOM CODE END
+
+// Generated code...
+export const endpoint1 = "/api/v1";
+```
+
+#### Both Positions
+
+Custom code markers appear at both top and bottom:
+
+```typescript
+// 🔒 CUSTOM CODE START (TOP)
+// Top custom code
+// 🔒 CUSTOM CODE END
+
+// Generated code...
+
+// 🔒 CUSTOM CODE START (BOTTOM)
+// Bottom custom code
+// 🔒 CUSTOM CODE END
+```
+
+### Best Practices
+
+1. **Don't Edit Outside Markers**: Only add code between the custom code markers. Code outside these markers will be overwritten.
+
+2. **Use Descriptive Names**: Use clear, descriptive names for your custom code to avoid conflicts with generated code.
+
+3. **Keep It Organized**: Group related custom code together and add comments explaining its purpose.
+
+4. **Test After Regeneration**: After regenerating, verify your custom code is still present and working correctly.
+
+5. **Version Control**: Commit your custom code changes separately from regeneration to track what's custom vs generated.
+
+### Use Cases
+
+#### Legacy API Support
+
+```typescript
+// 🔒 CUSTOM CODE START
+// Support for legacy v1 API that's not in OpenAPI spec
+export const legacyLogin = "/api/v1/auth/login";
+export const legacyLogout = "/api/v1/auth/logout";
+// 🔒 CUSTOM CODE END
+```
+
+#### Custom Utilities
+
+```typescript
+// 🔒 CUSTOM CODE START
+// Utility functions for working with generated endpoints
+export const isPublicEndpoint = (endpoint: string): boolean => {
+  return endpoint.startsWith("/public/");
+};
+
+export const requiresAuth = (endpoint: string): boolean => {
+  return !isPublicEndpoint(endpoint);
+};
+// 🔒 CUSTOM CODE END
+```
+
+#### Type Extensions
+
+```typescript
+// 🔒 CUSTOM CODE START
+// Extended types with additional client-side fields
+export interface IUserWithUI extends Shared.IUser {
+  isLoading?: boolean;
+  hasError?: boolean;
+  lastFetched?: Date;
+}
+// 🔒 CUSTOM CODE END
+```
+
+### Disabling Custom Code Preservation
+
+If you want to disable custom code preservation (not recommended for most use cases):
+
+```typescript
+export default {
+  // ... other config
+  customCode: {
+    enabled: false, // Disables custom code preservation
+  },
+} as IConfig;
+```
+
+⚠️ **Warning**: When disabled, all files will be completely overwritten on each regeneration.
+
 ## API Reference
 
 ### Exported Functions
@@ -1156,28 +1402,6 @@ The tool maintains state in `db.json` to track changes:
 ---
 
 ## Changelog
-
-### v2.1.11 (Latest)
-
-- **NEW**: Folder splitting configuration for organized code generation
-  - `folderSplit.byTags` - Create folders based on endpoint tags
-  - `folderSplit.customFolder` - Custom function for folder structure logic
-- Enhanced folder organization with priority-based assignment
-- Improved code organization for large APIs
-
-### v2.1.10
-
-- OperationId-based naming for types and endpoints
-  - `types.name.useOperationId` - Use OpenAPI operationId for type naming
-  - `endpoints.name.useOperationId` - Use operationId for endpoint naming
-- Enhanced endpoint filtering capabilities
-  - Improved tag-based filtering
-  - Better regex pattern matching
-  - More flexible include/exclude rules
-- Enhanced JSONStringify function with array serialization support
-- Improved endpoint tags support in generated documentation
-
-### Previous Versions
 
 - v2.1.13: Fix dts type fixes and Clean up tsup build config and introduction of unit testing
 - v2.1.12: Add automatic sync support for function-based config, improved handling of missing OpenAPI urls
