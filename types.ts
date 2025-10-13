@@ -103,6 +103,17 @@ export type IConfigFolderSplit = {
   }) => string | null;
 };
 
+export type IConfigCustomCode = {
+  /** Enable custom code preservation (default: true) */
+  enabled?: boolean;
+  /** Position of custom code block in generated files (default: "bottom") */
+  position?: "top" | "bottom" | "both";
+  /** Custom marker text to use for identifying custom code sections (default: "CUSTOM CODE") */
+  markerText?: string;
+  /** Add helpful instructions in markers (default: true) */
+  includeInstructions?: boolean;
+};
+
 export type IConfig = {
   refetchInterval?: number;
   folder?: string;
@@ -110,6 +121,8 @@ export type IConfig = {
   server?: number | string;
   /** Configuration for splitting generated code into folders */
   folderSplit?: IConfigFolderSplit;
+  /** Configuration for preserving custom code between regenerations */
+  customCode?: IConfigCustomCode;
   /** Configuration for excluding endpoints from code generation */
   types?: {
     name?: {

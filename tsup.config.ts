@@ -5,6 +5,17 @@ export default defineConfig({
   format: ["cjs", "esm"],
   dts: true,
   clean: true,
+  external: [
+    "axios",
+    "axios-retry",
+    "@apidevtools/swagger-parser",
+    "js-yaml",
+    "yargs",
+    "esbuild-register",
+    "curl-generator",
+    "fs",
+    "path",
+  ],
   minify: process.env.ANALYZE ? false : true, // Disable minification for analysis
   sourcemap: false, // Disabled - source maps not needed for consumers (saves ~180KB)
   treeshake: true,

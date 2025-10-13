@@ -140,3 +140,188 @@ export function getNestedValue<T>(obj: object, path: string): T | undefined {
       : undefined;
   }, obj) as T | undefined;
 }
+
+// ============================================================
+// Custom Code Preservation Functions
+// ============================================================
+
+export interface ExtractedCustomCode {
+  beforeGenerated: string;
+  afterGenerated: string;
+}
+
+/**
+ * Extract custom code from existing file using comment markers
+ * @param fileContent - The content of the existing file
+ * @param markerText - The marker text to look for (default: "CUSTOM CODE")
+ * @returns Object containing custom code sections before and after generated code
+ */
+export const extractCustomCode = (
+  fileContent: string,
+  markerText: string = "CUSTOM CODE"
+): ExtractedCustomCode => {
+  const startMarker = `// 🔒 ${markerText} START`;
+  const endMarker = `// 🔒 ${markerText} END`;
+
+  const result: ExtractedCustomCode = {
+    beforeGenerated: "",
+    afterGenerated: "",
+  };
+
+  // Find all custom code blocks
+  let searchPos = 0;
+  const blocks: Array<{ start: number; end: number; content: string }> = [];
+
+  while (searchPos < fileContent.length) {
+    const startIndex = fileContent.indexOf(startMarker, searchPos);
+    if (startIndex === -1) break;
+
+    const endIndex = fileContent.indexOf(endMarker, startIndex);
+    if (endIndex === -1) break;
+
+    const blockEnd = endIndex + endMarker.length;
+
+    // Find the actual start of the block (including any preceding comment lines)
+    let blockStart = startIndex;
+    // Look back for the separator line (a line of "=" signs)
+    const precedingText = fileContent.substring(
+      Math.max(0, startIndex - 200),
+      startIndex
+    );
+    const separatorMatch = precedingText.lastIndexOf("// ==========");
+    if (separatorMatch !== -1) {
+      blockStart = Math.max(0, startIndex - 200) + separatorMatch;
+    }
+
+    const customBlock = fileContent.substring(blockStart, blockEnd);
+    blocks.push({ start: blockStart, end: blockEnd, content: customBlock });
+
+    searchPos = blockEnd;
+  }
+
+  // Assign blocks to before/after based on their position
+  // Check if there's actual code before the first block
+  if (blocks.length > 0) {
+    const textBeforeFirstBlock = fileContent.substring(0, blocks[0].start);
+    // Remove comments and whitespace to check for actual code
+    const codeBeforeBlock = textBeforeFirstBlock
+      .split("\n")
+      .filter((line) => {
+        const trimmed = line.trim();
+        return trimmed.length > 0 && !trimmed.startsWith("//");
+      })
+      .join("");
+
+    // If there's code before the block, it's "after", otherwise "before"
+    if (codeBeforeBlock.length === 0) {
+      result.beforeGenerated = blocks[0].content;
+      if (blocks.length > 1) {
+        result.afterGenerated = blocks[1].content;
+      }
+    } else {
+      result.afterGenerated = blocks[0].content;
+      if (blocks.length > 1 && !result.beforeGenerated) {
+        // This shouldn't normally happen, but handle it
+        result.beforeGenerated = blocks[1].content;
+      }
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Create an empty custom code marker section
+ * @param position - Position of the marker ("top" or "bottom")
+ * @param markerText - The marker text (default: "CUSTOM CODE")
+ * @param includeInstructions - Whether to include helpful instructions
+ * @returns The marker section as a string
+ */
+export const createCustomCodeMarker = (
+  position: "top" | "bottom",
+  markerText: string = "CUSTOM CODE",
+  includeInstructions: boolean = true
+): string => {
+  const instructions = includeInstructions
+    ? `// ${
+        position === "top"
+          ? "Add your custom code below this line"
+          : "Add your custom code above this line"
+      }\n// This section will be preserved during regeneration\n`
+    : "";
+
+  return `// ${"=".repeat(60)}
+// 🔒 ${markerText} START
+${instructions}// ${"=".repeat(60)}
+
+// 🔒 ${markerText} END
+// ${"=".repeat(60)}`;
+};
+
+/**
+ * Merge generated content with preserved custom code
+ * @param generatedContent - The newly generated content
+ * @param existingFileContent - The existing file content (null if file doesn't exist)
+ * @param config - Configuration options
+ * @returns The merged content with custom code preserved
+ */
+export const mergeCustomCode = (
+  generatedContent: string,
+  existingFileContent: string | null,
+  config: {
+    position?: "top" | "bottom" | "both";
+    markerText?: string;
+    includeInstructions?: boolean;
+  } = {}
+): string => {
+  const {
+    position = "bottom",
+    markerText = "CUSTOM CODE",
+    includeInstructions = true,
+  } = config;
+
+  let customCode: ExtractedCustomCode = {
+    beforeGenerated: "",
+    afterGenerated: "",
+  };
+
+  // Extract existing custom code if file exists
+  if (existingFileContent) {
+    customCode = extractCustomCode(existingFileContent, markerText);
+  }
+
+  // If no existing custom code, create empty markers
+  if (!customCode.beforeGenerated && !customCode.afterGenerated) {
+    if (position === "top" || position === "both") {
+      customCode.beforeGenerated = createCustomCodeMarker(
+        "top",
+        markerText,
+        includeInstructions
+      );
+    }
+    if (position === "bottom" || position === "both") {
+      customCode.afterGenerated = createCustomCodeMarker(
+        "bottom",
+        markerText,
+        includeInstructions
+      );
+    }
+  }
+
+  // Assemble final content
+  const parts: string[] = [];
+
+  if (customCode.beforeGenerated) {
+    parts.push(customCode.beforeGenerated);
+    parts.push(""); // Empty line
+  }
+
+  parts.push(generatedContent);
+
+  if (customCode.afterGenerated) {
+    parts.push(""); // Empty line
+    parts.push(customCode.afterGenerated);
+  }
+
+  return parts.join("\n");
+};
