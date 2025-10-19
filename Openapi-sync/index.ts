@@ -504,6 +504,8 @@ const OpenapiSync = async (
           };
           type = handleType(schema.type);
         }
+      } else {
+        type += "any";
       }
     } else {
       //Default type to string if no schema provided
