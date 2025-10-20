@@ -120,6 +120,7 @@ const OpenapiSync = async (
     {
       endpoints: string;
       types: string;
+      validation: string;
     }
   > = {};
 
@@ -137,7 +138,7 @@ const OpenapiSync = async (
     // Use custom folder function if provided
     if (config?.folderSplit?.customFolder) {
       const customFolder = config.folderSplit.customFolder(endpointData);
-      console.log("customFolder", customFolder);
+      // console.log("customFolder", customFolder);
       if (customFolder) return customFolder;
     }
 
@@ -380,6 +381,8 @@ const OpenapiSync = async (
           return typeCnt;
         };
         type = handleType(schema.type);
+      } else {
+        type = "any";
       }
     } else {
       //Default type to string if no schema provided
@@ -662,6 +665,341 @@ const OpenapiSync = async (
     return typeCnt;
   };
 
+  // Helper function to convert OpenAPI schema to validation schema
+  const convertToValidationSchema = (
+    schema: IOpenApSchemaSpec,
+    library: "zod" | "yup" | "joi",
+    depth: number = 0
+  ): string => {
+    if (!schema) {
+      return library === "joi"
+        ? "Joi.any()"
+        : library === "yup"
+        ? "yup.mixed()"
+        : "z.any()";
+    }
+
+    // Handle $ref - resolve and inline
+    if (schema.$ref) {
+      if (schema.$ref[0] === "#") {
+        const pathToComponentParts = schema.$ref.split("/");
+        pathToComponentParts.shift();
+        const refPath = pathToComponentParts.join(".");
+        const referencedSchema = lodashget(spec, refPath) as IOpenApSchemaSpec;
+        if (referencedSchema) {
+          return convertToValidationSchema(referencedSchema, library, depth);
+        }
+      }
+      return library === "joi"
+        ? "Joi.any()"
+        : library === "yup"
+        ? "yup.mixed()"
+        : "z.any()";
+    }
+
+    // Handle anyOf/oneOf
+    if (schema.anyOf || schema.oneOf) {
+      const schemas = (schema.anyOf || schema.oneOf)!;
+
+      // Special handling for enum with nullable/optional pattern
+      const allAreEnums = schemas.every(
+        (s) => s.enum !== undefined && Array.isArray(s.enum)
+      );
+      // console.log("zod enum", { schemas, library });
+      if (allAreEnums) {
+        // Collect all enum values
+        const allEnumValues: any[] = [];
+        let hasNull = false;
+
+        schemas.forEach((s) => {
+          if (s.enum) {
+            s.enum.forEach((value: any) => {
+              if (value === null) {
+                hasNull = true;
+              } else if (!allEnumValues.includes(value)) {
+                allEnumValues.push(value);
+              }
+            });
+          }
+        });
+
+        // Generate enum schema with proper nullable handling
+        if (allEnumValues.length > 0) {
+          const enumValues = allEnumValues
+            .map((v) => JSON.stringify(v))
+            .join(", ");
+          if (library === "zod") {
+            let result = `z.enum([${enumValues}])`;
+            if (hasNull) result += ".nullable()";
+            return result;
+          } else if (library === "yup") {
+            let result = `yup.mixed().oneOf([${enumValues}])`;
+            if (hasNull) result += ".nullable()";
+            return result;
+          } else {
+            // Joi
+            if (hasNull) {
+              return `Joi.valid(${enumValues}, null)`;
+            }
+            return `Joi.valid(${enumValues})`;
+          }
+        } else if (hasNull) {
+          // If only null values, return nullable schema
+          if (library === "zod") {
+            return "z.null()";
+          } else if (library === "yup") {
+            return "yup.mixed().nullable()";
+          } else {
+            return "Joi.valid(null)";
+          }
+        }
+      }
+
+      // Default union handling for non-enum cases
+      if (library === "zod") {
+        const unionSchemasw = schemas.map((s) =>
+          convertToValidationSchema(s, library, depth + 1)
+        );
+        // console.log("zod enum 2", { schemas, library, unionSchemasw });
+
+        const unionSchemas = unionSchemasw.join(", ");
+        return `z.union([${unionSchemas}])`;
+      } else if (library === "yup") {
+        const unionSchemasw = schemas.map((s) =>
+          convertToValidationSchema(s, library, depth + 1)
+        );
+        // console.log("zod enum 2", { schemas, library, unionSchemasw });
+
+        const unionSchemas = unionSchemasw.join(", ");
+        return `yup.mixed().oneOf([${unionSchemas}])`;
+      } else {
+        const alternatives = schemas
+          .map((s) => convertToValidationSchema(s, library, depth + 1))
+          .join(", ");
+        return `Joi.alternatives().try(${alternatives})`;
+      }
+    }
+
+    // Handle allOf
+    if (schema.allOf) {
+      if (library === "zod") {
+        const intersections = schema.allOf.map((s) =>
+          convertToValidationSchema(s, library, depth + 1)
+        );
+        let result = intersections[0];
+        for (let i = 1; i < intersections.length; i++) {
+          result = `${result}.merge(${intersections[i]})`;
+        }
+        return result;
+      } else {
+        return convertToValidationSchema(schema.allOf[0], library, depth + 1);
+      }
+    }
+
+    // Handle arrays
+    if (schema.items) {
+      const itemSchema = convertToValidationSchema(
+        schema.items,
+        library,
+        depth + 1
+      );
+      if (library === "zod") {
+        let arraySchema = `z.array(${itemSchema})`;
+        if (schema.minItems !== undefined)
+          arraySchema += `.min(${schema.minItems})`;
+        if (schema.maxItems !== undefined)
+          arraySchema += `.max(${schema.maxItems})`;
+        return arraySchema;
+      } else if (library === "yup") {
+        let arraySchema = `yup.array().of(${itemSchema})`;
+        if (schema.minItems !== undefined)
+          arraySchema += `.min(${schema.minItems})`;
+        if (schema.maxItems !== undefined)
+          arraySchema += `.max(${schema.maxItems})`;
+        return arraySchema;
+      } else {
+        let arraySchema = `Joi.array().items(${itemSchema})`;
+        if (schema.minItems !== undefined)
+          arraySchema += `.min(${schema.minItems})`;
+        if (schema.maxItems !== undefined)
+          arraySchema += `.max(${schema.maxItems})`;
+        return arraySchema;
+      }
+    }
+
+    // Handle objects with properties
+    if (schema.properties) {
+      const requiredKeys = schema.required || [];
+      const indent = "  ".repeat(depth + 1);
+      const properties = Object.entries(schema.properties)
+        .map(([key, prop]) => {
+          const isRequired = requiredKeys.includes(key);
+          let propSchema = convertToValidationSchema(prop, library, depth + 1);
+          if (!isRequired) propSchema += ".optional()";
+          return `${indent}${key}: ${propSchema}`;
+        })
+        .join(",\n");
+
+      if (library === "zod") {
+        return `z.object({\n${properties}\n${"  ".repeat(depth)}})`;
+      } else if (library === "yup") {
+        return `yup.object({\n${properties}\n${"  ".repeat(depth)}})`;
+      } else {
+        return `Joi.object({\n${properties}\n${"  ".repeat(depth)}})`;
+      }
+    }
+
+    // Handle enums
+    if (schema.enum && schema.enum.length > 0) {
+      const allEnumValues: any[] = [];
+      let hasNull = false;
+
+      schema.enum.forEach((value: any) => {
+        if (value === null) {
+          hasNull = true;
+        } else if (!allEnumValues.includes(value)) {
+          allEnumValues.push(value);
+        }
+      });
+
+      const enumValues = allEnumValues.map((v) => JSON.stringify(v)).join(", ");
+      console.log("zod enum 3 here", { schema, enumValues });
+
+      if (library === "zod") {
+        let result = `z.enum([${enumValues}])`;
+        if (hasNull) result += ".nullable()";
+        return result;
+      } else if (library === "yup") {
+        let result = `yup.mixed().oneOf([${enumValues}])`;
+        if (hasNull) result += ".nullable()";
+        return result;
+      } else {
+        let result = `Joi.valid(${enumValues})`;
+        if (hasNull) result += ".allow(null)";
+        return result;
+      }
+    }
+
+    // Handle primitive types
+    if (schema.type) {
+      const handleType = (type: string): string => {
+        switch (type) {
+          case "string":
+            if (library === "zod") {
+              let str = "z.string()";
+              if (schema.format === "email") str += ".email()";
+              else if (schema.format === "uuid") str += ".uuid()";
+              else if (schema.format === "url" || schema.format === "uri")
+                str += ".url()";
+              else if (schema.format === "date-time") str += ".datetime()";
+              else if (schema.format === "date") str += ".date()";
+              if (schema.minLength) str += `.min(${schema.minLength})`;
+              if (schema.maxLength) str += `.max(${schema.maxLength})`;
+              if ((schema as any).pattern)
+                str += `.regex(/${(schema as any).pattern}/)`;
+              return str;
+            } else if (library === "yup") {
+              let str = "yup.string()";
+              if (schema.format === "email") str += ".email()";
+              else if (schema.format === "url" || schema.format === "uri")
+                str += ".url()";
+              if (schema.minLength) str += `.min(${schema.minLength})`;
+              if (schema.maxLength) str += `.max(${schema.maxLength})`;
+              if ((schema as any).pattern)
+                str += `.matches(/${(schema as any).pattern}/)`;
+              return str;
+            } else {
+              let str = "Joi.string()";
+              if (schema.format === "email") str += ".email()";
+              else if (schema.format === "url" || schema.format === "uri")
+                str += ".uri()";
+              else if (schema.format === "uuid")
+                str += ".guid({ version: 'uuidv4' })";
+              else if (schema.format === "date-time") str += ".isoDate()";
+              if (schema.minLength) str += `.min(${schema.minLength})`;
+              if (schema.maxLength) str += `.max(${schema.maxLength})`;
+              if ((schema as any).pattern)
+                str += `.pattern(/${(schema as any).pattern}/)`;
+              return str;
+            }
+          case "integer":
+          case "number":
+            if (library === "zod") {
+              let num = "z.number()";
+              if (type === "integer") num += ".int()";
+              if (schema.minimum !== undefined) {
+                if ((schema as any).exclusiveMinimum)
+                  num += `.gt(${schema.minimum})`;
+                else num += `.min(${schema.minimum})`;
+              }
+              if (schema.maximum !== undefined) {
+                if ((schema as any).exclusiveMaximum)
+                  num += `.lt(${schema.maximum})`;
+                else num += `.max(${schema.maximum})`;
+              }
+              return num;
+            } else if (library === "yup") {
+              let num = "yup.number()";
+              if (type === "integer") num += ".integer()";
+              if (schema.minimum !== undefined)
+                num += `.min(${schema.minimum})`;
+              if (schema.maximum !== undefined)
+                num += `.max(${schema.maximum})`;
+              return num;
+            } else {
+              let num = "Joi.number()";
+              if (type === "integer") num += ".integer()";
+              if (schema.minimum !== undefined) {
+                if ((schema as any).exclusiveMinimum)
+                  num += `.greater(${schema.minimum})`;
+                else num += `.min(${schema.minimum})`;
+              }
+              if (schema.maximum !== undefined) {
+                if ((schema as any).exclusiveMaximum)
+                  num += `.less(${schema.maximum})`;
+                else num += `.max(${schema.maximum})`;
+              }
+              return num;
+            }
+          case "boolean":
+            return library === "joi"
+              ? "Joi.boolean()"
+              : library === "yup"
+              ? "yup.boolean()"
+              : "z.boolean()";
+          case "null":
+            return library === "joi"
+              ? "Joi.any().allow(null)"
+              : library === "yup"
+              ? "yup.mixed().nullable()"
+              : "z.null()";
+          default:
+            return library === "joi"
+              ? "Joi.any()"
+              : library === "yup"
+              ? "yup.mixed()"
+              : "z.any()";
+        }
+      };
+
+      let result = handleType(
+        typeof schema.type === "string" ? schema.type : schema.type[0]
+      );
+      if (schema.nullable && library !== "joi") {
+        result += ".nullable()";
+      } else if (schema.nullable && library === "joi") {
+        result += ".allow(null)";
+      }
+      return result;
+    }
+
+    return library === "joi"
+      ? "Joi.any()"
+      : library === "yup"
+      ? "yup.mixed()"
+      : "z.any()";
+  };
+
   const treatEndpointUrl = (endpointUrl: string) => {
     if (
       config?.endpoints?.value?.replaceWords &&
@@ -800,6 +1138,7 @@ const OpenapiSync = async (
         folderGroups[folderName] = {
           endpoints: "",
           types: "",
+          validation: "",
         };
       }
 
@@ -889,6 +1228,106 @@ const OpenapiSync = async (
         }
       }
 
+      // Generate query validation inline (right after query types)
+      if (
+        config?.validations?.disable !== true &&
+        config?.validations?.generate?.query !== false &&
+        eSpec?.parameters
+      ) {
+        const validationLibrary = config.validations?.library || "zod";
+        const parameters: IOpenApiParameterSpec[] = eSpec.parameters;
+        const queryParams = parameters.filter(
+          (p) => !p.$ref && p.in === "query" && p.name
+        );
+
+        if (queryParams.length > 0) {
+          const validationNameConfig =
+            config?.validations?.name || config?.types?.name;
+          const validationPrefix =
+            typeof validationNameConfig?.prefix === "string"
+              ? validationNameConfig.prefix
+              : "I";
+          const validationSuffix =
+            typeof config?.validations?.name?.suffix === "string"
+              ? config.validations.name.suffix
+              : "Schema";
+
+          let validationName = `${endpoint.name}Query`;
+          if (validationNameConfig?.useOperationId && eSpec?.operationId) {
+            validationName = `${eSpec.operationId}Query`;
+          }
+          validationName = capitalize(
+            `${validationPrefix}${validationName}${validationSuffix}`
+          );
+
+          if (config?.validations?.name?.format) {
+            const formattedName = config.validations.name.format(
+              {
+                code: "",
+                type: "query",
+                method,
+                path: endpointPath,
+                summary: eSpec?.summary,
+                operationId: eSpec?.operationId,
+              },
+              validationName
+            );
+            if (formattedName)
+              validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+          } else if (config?.types?.name?.format) {
+            const formattedName = config.types.name.format(
+              "endpoint",
+              {
+                code: "",
+                type: "query",
+                method,
+                path: endpointPath,
+                summary: eSpec?.summary,
+                operationId: eSpec?.operationId,
+              },
+              validationName
+            );
+            if (formattedName)
+              validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+          }
+
+          const properties = queryParams
+            .map((param) => {
+              const schema = param?.schema
+                ? convertToValidationSchema(param.schema, validationLibrary)
+                : validationLibrary === "joi"
+                ? "Joi.string()"
+                : validationLibrary === "yup"
+                ? "yup.string()"
+                : "z.string()";
+              const optional = param.required ? "" : ".optional()";
+              return `  ${param.name}: ${schema}${optional}`;
+            })
+            .join(",\n");
+
+          const objMethod =
+            validationLibrary === "joi"
+              ? "Joi.object"
+              : validationLibrary === "yup"
+              ? "yup.object"
+              : "z.object";
+          const validationContent = `export const ${validationName} = ${objMethod}({\n${properties}\n});\n\n`;
+
+          if (config?.folderSplit) {
+            folderGroups[folderName].validation += validationContent;
+          } else {
+            if (!folderGroups[folderName]) {
+              folderGroups[folderName] = {
+                endpoints: "",
+                types: "",
+                validation: "",
+              };
+            }
+            folderGroups[folderName].validation += validationContent;
+          }
+        }
+      }
+
       const requestBody: IOpenApiRequestBodySpec = eSpec?.requestBody;
       let dtoTypeCnt = "";
       if (requestBody) {
@@ -925,6 +1364,89 @@ const OpenapiSync = async (
             folderGroups[folderName].types += typeContent;
           } else {
             typesFileContent += typeContent;
+          }
+        }
+      }
+
+      // Generate DTO validation inline (right after DTO types)
+      if (
+        config?.validations?.disable !== true &&
+        config?.validations?.generate?.dto !== false &&
+        requestBody
+      ) {
+        const validationLibrary = config.validations?.library || "zod";
+
+        if (requestBody.content) {
+          const contentKeys = Object.keys(requestBody.content);
+          if (contentKeys[0] && requestBody.content[contentKeys[0]].schema) {
+            const validationNameConfig =
+              config?.validations?.name || config?.types?.name;
+            const validationPrefix =
+              typeof validationNameConfig?.prefix === "string"
+                ? validationNameConfig.prefix
+                : "I";
+            const validationSuffix =
+              typeof config?.validations?.name?.suffix === "string"
+                ? config.validations.name.suffix
+                : "Schema";
+
+            let validationName = `${endpoint.name}DTO`;
+            if (validationNameConfig?.useOperationId && eSpec?.operationId) {
+              validationName = `${eSpec.operationId}DTO`;
+            }
+            validationName = capitalize(
+              `${validationPrefix}${validationName}${validationSuffix}`
+            );
+
+            if (config?.validations?.name?.format) {
+              const formattedName = config.validations.name.format(
+                {
+                  code: "",
+                  type: "dto",
+                  method,
+                  path: endpointPath,
+                  summary: eSpec?.summary,
+                  operationId: eSpec?.operationId,
+                },
+                validationName
+              );
+              if (formattedName)
+                validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+            } else if (config?.types?.name?.format) {
+              const formattedName = config.types.name.format(
+                "endpoint",
+                {
+                  code: "",
+                  type: "dto",
+                  method,
+                  path: endpointPath,
+                  summary: eSpec?.summary,
+                  operationId: eSpec?.operationId,
+                },
+                validationName
+              );
+              if (formattedName)
+                validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+            }
+
+            const dtoSchema = convertToValidationSchema(
+              requestBody.content[contentKeys[0]].schema as IOpenApSchemaSpec,
+              validationLibrary
+            );
+            const validationContent = `export const ${validationName} = ${dtoSchema};\n\n`;
+
+            if (config?.folderSplit) {
+              folderGroups[folderName].validation += validationContent;
+            } else {
+              if (!folderGroups[folderName]) {
+                folderGroups[folderName] = {
+                  endpoints: "",
+                  types: "",
+                  validation: "",
+                };
+              }
+              folderGroups[folderName].validation += validationContent;
+            }
           }
         }
       }
@@ -1196,6 +1718,32 @@ ${CurlGenerator({
 
           await writeFileWithCustomCode(typesFilePath, typesContent, config);
         }
+
+        // Write validation file (inline generation)
+        if (config?.validations?.disable !== true && group.validation) {
+          const validationLibrary = config.validations?.library || "zod";
+          const importStatement =
+            validationLibrary === "joi"
+              ? 'import Joi from "joi";'
+              : validationLibrary === "yup"
+              ? 'import * as yup from "yup";'
+              : 'import { z } from "zod";';
+
+          const validationFilePath = path.join(
+            rootUsingCwd,
+            folderPathForGroup,
+            "validations.ts"
+          );
+          await fs.promises.mkdir(path.dirname(validationFilePath), {
+            recursive: true,
+          });
+
+          await writeFileWithCustomCode(
+            validationFilePath,
+            `${importStatement}\n\n${group.validation}`,
+            config
+          );
+        }
       }
     }
   }
@@ -1251,5 +1799,39 @@ ${CurlGenerator({
       config
     );
   }
+
+  // Write validation file for non-folder-split (inline generation)
+  if (config?.validations?.disable !== true) {
+    const validationLibrary = config.validations?.library || "zod";
+    const importStatement =
+      validationLibrary === "joi"
+        ? 'import Joi from "joi";'
+        : validationLibrary === "yup"
+        ? 'import * as yup from "yup";'
+        : 'import { z } from "zod";';
+
+    const allValidation = Object.values(folderGroups)
+      .map((g) => g.validation)
+      .filter((v) => v.length > 0)
+      .join("");
+
+    if (allValidation) {
+      const validationFilePath = path.join(
+        rootUsingCwd,
+        folderPath,
+        "validations.ts"
+      );
+      await fs.promises.mkdir(path.dirname(validationFilePath), {
+        recursive: true,
+      });
+
+      await writeFileWithCustomCode(
+        validationFilePath,
+        `${importStatement}\n\n${allValidation}`,
+        config
+      );
+    }
+  }
 };
+
 export default OpenapiSync;

@@ -13,6 +13,7 @@
 - [Usage](#usage)
 - [Generated Output](#generated-output)
 - [Custom Code Injection](#custom-code-injection)
+- [Validation Schemas](#validation-schemas)
 - [API Reference](#api-reference)
 - [Advanced Examples](#advanced-examples)
 - [Troubleshooting](#troubleshooting)
@@ -54,6 +55,17 @@
 - State persistence to track changes
 - Environment-aware (disables auto-sync in production)
 - TypeScript support with full type safety
+
+### 🔐 **Runtime Validation Support**
+
+- Generate runtime validation schemas using Zod, Yup, or Joi
+- Automatically create validation schemas from OpenAPI specifications
+- Support for all OpenAPI data types and constraints
+- Format validations (email, uuid, url, datetime, etc.)
+- Min/max constraints for strings, numbers, and arrays
+- Pattern matching and enum validations
+- Validation files generated alongside type files
+- Flexible naming with prefix, suffix, and custom formatting
 
 ### 📚 **Rich Documentation**
 
@@ -851,6 +863,625 @@ export default {
 ```
 
 ⚠️ **Warning**: When disabled, all files will be completely overwritten on each regeneration.
+
+## Validation Schemas
+
+OpenAPI Sync can automatically generate runtime validation schemas using **Zod**, **Yup**, or **Joi** from your OpenAPI specification. This feature enables runtime validation of API requests, responses, and data structures in any JavaScript/TypeScript environment (frontend, backend, testing, etc.).
+
+### Configuration
+
+Add the `validations` configuration to your `openapi.sync.ts` file:
+
+```typescript
+import { IConfig } from "openapi-sync/types";
+
+const config: IConfig = {
+  refetchInterval: 5000,
+  folder: "./src/api",
+  api: {
+    petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+  },
+
+  // Enable validation schema generation
+  validations: {
+    disable: false, // Enable validation (default: false)
+    library: "zod", // Validation library: "zod" | "yup" | "joi"
+
+    // Optionally specify which types to generate validations for
+    generate: {
+      query: true, // Generate query parameter validations (default: true)
+      dto: true, // Generate request body validations (default: true)
+    },
+
+    name: {
+      prefix: "I", // Prefix for schema names (default: "I")
+      suffix: "Schema", // Suffix for schema names (default: "Schema")
+      useOperationId: true, // Use operationId from OpenAPI spec
+      format: (source, data, defaultName) => {
+        // Optional: Custom naming function
+        if (source === "shared") {
+          return `${data.name}`;
+        }
+        return defaultName;
+      },
+    },
+  },
+};
+
+export default config;
+```
+
+### Installation
+
+When using validation schemas, you need to install your chosen validation library as a peer dependency:
+
+```bash
+# For Zod
+npm install zod
+
+# For Yup
+npm install yup
+
+# For Joi
+npm install joi
+```
+
+**Note:** All three validation libraries (Zod, Yup, and Joi) are fully supported.
+
+### Generated Files
+
+When validation is enabled, `validation.ts` files are generated alongside your `types.ts` files:
+
+#### Without Folder Splitting
+
+```
+src/api/
+├── petstore/
+│   ├── endpoints.ts
+│   └── types/
+│       ├── index.ts              # TypeScript types
+│       ├── shared.ts             # Shared component types
+│       └── validation.ts         # Validation schemas (NEW!)
+```
+
+#### With Folder Splitting
+
+```
+src/api/
+├── petstore/
+│   ├── pet/
+│   │   ├── endpoints.ts
+│   │   ├── types.ts
+│   │   └── validation.ts         # Validation for pet endpoints (NEW!)
+│   └── store/
+│       ├── endpoints.ts
+│       ├── types.ts
+│       └── validation.ts         # Validation for store endpoints (NEW!)
+```
+
+### Generated Validation Schemas
+
+OpenAPI Sync generates validation schemas that mirror your OpenAPI specification. The syntax depends on your chosen library.
+
+**Note:** When a validation schema references shared components (like `Category` or `Tag` from `#/components/schemas`), the shared schema is automatically resolved and inlined directly into the validation file. This means you don't need to manage separate `shared.validation.ts` files or import statements—everything is self-contained in each `validation.ts` file.
+
+#### Zod Example
+
+```typescript
+// src/api/petstore/types/validation.ts
+import { z } from "zod";
+
+// Query parameter validation
+export const IFindPetsByStatusQuerySchema = z.object({
+  status: z.enum(["available", "pending", "sold"]).optional(),
+});
+
+// Request body (DTO) validation
+// Note: Shared schemas like Category and Tag are automatically inlined
+export const IAddPetDTOSchema = z.object({
+  id: z.number().int().optional(),
+  name: z.string().min(1),
+  category: z
+    .object({
+      id: z.number().int().optional(),
+      name: z.string().optional(),
+    })
+    .optional(),
+  photoUrls: z.array(z.string()),
+  tags: z
+    .array(
+      z.object({
+        id: z.number().int().optional(),
+        name: z.string().optional(),
+      })
+    )
+    .optional(),
+  status: z.enum(["available", "pending", "sold"]).optional(),
+});
+
+// Response validation
+export const IGetPetById200ResponseSchema = z.object({
+  id: z.number().int().optional(),
+  name: z.string(),
+  category: z
+    .object({
+      id: z.number().int().optional(),
+      name: z.string().optional(),
+    })
+    .optional(),
+  photoUrls: z.array(z.string()),
+  tags: z
+    .array(
+      z.object({
+        id: z.number().int().optional(),
+        name: z.string().optional(),
+      })
+    )
+    .optional(),
+  status: z.enum(["available", "pending", "sold"]).optional(),
+});
+```
+
+#### Yup Example
+
+```typescript
+// src/api/petstore/types/validation.ts
+import * as yup from "yup";
+
+// Shared schemas are automatically inlined
+export const IAddPetDTOSchema = yup.object({
+  id: yup.number().integer().optional(),
+  name: yup.string().min(1),
+  category: yup
+    .object({
+      id: yup.number().integer().optional(),
+      name: yup.string().optional(),
+    })
+    .optional(),
+  photoUrls: yup.array().of(yup.string()),
+  tags: yup
+    .array()
+    .of(
+      yup.object({
+        id: yup.number().integer().optional(),
+        name: yup.string().optional(),
+      })
+    )
+    .optional(),
+  status: yup.mixed().oneOf(["available", "pending", "sold"]).optional(),
+});
+```
+
+#### Joi Example
+
+```typescript
+// src/api/petstore/types/validation.ts
+import Joi from "joi";
+
+// Shared schemas are automatically inlined
+export const IAddPetDTOSchema = Joi.object({
+  id: Joi.number().integer().optional(),
+  name: Joi.string().min(1),
+  category: Joi.object({
+    id: Joi.number().integer().optional(),
+    name: Joi.string().optional(),
+  }).optional(),
+  photoUrls: Joi.array().items(Joi.string()),
+  tags: Joi.array()
+    .items(
+      Joi.object({
+        id: Joi.number().integer().optional(),
+        name: Joi.string().optional(),
+      })
+    )
+    .optional(),
+  status: Joi.valid("available", "pending", "sold").optional(),
+});
+```
+
+### Selective Validation Generation
+
+Validation schemas are generated **only for queries and DTOs**. Response validation is not supported as it's typically only needed for testing and adds unnecessary overhead.
+
+#### Default Behavior (Query and DTO)
+
+```typescript
+const config: IConfig = {
+  // ... other config
+  validations: {
+    library: "zod",
+    // By default: query ✅, dto ✅
+    // No need to specify generate config for default behavior
+  },
+};
+```
+
+This default is ideal for:
+
+- **Backend APIs**: Validate incoming requests (queries and DTOs)
+- **Frontend Applications**: Validate forms and query parameters
+- **Performance**: Focused validation for what matters most
+
+#### Generate Only Query Validations
+
+```typescript
+const config: IConfig = {
+  // ... other config
+  validations: {
+    library: "zod",
+    generate: {
+      query: true,
+      dto: false, // Disable DTO validation
+    },
+  },
+};
+```
+
+#### Generate Only DTOs
+
+```typescript
+const config: IConfig = {
+  // ... other config
+  validations: {
+    library: "yup",
+    generate: {
+      query: false,
+      dto: true, // Only validate request bodies
+    },
+  },
+};
+```
+
+### Supported Validations
+
+OpenAPI Sync automatically converts OpenAPI constraints to validation library equivalents. Below are examples using Zod syntax:
+
+#### String Validations
+
+- **format: email** → `z.string().email()`
+- **format: uuid** → `z.string().uuid()`
+- **format: uri** → `z.string().url()`
+- **format: date-time** → `z.string().datetime()`
+- **format: date** → `z.string().date()`
+- **minLength** → `z.string().min(n)`
+- **maxLength** → `z.string().max(n)`
+- **pattern** → `z.string().regex(/pattern/)`
+
+#### Number Validations
+
+- **type: integer** → `z.number().int()`
+- **minimum** → `z.number().min(n)`
+- **maximum** → `z.number().max(n)`
+- **exclusiveMinimum** → `z.number().gt(n)`
+- **exclusiveMaximum** → `z.number().lt(n)`
+
+#### Array Validations
+
+- **items** → `z.array(itemSchema)`
+- **minItems** → `z.array().min(n)`
+- **maxItems** → `z.array().max(n)`
+
+#### Object Validations
+
+- **properties** → `z.object({...})`
+- **additionalProperties** → `z.record(valueSchema)`
+- **required** → Required fields (no `.optional()`)
+
+#### Complex Types
+
+- **enum** → `z.enum([...])`
+- **enum (nullable)** → `z.enum([...]).nullable()` - Automatically merges enum values with null
+- **anyOf** → `z.union([...])` - Smart detection for nullable enums
+- **oneOf** → `z.union([...])`
+- **allOf** → `z.intersection().merge()`
+- **nullable** → `.nullable()`
+
+**Note on Nullable Enums**: OpenAPI specs often represent nullable enums as `anyOf` with separate enum schemas (e.g., `[{enum: ["A", "B"]}, {enum: [null]}]`). OpenAPI Sync automatically detects this pattern and generates clean enum schemas like `z.enum(["A", "B"]).nullable()` instead of complex unions.
+
+**Example:**
+
+```yaml
+# OpenAPI Schema
+anyOf:
+  - enum: ["DAYS", "WEEKS", "MONTHS"]
+  - enum: [""]
+  - enum: [null]
+```
+
+```typescript
+// ✅ Generated (Clean)
+z.enum(["DAYS", "WEEKS", "MONTHS", ""]).nullable();
+
+// ❌ NOT Generated (Messy)
+z.union([z.enum(["DAYS", "WEEKS", "MONTHS"]), z.enum([""]), z.enum([null])]);
+```
+
+### Usage Examples
+
+#### Express Middleware
+
+```typescript
+import { Request, Response, NextFunction } from "express";
+import { z } from "zod";
+import { IAddPetDTOSchema } from "./src/api/petstore/types/validation";
+import { IAddPetDTO } from "./src/api/petstore/types";
+
+// Basic validation middleware
+export const validateAddPet = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    IAddPetDTOSchema.parse(req.body);
+    next();
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: error.errors,
+      });
+    } else {
+      next(error);
+    }
+  }
+};
+
+// Use in routes
+import { Router } from "express";
+import { addPet } from "./src/api/petstore/endpoints";
+
+const router = Router();
+
+router.post(addPet, validateAddPet, async (req, res) => {
+  const pet = req.body as IAddPetDTO;
+  // Your business logic here
+  res.status(201).json({ success: true });
+});
+```
+
+#### Express Middleware with Yup
+
+```typescript
+import { Request, Response, NextFunction } from "express";
+import * as yup from "yup";
+import { IAddPetDTOSchema } from "./src/api/petstore/types/validation";
+
+export const validateAddPetYup = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    await IAddPetDTOSchema.validate(req.body);
+    next();
+  } catch (error) {
+    if (error instanceof yup.ValidationError) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: error.errors,
+      });
+    } else {
+      next(error);
+    }
+  }
+};
+```
+
+#### Express Middleware with Joi
+
+```typescript
+import { Request, Response, NextFunction } from "express";
+import { IAddPetDTOSchema } from "./src/api/petstore/types/validation";
+
+export const validateAddPetJoi = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { error } = IAddPetDTOSchema.validate(req.body);
+
+  if (error) {
+    res.status(400).json({
+      error: "Validation failed",
+      details: error.details.map((detail) => ({
+        field: detail.path.join("."),
+        message: detail.message,
+      })),
+    });
+  } else {
+    next();
+  }
+};
+```
+
+#### Generic Validation Helper
+
+```typescript
+import { z } from "zod";
+import { Request, Response, NextFunction } from "express";
+
+// Generic validation middleware factory
+export const validate = <T extends z.ZodTypeAny>(schema: T) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      schema.parse(req.body);
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({
+          error: "Validation failed",
+          details: error.errors.map((err) => ({
+            field: err.path.join("."),
+            message: err.message,
+          })),
+        });
+      } else {
+        next(error);
+      }
+    }
+  };
+};
+
+// Usage
+import { IAddPetDTOSchema } from "./src/api/petstore/types/validation";
+router.post("/pet", validate(IAddPetDTOSchema), async (req, res) => {
+  // req.body is now validated
+});
+```
+
+#### Query Parameter Validation
+
+```typescript
+import { IFindPetsByStatusQuerySchema } from "./src/api/petstore/types/validation";
+
+router.get("/pets", async (req, res) => {
+  try {
+    const query = IFindPetsByStatusQuerySchema.parse(req.query);
+    // query is now validated and typed
+    const pets = await findPets(query);
+    res.json(pets);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid query parameters" });
+    }
+  }
+});
+```
+
+#### Response Validation (for testing)
+
+```typescript
+import { IGetPetById200ResponseSchema } from "./src/api/petstore/types/validation";
+
+describe("GET /pet/:id", () => {
+  it("should return a valid pet", async () => {
+    const response = await request(app).get("/pet/123");
+
+    // Validate response against schema
+    expect(() =>
+      IGetPetById200ResponseSchema.parse(response.body)
+    ).not.toThrow();
+  });
+});
+```
+
+#### Safe Parsing
+
+```typescript
+import { IAddPetDTOSchema } from "./src/api/petstore/types/validation";
+
+// Use safeParse for non-throwing validation
+const result = IAddPetDTOSchema.safeParse(req.body);
+
+if (result.success) {
+  const pet = result.data; // Typed and validated
+  // Process pet
+} else {
+  console.error("Validation errors:", result.error.errors);
+  res.status(400).json({ errors: result.error.errors });
+}
+```
+
+#### Type Inference
+
+```typescript
+import { IAddPetDTOSchema } from "./src/api/petstore/types/validation";
+
+// Infer TypeScript type from Zod schema
+type AddPetDTO = z.infer<typeof IAddPetDTOSchema>;
+
+// This is equivalent to importing IAddPetDTO
+```
+
+### Advanced Configuration
+
+#### With Folder Splitting
+
+```typescript
+const config: IConfig = {
+  folder: "./src/api",
+  api: {
+    petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+  },
+
+  // Organize by tags
+  folderSplit: {
+    byTags: true,
+  },
+
+  // Validation works seamlessly with folder splitting
+  validations: {
+    library: "zod",
+    name: {
+      useOperationId: true,
+    },
+  },
+};
+```
+
+Each folder will have its own `validation.ts` file with schemas automatically inlined:
+
+```typescript
+// src/api/petstore/pet/validation.ts
+import { z } from "zod";
+
+export const IAddPetDTOSchema = z.object({
+  // Pet-specific validation schemas with shared types inlined
+  name: z.string(),
+  category: z
+    .object({
+      id: z.number().int().optional(),
+      name: z.string().optional(),
+    })
+    .optional(),
+});
+```
+
+#### With Custom Validation Naming
+
+```typescript
+const config: IConfig = {
+  // ... other config
+  validations: {
+    library: "zod",
+    name: {
+      prefix: "",
+      suffix: "Validator",
+      useOperationId: true,
+      format: (source, data, defaultName) => {
+        // Custom naming for validation schemas
+        if (source === "shared") {
+          return `${data.name}Validation`;
+        }
+        return defaultName;
+      },
+    },
+  },
+  types: {
+    name: {
+      prefix: "I",
+      useOperationId: true,
+    },
+  },
+};
+```
+
+### Best Practices
+
+1. **Always validate user input**: Use validation middleware on all endpoints that accept user data
+2. **Validate at the edge**: Validate data as early as possible in your request pipeline
+3. **Use safeParse for optional validation**: When you want to handle validation errors gracefully
+4. **Validate responses in tests**: Ensure your API returns correctly shaped data
+5. **Keep validation schemas in sync**: Re-run OpenAPI Sync when your API specification changes
+6. **Type inference**: Use `z.infer<typeof Schema>` when you only need the type
+7. **Error formatting**: Transform Zod errors into user-friendly messages for your API clients
+
+### Limitations
+
+- Validation schemas are regenerated on each sync (use custom code markers if you need to add custom validations)
+- Some complex OpenAPI features may not have direct validation library equivalents across all libraries (e.g., `allOf` is handled differently in Zod, Yup, and Joi)
+- For best results, ensure your OpenAPI schema includes detailed constraint information (min/max values, formats, patterns, etc.)
 
 ## API Reference
 
