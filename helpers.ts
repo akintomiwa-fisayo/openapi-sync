@@ -179,7 +179,24 @@ export const extractCustomCode = (
     const endIndex = fileContent.indexOf(endMarker, startIndex);
     if (endIndex === -1) break;
 
-    const blockEnd = endIndex + endMarker.length;
+    let blockEnd = endIndex + endMarker.length;
+
+    // Include the closing separator line if it exists
+    const afterEndMarker = fileContent.substring(blockEnd, blockEnd + 100);
+    const closingSeparatorMatch = afterEndMarker.match(/^\s*\n\s*(\/\/ =+)/);
+    if (closingSeparatorMatch) {
+      // Find the end of the closing separator line
+      const separatorEnd = afterEndMarker.indexOf(
+        "\n",
+        closingSeparatorMatch.index! + 1
+      );
+      if (separatorEnd !== -1) {
+        blockEnd += separatorEnd + 1;
+      } else {
+        // No newline after separator, include it anyway
+        blockEnd += closingSeparatorMatch[0].length;
+      }
+    }
 
     // Find the actual start of the block (including any preceding comment lines)
     let blockStart = startIndex;
