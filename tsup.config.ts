@@ -20,13 +20,13 @@ export default defineConfig({
   sourcemap: false, // Disabled - source maps not needed for consumers (saves ~180KB)
   treeshake: true,
   esbuildOptions(options) {
-    // Remove pure option that's causing issues
-    // options.pure = [
-    //   "console.log",
-    //   "console.warn",
-    //   "console.error",
-    //   "console.info",
-    //   "console.debug",
-    // ];
+    // Remove pure function calls
+    options.pure = [
+      "console.log",
+      "console.warn",
+      // "console.error",
+      "console.info",
+      "console.debug",
+    ];
   },
 });
