@@ -35,6 +35,29 @@ const config: IConfig = {
       return "misc";
     },
   },
+  validations: {
+    disable: false, // Enable validation generation (default: false)
+    library: "zod", // Validation library: "zod" | "yup" | "joi"
+
+    // Optionally specify which types to generate validations for (defaults: query=true, dto=true)
+    generate: {
+      query: true, // Generate query parameter validations (default: true)
+      dto: true, // Generate request body validations (default: true)
+      // Note: Response validations are not supported
+    },
+
+    name: {
+      prefix: "I", // Prefix for validation schema names (default: "I")
+      suffix: "Schema", // Suffix for validation schema names (default: "Schema")
+      useOperationId: true, // Use operationId from OpenAPI spec
+      format: (data, defaultName) => {
+        // Custom naming function (optional)
+
+        // return `${data.name}`;
+        return defaultName;
+      },
+    },
+  },
   // Configuration for excluding endpoints from code generation
   types: {
     name: {

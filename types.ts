@@ -25,6 +25,20 @@ export type IOpenApSchemaSpec = {
   anyOf?: IOpenApSchemaSpec[];
   oneOf?: IOpenApSchemaSpec[];
   allOf?: IOpenApSchemaSpec[];
+  // Validation constraints
+  minLength?: number;
+  maxLength?: number;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: boolean;
+  exclusiveMaximum?: boolean;
+  pattern?: string;
+  multipleOf?: number;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
+  minProperties?: number;
+  maxProperties?: number;
 };
 
 export type IOpenApiParameterSpec = {
@@ -114,6 +128,37 @@ export type IConfigCustomCode = {
   includeInstructions?: boolean;
 };
 
+export type IConfigValidations = {
+  /** Disable validation schema generation (default: false) */
+  disable?: boolean;
+  /** Validation library to use */
+  library?: "zod" | "yup" | "joi";
+  /** Specify which types to generate validations for */
+  generate?: {
+    /** Generate validation for query parameters (default: true) */
+    query?: boolean;
+    /** Generate validation for request bodies/DTOs (default: true) */
+    dto?: boolean;
+  };
+  /** Naming configuration for validation schemas */
+  name?: {
+    prefix?: string;
+    useOperationId?: boolean;
+    suffix?: string;
+    format?: (
+      data: {
+        type?: "dto" | "query";
+        code?: string;
+        method?: Method;
+        path?: string;
+        summary?: string;
+        operationId?: string;
+      },
+      defaultName: string
+    ) => string | null | undefined;
+  };
+};
+
 export type IConfig = {
   refetchInterval?: number;
   folder?: string;
@@ -123,6 +168,8 @@ export type IConfig = {
   folderSplit?: IConfigFolderSplit;
   /** Configuration for preserving custom code between regenerations */
   customCode?: IConfigCustomCode;
+  /** Configuration for validation schema generation */
+  validations?: IConfigValidations;
   /** Configuration for excluding endpoints from code generation */
   types?: {
     name?: {

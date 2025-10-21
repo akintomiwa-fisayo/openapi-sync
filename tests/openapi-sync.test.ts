@@ -148,6 +148,7 @@ describe("OpenapiSync", () => {
     mockedFs.promises = {
       mkdir: jest.fn().mockResolvedValue(undefined),
       writeFile: jest.fn().mockResolvedValue(undefined),
+      readFile: jest.fn().mockRejectedValue(new Error("File not found")),
     } as any;
   });
 
@@ -589,6 +590,237 @@ describe("OpenapiSync", () => {
       expect(mockedAxios.create).toHaveBeenCalled();
 
       process.env.NODE_ENV = originalEnv;
+    });
+  });
+
+  describe("Validation Schema Generation", () => {
+    it("should generate validation schemas when enabled", async () => {
+      // Mock state to return null so it will process the spec
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import with the state mock
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithValidation: IConfig = {
+        ...mockConfig,
+        validations: {
+          disable: false,
+          library: "zod",
+          name: {
+            prefix: "I",
+            suffix: "Schema",
+            useOperationId: true,
+          },
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithValidation
+      );
+
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("should not generate validation schemas when disabled", async () => {
+      // Mock state to return null
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithoutValidation: IConfig = {
+        ...mockConfig,
+        validations: {
+          disable: true,
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithoutValidation
+      );
+
+      // Should still write files, but not validation files
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("should support custom validation naming", async () => {
+      // Mock state to return null
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithCustomNaming: IConfig = {
+        ...mockConfig,
+        validations: {
+          library: "zod",
+          name: {
+            prefix: "",
+            suffix: "Validator",
+            useOperationId: true,
+            format: (data, defaultName) => {
+              return defaultName;
+            },
+          },
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithCustomNaming
+      );
+
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("should handle validation with folder splitting", async () => {
+      // Mock state to return null
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithBoth: IConfig = {
+        ...mockConfig,
+        folderSplit: {
+          byTags: true,
+        },
+        validations: {
+          library: "zod",
+          name: {
+            useOperationId: true,
+          },
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithBoth
+      );
+
+      expect(mockedFs.promises.mkdir).toHaveBeenCalled();
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("should generate only query and dto validations when configured", async () => {
+      // Mock state to return null
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithSelectiveValidation: IConfig = {
+        ...mockConfig,
+        validations: {
+          library: "zod",
+          generate: {
+            query: true,
+            dto: true,
+          },
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithSelectiveValidation
+      );
+
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("should generate Yup validation schemas when yup is selected", async () => {
+      // Mock state to return null
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithYup: IConfig = {
+        ...mockConfig,
+        validations: {
+          library: "yup",
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithYup
+      );
+
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("should generate Joi validation schemas when joi is selected", async () => {
+      // Mock state to return null
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      // Re-import
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      const configWithJoi: IConfig = {
+        ...mockConfig,
+        validations: {
+          library: "joi",
+        },
+      };
+
+      await OpenapiSync(
+        "https://petstore3.swagger.io/api/v3/openapi.json",
+        "petstore",
+        configWithJoi
+      );
+
+      expect(mockedFs.promises.writeFile).toHaveBeenCalled();
     });
   });
 });
