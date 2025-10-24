@@ -3,6 +3,7 @@ node_modules
 dist
 experiments
 inputed
+.qodo
 db.json
 openapi.sync.json
 TODO.md
