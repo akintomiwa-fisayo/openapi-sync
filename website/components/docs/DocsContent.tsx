@@ -5,6 +5,7 @@ import VideoTutorial from "./VideoTutorial";
 import { getVideoTutorial } from "@/lib/videoTutorials";
 
 export default function DocsContent() {
+  const comingSoonId = "vmUVIqhZrHg";
   return (
     <div className="prose prose-gray dark:prose-invert max-w-none prose-headings:text-gray-900 dark:prose-headings:text-white prose-h1:text-gray-900 dark:prose-h1:text-white prose-h2:text-gray-900 dark:prose-h2:text-white prose-h3:text-gray-900 dark:prose-h3:text-white prose-h4:text-gray-900 dark:prose-h4:text-white prose-p:text-gray-600 dark:prose-p:text-gray-300 prose-strong:text-gray-900 dark:prose-strong:text-white prose-code:text-gray-900 dark:prose-code:text-white">
       {/* Introduction */}
@@ -28,7 +29,7 @@ export default function DocsContent() {
         </div>
 
         <VideoTutorial
-          videoId={getVideoTutorial("introduction")?.videoId || "dQw4w9WgXcQ"}
+          videoId={getVideoTutorial("introduction")?.videoId || comingSoonId}
           title={
             getVideoTutorial("introduction")?.title ||
             "Getting Started with OpenAPI Sync"
@@ -45,7 +46,7 @@ export default function DocsContent() {
         </h2>
 
         <VideoTutorial
-          videoId={getVideoTutorial("installation")?.videoId || "dQw4w9WgXcQ"}
+          videoId={getVideoTutorial("installation")?.videoId || comingSoonId}
           title={
             getVideoTutorial("installation")?.title || "Installation & Setup"
           }
@@ -82,7 +83,7 @@ npx openapi-sync`}
         </h2>
 
         <VideoTutorial
-          videoId={getVideoTutorial("quickStart")?.videoId || "dQw4w9WgXcQ"}
+          videoId={getVideoTutorial("quickStart")?.videoId || comingSoonId}
           title={
             getVideoTutorial("quickStart")?.title || "Quick Start Tutorial"
           }
@@ -140,7 +141,7 @@ const pet: IPet = {
         </h2>
 
         <VideoTutorial
-          videoId={getVideoTutorial("basicConfig")?.videoId || "dQw4w9WgXcQ"}
+          videoId={getVideoTutorial("basicConfig")?.videoId || comingSoonId}
           title={
             getVideoTutorial("basicConfig")?.title || "Basic Configuration"
           }
@@ -238,9 +239,7 @@ const pet: IPet = {
         </h2>
 
         <VideoTutorial
-          videoId={
-            getVideoTutorial("folderSplitting")?.videoId || "dQw4w9WgXcQ"
-          }
+          videoId={getVideoTutorial("folderSplitting")?.videoId || comingSoonId}
           title={
             getVideoTutorial("folderSplitting")?.title ||
             "Folder Splitting & Organization"
@@ -315,7 +314,7 @@ const pet: IPet = {
 
         <VideoTutorial
           videoId={
-            getVideoTutorial("validationSchemas")?.videoId || "dQw4w9WgXcQ"
+            getVideoTutorial("validationSchemas")?.videoId || comingSoonId
           }
           title={
             getVideoTutorial("validationSchemas")?.title ||
@@ -420,7 +419,7 @@ router.post("/pet", validate(IAddPetDTOSchema), handler);`}
         </h2>
 
         <VideoTutorial
-          videoId={getVideoTutorial("customCode")?.videoId || "dQw4w9WgXcQ"}
+          videoId={getVideoTutorial("customCode")?.videoId || comingSoonId}
           title={
             getVideoTutorial("customCode")?.title || "Custom Code Preservation"
           }
@@ -475,7 +474,7 @@ export const updatePet = (petId: string) => \`/pet/\${petId}\`;`}
 
         <VideoTutorial
           videoId={
-            getVideoTutorial("endpointFiltering")?.videoId || "dQw4w9WgXcQ"
+            getVideoTutorial("endpointFiltering")?.videoId || comingSoonId
           }
           title={
             getVideoTutorial("endpointFiltering")?.title ||
@@ -549,7 +548,7 @@ export const updatePet = (petId: string) => \`/pet/\${petId}\`;`}
         <VideoTutorial
           videoId={
             getVideoTutorial("clientGenerationOverview")?.videoId ||
-            "dQw4w9WgXcQ"
+            comingSoonId
           }
           title={
             getVideoTutorial("clientGenerationOverview")?.title ||
@@ -1380,7 +1379,7 @@ export default apiClient;
         </h2>
 
         <VideoTutorial
-          videoId={getVideoTutorial("cliUsage")?.videoId || "dQw4w9WgXcQ"}
+          videoId={getVideoTutorial("cliUsage")?.videoId || comingSoonId}
           title={
             getVideoTutorial("cliUsage")?.title || "CLI Commands & Options"
           }
@@ -1461,7 +1460,7 @@ npx openapi-sync generate-client \\
 
         <VideoTutorial
           videoId={
-            getVideoTutorial("programmaticUsage")?.videoId || "dQw4w9WgXcQ"
+            getVideoTutorial("programmaticUsage")?.videoId || comingSoonId
           }
           title={
             getVideoTutorial("programmaticUsage")?.title ||
@@ -1502,9 +1501,7 @@ try {
         </h2>
 
         <VideoTutorial
-          videoId={
-            getVideoTutorial("troubleshooting")?.videoId || "dQw4w9WgXcQ"
-          }
+          videoId={getVideoTutorial("troubleshooting")?.videoId || comingSoonId}
           title={
             getVideoTutorial("troubleshooting")?.title ||
             "Common Issues & Troubleshooting"
