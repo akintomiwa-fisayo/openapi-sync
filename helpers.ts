@@ -1,10 +1,28 @@
 import { variableNameChar } from "./regex";
 import * as yaml from "js-yaml";
 
+/**
+ * Check if a value is a JSON object
+ *
+ * @param {any} value - Value to check
+ * @returns {boolean} True if the value is an object and not a Blob
+ *
+ * @public
+ */
 export const isJson = (value: any) => {
   return ["object"].includes(typeof value) && !(value instanceof Blob);
 };
 
+/**
+ * Check if a string is valid YAML
+ *
+ * Attempts to parse the string as YAML and returns true if successful.
+ *
+ * @param {string} fileContent - String content to check
+ * @returns {boolean} True if the string can be parsed as YAML
+ *
+ * @public
+ */
 export const isYamlString = (fileContent: string) => {
   try {
     yaml.load(fileContent);
@@ -19,6 +37,17 @@ export const isYamlString = (fileContent: string) => {
   }
 };
 
+/**
+ * Convert YAML string to JSON object
+ *
+ * Parses a YAML string and returns a JSON object representation.
+ * Returns undefined if the string is not valid YAML.
+ *
+ * @param {string} fileContent - YAML string content
+ * @returns {any | undefined} Parsed JSON object, or undefined if invalid YAML
+ *
+ * @public
+ */
 export const yamlStringToJson = (fileContent: string) => {
   if (isYamlString(fileContent)) {
     const content = yaml.load(fileContent);
@@ -29,12 +58,36 @@ export const yamlStringToJson = (fileContent: string) => {
   }
 };
 
+/**
+ * Capitalize the first letter of a string
+ *
+ * @param {string} text - Text to capitalize
+ * @returns {string} Text with first letter capitalized
+ *
+ * @public
+ */
 export const capitalize = (text: string) => {
   const capitalizedWord =
     text.substring(0, 1).toUpperCase() + text.substring(1);
   return capitalizedWord;
 };
 
+/**
+ * Extract endpoint details from path and method
+ *
+ * Parses an API path to generate a function name and extract path variables.
+ * Handles multiple path variable formats: {id}, <id>, and :id.
+ *
+ * @param {string} path - API endpoint path (e.g., "/users/{userId}/posts")
+ * @param {string} method - HTTP method (GET, POST, etc.)
+ * @returns {{ name: string; variables: string[]; pathParts: string[] }} Object containing generated name, path variables, and path parts
+ *
+ * @example
+ * getEndpointDetails("/users/{userId}", "GET")
+ * // Returns: { name: "GetUsers$userId", variables: ["userId"], pathParts: [...] }
+ *
+ * @public
+ */
 export const getEndpointDetails = (path: string, method: string) => {
   const pathParts = path.split("/");
   let name = `${capitalize(method)}`;
@@ -78,6 +131,18 @@ export const getEndpointDetails = (path: string, method: string) => {
   return { name, variables, pathParts };
 };
 
+/**
+ * Convert object to formatted TypeScript string
+ *
+ * Creates a human-readable TypeScript object representation with proper indentation.
+ * Used for generating type definitions in generated code.
+ *
+ * @param {Record<string, any>} obj - Object to stringify
+ * @param {number} [indent=1] - Current indentation level
+ * @returns {string} Formatted TypeScript object string
+ *
+ * @public
+ */
 export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
   let result = "{";
   const keys = Object.keys(obj);
@@ -120,6 +185,17 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
   return result;
 };
 
+/**
+ * Render TypeScript type reference as markdown code block
+ *
+ * Formats a TypeScript type definition for inclusion in markdown documentation.
+ *
+ * @param {string} typeRef - TypeScript type definition
+ * @param {number} [indent=1] - Indentation level
+ * @returns {string} Markdown formatted code block
+ *
+ * @public
+ */
 export const renderTypeRefMD = (typeRef: string, indent = 1) => {
   return `\n\`\`\`typescript\n${"  ".repeat(indent)}  ${typeRef
     .split("\n")
@@ -127,6 +203,23 @@ export const renderTypeRefMD = (typeRef: string, indent = 1) => {
     .join(`\n${"  ".repeat(indent)}  `)}\n\`\`\``;
 };
 
+/**
+ * Get nested value from object using dot notation path
+ *
+ * Safely retrieves a deeply nested value from an object using a string path.
+ * Returns undefined if the path doesn't exist.
+ *
+ * @template T - Type of the expected return value
+ * @param {object} obj - Object to navigate
+ * @param {string} path - Dot-notation path (e.g., "user.address.city")
+ * @returns {T | undefined} The value at the path, or undefined if not found
+ *
+ * @example
+ * getNestedValue<string>({ user: { name: "John" } }, "user.name")
+ * // Returns: "John"
+ *
+ * @public
+ */
 export function getNestedValue<T>(obj: object, path: string): T | undefined {
   // Split the path string into an array of keys
   const keys = path.split(".");
@@ -152,9 +245,15 @@ export interface ExtractedCustomCode {
 
 /**
  * Extract custom code from existing file using comment markers
- * @param fileContent - The content of the existing file
- * @param markerText - The marker text to look for (default: "CUSTOM CODE")
- * @returns Object containing custom code sections before and after generated code
+ *
+ * Scans an existing file for custom code blocks marked with special comments
+ * and extracts them for preservation during regeneration.
+ *
+ * @param {string} fileContent - The content of the existing file
+ * @param {string} [markerText="CUSTOM CODE"] - The marker text to look for
+ * @returns {ExtractedCustomCode} Object containing custom code sections before and after generated code
+ *
+ * @public
  */
 export const extractCustomCode = (
   fileContent: string,
@@ -249,10 +348,17 @@ export const extractCustomCode = (
 
 /**
  * Create an empty custom code marker section
- * @param position - Position of the marker ("top" or "bottom")
- * @param markerText - The marker text (default: "CUSTOM CODE")
- * @param includeInstructions - Whether to include helpful instructions
- * @returns The marker section as a string
+ *
+ * Generates the comment markers that delineate custom code sections in
+ * generated files. These markers tell the regeneration process where
+ * user-added code should be preserved.
+ *
+ * @param {"top" | "bottom"} position - Position of the marker in the file
+ * @param {string} [markerText="CUSTOM CODE"] - The marker text to use
+ * @param {boolean} [includeInstructions=true] - Whether to include helpful instructions
+ * @returns {string} The marker section as a string
+ *
+ * @public
  */
 export const createCustomCodeMarker = (
   position: "top" | "bottom",
@@ -277,10 +383,20 @@ ${instructions}// ${"=".repeat(60)}
 
 /**
  * Merge generated content with preserved custom code
- * @param generatedContent - The newly generated content
- * @param existingFileContent - The existing file content (null if file doesn't exist)
- * @param config - Configuration options
- * @returns The merged content with custom code preserved
+ *
+ * The core function for custom code preservation. Extracts custom code from
+ * existing files and merges it with newly generated content, ensuring user
+ * modifications survive regeneration.
+ *
+ * @param {string} generatedContent - The newly generated content
+ * @param {string | null} existingFileContent - The existing file content (null if file doesn't exist)
+ * @param {Object} [config] - Configuration options
+ * @param {"top" | "bottom" | "both"} [config.position="bottom"] - Where to place custom code markers
+ * @param {string} [config.markerText="CUSTOM CODE"] - Custom marker text
+ * @param {boolean} [config.includeInstructions=true] - Whether to include helpful instructions
+ * @returns {string} The merged content with custom code preserved
+ *
+ * @public
  */
 export const mergeCustomCode = (
   generatedContent: string,

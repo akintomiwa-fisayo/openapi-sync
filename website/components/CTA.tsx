@@ -11,8 +11,9 @@ export default function CTA() {
         </h2>
         <p className="text-xl text-red-100 mb-12 max-w-3xl mx-auto">
           Join thousands of developers who have streamlined their API workflow
-          with OpenAPI Sync. Generate types, validation schemas, and endpoints
-          in less than 5 minutes.
+          with OpenAPI Sync. Generate types, fully-typed API clients, validation
+          schemas, and comprehensive documentation in less than 5 minutes—now
+          with v5.0.0 improvements!
         </p>
 
         {/* CTA Buttons */}

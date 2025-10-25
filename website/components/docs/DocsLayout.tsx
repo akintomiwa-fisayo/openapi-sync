@@ -3,9 +3,21 @@
 import { useState } from "react";
 import { FiMenu, FiX, FiChevronRight } from "react-icons/fi";
 import Link from "next/link";
-import routes from "@/lib/routes";
 
-const sections = [
+interface NavLink {
+  id: string;
+  label: string;
+  icon?: string;
+  subtext?: string;
+}
+
+interface NavSection {
+  title: string;
+  badge?: string;
+  links: NavLink[];
+}
+
+const sections: NavSection[] = [
   {
     title: "Getting Started",
     links: [
@@ -15,17 +27,9 @@ const sections = [
     ],
   },
   {
-    title: "Configuration",
+    title: "Core Features",
     links: [
       { id: "basic-config", label: "Basic Configuration" },
-      { id: "advanced-config", label: "Advanced Configuration" },
-      { id: "type-config", label: "Type Configuration" },
-      { id: "endpoint-config", label: "Endpoint Configuration" },
-    ],
-  },
-  {
-    title: "Features",
-    links: [
       { id: "folder-splitting", label: "Folder Splitting" },
       { id: "validation-schemas", label: "Validation Schemas" },
       { id: "custom-code", label: "Custom Code Preservation" },
@@ -33,19 +37,47 @@ const sections = [
     ],
   },
   {
-    title: "Usage",
+    title: "🚀 Client Generation",
+    badge: "v5.0.0",
     links: [
-      { id: "cli-usage", label: "CLI Usage" },
-      { id: "programmatic-usage", label: "Programmatic Usage" },
-      { id: "generated-output", label: "Generated Output" },
+      {
+        id: "client-generation",
+        label: "Overview",
+        icon: "⭐",
+      },
+      {
+        id: "client-generation",
+        label: "Fetch Client",
+        subtext: "Native browser API",
+      },
+      {
+        id: "client-generation",
+        label: "Axios Client",
+        subtext: "Popular HTTP client",
+      },
+      {
+        id: "client-generation",
+        label: "React Query",
+        subtext: "TanStack Query hooks",
+      },
+      {
+        id: "client-generation",
+        label: "SWR Hooks",
+        subtext: "Vercel's data fetching",
+      },
+      {
+        id: "client-generation",
+        label: "RTK Query",
+        subtext: "Redux Toolkit Query",
+      },
     ],
   },
   {
-    title: "Examples",
+    title: "Usage & CLI",
+    badge: "v5.0.0",
     links: [
-      { id: "basic-examples", label: "Basic Examples" },
-      { id: "validation-examples", label: "Validation Examples" },
-      { id: "advanced-examples", label: "Advanced Examples" },
+      { id: "cli-usage", label: "CLI Commands" },
+      { id: "programmatic-usage", label: "Programmatic API" },
     ],
   },
   {
@@ -100,18 +132,40 @@ export default function DocsLayout({
             <nav className="space-y-6">
               {sections.map((section, idx) => (
                 <div key={idx}>
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider mb-3">
-                    {section.title}
-                  </h3>
-                  <ul className="space-y-2">
-                    {section.links.map((link) => (
-                      <li key={link.id}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {section.title}
+                    </h3>
+                    {section.badge && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full">
+                        {section.badge}
+                      </span>
+                    )}
+                  </div>
+                  <ul className="space-y-1">
+                    {section.links.map((link, linkIdx) => (
+                      <li key={`${link.id}-${linkIdx}`}>
                         <button
                           onClick={() => scrollToSection(link.id)}
-                          className="flex items-center text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors w-full text-left py-1"
+                          className="group flex items-start text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors w-full text-left py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50"
                         >
-                          <FiChevronRight className="text-sm mr-1" />
-                          {link.label}
+                          {link.icon ? (
+                            <span className="text-sm mr-2 mt-0.5">
+                              {link.icon}
+                            </span>
+                          ) : (
+                            <FiChevronRight className="text-sm mr-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">
+                              {link.label}
+                            </div>
+                            {link.subtext && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {link.subtext}
+                              </div>
+                            )}
+                          </div>
                         </button>
                       </li>
                     ))}

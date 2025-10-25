@@ -1,7 +1,7 @@
 {
   "name": "openapi-sync",
-  "version": "4.0.2",
-  "description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation",
+  "version": "5.0.0",
+  "description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -25,7 +25,18 @@
     "codegen",
     "generation",
     "generator",
-    "generate types"
+    "generate types",
+    "api client",
+    "fetch",
+    "axios",
+    "react-query",
+    "tanstack query",
+    "swr",
+    "rtk-query",
+    "redux toolkit",
+    "type-safe",
+    "hooks",
+    "client generation"
   ],
   "files": [
     "bin",
@@ -56,6 +67,7 @@
   "author": "P-Technologies",
   "license": "ISC",
   "devDependencies": {
+    "@types/prompts": "^2.4.9",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.7",
@@ -77,6 +89,7 @@
     "js-yaml": "^4.1.0",
     "lodash.get": "^4.4.2",
     "lodash.isequal": "^4.5.0",
+    "prompts": "^2.4.2",
     "yargs": "^17.7.2"
   }
 }

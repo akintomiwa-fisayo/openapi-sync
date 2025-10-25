@@ -22,10 +22,11 @@ export default function Hero() {
 
           {/* Subheading */}
           <p className="text-xl sm:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-3xl mx-auto">
-            Automate TypeScript type generation, runtime validation schemas
+            Automate TypeScript type generation, fully-typed API clients (Fetch,
+            Axios, React Query, SWR, RTK Query), runtime validation schemas
             (Zod, Yup, Joi), endpoint definitions, and comprehensive
             documentation from your OpenAPI specifications. Keep your code in
-            perfect sync.
+            perfect sync with enterprise-grade reliability.
           </p>
 
           {/* CTA Buttons */}
@@ -53,7 +54,7 @@ export default function Hero() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
             <div className="text-center">
               <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-2">
-                4.0.0
+                5.0.0
               </div>
               <div className="text-gray-600 dark:text-gray-400">
                 Latest Version
@@ -61,9 +62,11 @@ export default function Hero() {
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-2">
-                10K+
+                5
               </div>
-              <div className="text-gray-600 dark:text-gray-400">Downloads</div>
+              <div className="text-gray-600 dark:text-gray-400">
+                Client Types
+              </div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-2">

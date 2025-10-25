@@ -5,6 +5,9 @@ const config: IConfig = {
   folder: "/inputed/path/",
   api: {
     example1: "https://openapi.free.beeceptor.com/openapi.json",
+    // You can add multiple APIs
+    // example2: "https://api.example.com/openapi.json",
+    // localApi: "./specs/openapi.yaml",
   },
   server: 0,
   // Configuration for splitting generated code into folders
@@ -58,7 +61,70 @@ const config: IConfig = {
       },
     },
   },
-  // Configuration for excluding endpoints from code generation
+  // Configuration for API client generation (NEW in v4.1.0)
+  clientGeneration: {
+    enabled: true, // Enable client generation (default: false)
+    type: "react-query", // Client type: "fetch" | "axios" | "react-query" | "swr" | "rtk-query"
+    outputDir: "./src/api/example1/client", // Output directory for generated clients
+    baseURL: "https://api.example.com", // Base URL for API requests (can be overridden at runtime)
+
+    // Filter endpoints by tags (optional)
+    tags: ["users", "pets"], // Only generate clients for these tags
+
+    // Filter endpoints by names (optional)
+    endpoints: ["getPetById", "createPet", "updateUser"], // Only generate these endpoints
+
+    // Naming configuration for client functions
+    name: {
+      prefix: "", // Prefix for client function names
+      suffix: "", // Suffix for client function names
+      useOperationId: true, // Use operationId from OpenAPI spec
+      format: (data, defaultName) => {
+        // Custom naming function (optional)
+        return defaultName;
+      },
+    },
+
+    // React Query specific configuration
+    reactQuery: {
+      version: 5, // React Query version (4 | 5)
+      mutations: true, // Enable mutation hooks for POST/PUT/PATCH/DELETE (default: true)
+      infiniteQueries: false, // Enable infinite query hooks for paginated endpoints (default: false)
+    },
+
+    // SWR specific configuration
+    swr: {
+      mutations: true, // Enable SWR mutation hooks (default: true)
+    },
+
+    // RTK Query specific configuration
+    rtkQuery: {
+      apiName: "api", // API slice name (default: "api")
+      baseQuery: "fetchBaseQuery", // Base query type: "fetchBaseQuery" | "axiosBaseQuery"
+    },
+
+    // Authentication configuration (optional)
+    auth: {
+      type: "bearer", // Auth type: "bearer" | "apiKey" | "basic" | "oauth2"
+      in: "header", // Where to include auth: "header" | "query" | "cookie"
+      name: "Authorization", // Header/query param name
+    },
+
+    // Error handling configuration (optional)
+    errorHandling: {
+      generateErrorClasses: true, // Generate typed error classes (default: false)
+      customHandler: "handleApiError", // Custom error handler function name
+    },
+  },
+  // Custom code preservation configuration
+  customCode: {
+    enabled: true, // Enable custom code preservation (default: false)
+    position: "bottom", // Where to inject custom code: "top" | "bottom" | "both"
+    // Custom code will be preserved between regenerations
+    // Use special markers in generated files:
+    // 🔒 CUSTOM CODE START and 🔒 CUSTOM CODE END
+  },
+  // Configuration for type generation
   types: {
     name: {
       prefix: "",
@@ -135,4 +201,42 @@ const config: IConfig = {
   },
 };
 
-module.exports = config;
+export default config;
+
+// Alternative: Export as CommonJS
+// module.exports = config;
+
+/*
+ * Quick Start Guide:
+ *
+ * 1. Interactive Setup (Recommended):
+ *    npx openapi-sync init
+ *
+ * 2. Manual Setup:
+ *    - Create this config file (openapi.sync.ts, .js, or .json)
+ *    - Run: npx openapi-sync
+ *
+ * 3. Generate API Clients:
+ *    npx openapi-sync generate-client --type react-query
+ *    npx openapi-sync generate-client --type axios --api example1
+ *    npx openapi-sync generate-client --type fetch --tags users,pets
+ *
+ * 4. Available Client Types:
+ *    - fetch: Native browser Fetch API
+ *    - axios: Axios HTTP client
+ *    - react-query: TanStack Query (React Query) hooks
+ *    - swr: SWR hooks by Vercel
+ *    - rtk-query: Redux Toolkit Query
+ *
+ * 5. Validation Libraries:
+ *    - zod: TypeScript-first schema validation
+ *    - yup: JavaScript schema validation
+ *    - joi: Object schema validation
+ *
+ * 6. Documentation:
+ *    Visit https://openapi-sync.com for complete documentation
+ *
+ * 7. CLI Help:
+ *    npx openapi-sync --help
+ *    npx openapi-sync generate-client --help
+ */
