@@ -5,6 +5,42 @@ export const metadata = {
 
 const versions = [
   {
+    version: "5.0.0",
+    date: "2025-10-25",
+    type: "major",
+    changes: [
+      "🎉 MAJOR: Complete client generation overhaul with bug fixes and improvements",
+      "✅ Fixed SWR mutation hooks type errors - Correct argument type nesting",
+      "✅ Fixed Fetch client naming conflicts - Auto-aliased endpoint imports with _endpoint suffix",
+      "✅ Fixed Fetch client default exports - Added named apiClient variable for ESLint compliance",
+      "✅ Fixed RTK Query folder split - Generates apis.ts with setupApiStore helper for minimal Redux configuration",
+      "✅ Fixed RTK Query reducer paths - Each API slice now has unique reducerPath based on folder name",
+      "✅ Fixed CLI argument precedence - CLI options now correctly override config file settings",
+      "📚 Enhanced SWR hooks - Added comprehensive inline documentation with 230+ lines of usage examples",
+      "🚀 Improved interactive setup - Automatically enables byTags when folder splitting is selected",
+      "📦 Non-folder-split mode - Now generates single clients.ts and hooks.ts files at root level",
+      "🎨 Better developer experience - All generated files include copy-paste-ready examples",
+      "⚡ Performance improvements - Optimized build and generation processes",
+    ],
+  },
+  {
+    version: "4.1.0",
+    date: "2025-10-22",
+    type: "minor",
+    changes: [
+      "🚀 NEW: API Client Generation - Generate fully-typed clients for Fetch, Axios, React Query, SWR, and RTK Query",
+      "Added CLI command: generate-client with filtering by tags and endpoint names",
+      "Client generation supports custom code preservation to keep user modifications",
+      "Generate React Query hooks (v4 & v5) with automatic mutations",
+      "Generate SWR hooks with mutation support",
+      "Generate RTK Query API slices with type-safe endpoints",
+      "Added authentication configuration for generated clients (Bearer, API Key, OAuth2)",
+      "Added error handling with typed error classes",
+      "27 comprehensive tests for client generation features",
+      "Full documentation with examples for all client types",
+    ],
+  },
+  {
     version: "4.0.0",
     date: "2024-10-20",
     type: "major",
@@ -141,14 +177,21 @@ export default function ChangelogPage() {
                     {release.type}
                   </span>
                 </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">{release.date}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {release.date}
+                </span>
               </div>
 
               {/* Changes List */}
               <ul className="space-y-2">
                 {release.changes.map((change, idx) => (
-                  <li key={idx} className="flex items-start text-gray-700 dark:text-gray-300">
-                    <span className="text-red-600 dark:text-red-400 mr-2 mt-1">•</span>
+                  <li
+                    key={idx}
+                    className="flex items-start text-gray-700 dark:text-gray-300"
+                  >
+                    <span className="text-red-600 dark:text-red-400 mr-2 mt-1">
+                      •
+                    </span>
                     <span>{change}</span>
                   </li>
                 ))}

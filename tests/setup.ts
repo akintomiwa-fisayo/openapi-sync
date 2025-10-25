@@ -54,4 +54,9 @@ jest.mock("curl-generator", () => ({
 jest.mock("esbuild-register", () => ({}));
 
 // Set up test environment
-process.env.NODE_ENV = "test";
+Object.defineProperty(process.env, "NODE_ENV", {
+  value: "test",
+  writable: true,
+  enumerable: true,
+  configurable: true,
+});

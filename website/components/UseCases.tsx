@@ -179,7 +179,7 @@ export default function UseCases() {
               workflow
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">
                 10K+
@@ -194,14 +194,7 @@ export default function UseCases() {
                 GitHub Stars
               </div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">
-                3
-              </div>
-              <div className="text-gray-600 dark:text-gray-400">
-                Validation Libraries
-              </div>
-            </div>
+
             <div>
               <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">
                 100%

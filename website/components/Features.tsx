@@ -7,12 +7,21 @@ import {
   FiBook,
   FiLayers,
   FiZap,
+  FiPackage,
 } from "react-icons/fi";
 
 const features = [
   {
+    icon: FiPackage,
+    title: "API Client Generation",
+    description:
+      "Generate fully-typed API clients and hooks for Fetch, Axios, React Query, SWR, and RTK Query with comprehensive inline documentation, ESLint compliance, and simplified Redux setup (v5.0.0).",
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+  },
+  {
     icon: FiCheckCircle,
-    title: "🔥 Powerful Runtime Validation",
+    title: "Powerful Runtime Validation",
     description:
       "Generate validation schemas using Zod, Yup, or Joi with full support for all OpenAPI data types, constraints, formats, and patterns.",
     color: "text-red-600",
@@ -50,14 +59,14 @@ const features = [
     color: "text-green-600",
     bgColor: "bg-green-100",
   },
-  {
-    icon: FiBook,
-    title: "Rich Documentation",
-    description:
-      "Generates comprehensive JSDoc comments with cURL examples, security schemes, and type references.",
-    color: "text-pink-600",
-    bgColor: "bg-pink-100",
-  },
+  // {
+  //   icon: FiBook,
+  //   title: "Rich Documentation",
+  //   description:
+  //     "Generates comprehensive JSDoc comments with cURL examples, security schemes, and type references.",
+  //   color: "text-pink-600",
+  //   bgColor: "bg-pink-100",
+  // },
   {
     icon: FiLayers,
     title: "Folder Splitting",
@@ -90,7 +99,9 @@ export default function Features() {
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Everything you need to keep your API documentation, TypeScript
-            types, and validation schemas perfectly synchronized
+            types, fully-typed clients, and validation schemas perfectly
+            synchronized with enterprise-grade reliability and
+            developer-friendly features
           </p>
         </div>
 
@@ -118,7 +129,18 @@ export default function Features() {
 
         {/* Additional Benefits */}
         <div className="mt-16 bg-gradient-to-br from-red-50 to-rose-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 md:p-12 border-2 border-red-200 dark:border-red-900">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-2">
+                5
+              </div>
+              <div className="text-gray-700 dark:text-gray-200 font-medium">
+                Client Types
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
+                Fetch, Axios, React Query, SWR, RTK Query
+              </p>
+            </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-2">
                 3

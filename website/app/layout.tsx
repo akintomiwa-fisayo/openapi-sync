@@ -8,9 +8,10 @@ import ThemeProvider from "@/components/ThemeProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "OpenAPI Sync - Automate API Documentation, Types & Validation",
+  title:
+    "OpenAPI Sync - Automate API Documentation, Types, Clients & Validation",
   description:
-    "A powerful developer tool that automates TypeScript type generation, runtime validation schemas (Zod, Yup, Joi), endpoint definitions, and comprehensive documentation from your OpenAPI specifications in real-time.",
+    "A powerful developer tool that automates TypeScript type generation, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), runtime validation schemas (Zod, Yup, Joi), endpoint definitions, and comprehensive documentation from your OpenAPI specifications. Now with v5.0.0 enhanced client generation and developer experience.",
   keywords: [
     "openapi",
     "swagger",
@@ -20,6 +21,20 @@ export const metadata: Metadata = {
     "type generation",
     "rest api",
     "documentation",
+    "api client",
+    "fetch",
+    "axios",
+    "react-query",
+    "swr",
+    "rtk-query",
+    "redux toolkit",
+    "tanstack query",
+    "type-safe",
+    "hooks",
+    "validation",
+    "zod",
+    "yup",
+    "joi",
   ],
   icons: {
     icon: "/favicon.png",

@@ -4,19 +4,31 @@
 
 # OpenAPI Sync
 
-**OpenAPI Sync** is a powerful developer tool that automates the synchronization of your API documentation with your codebase using OpenAPI (formerly Swagger) specifications. It generates TypeScript types, endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation from your OpenAPI schema—ensuring type safety from API specification to runtime validation.
+**OpenAPI Sync** is a powerful developer tool that automates the synchronization of your API documentation with your codebase using OpenAPI (formerly Swagger) specifications. It generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation from your OpenAPI schema—ensuring type safety from API specification through client implementation to runtime validation.
 
 > 📘 **[Full documentation available at openapi-sync.com](https://openapi-sync.com)**
 
 ## Features
 
-- 🔄 **Real-time API Synchronization** - Automatically syncs OpenAPI specs from remote URLs
-- 📝 **Automatic Type Generation** - Generates TypeScript interfaces for all endpoints
-- 🔧 **Highly Configurable** - Customizable naming, filtering, and folder organization
-- 🛡️ **Enterprise Ready** - Error handling, validation, and state persistence
-- 🔐 **Runtime Validation** - Generate Zod, Yup, or Joi schemas from OpenAPI specs
-- 📚 **Rich Documentation** - JSDoc comments with cURL examples
-- 🔄 **Custom Code Injection** - Preserve your custom code between regenerations
+### 🎉 v5.0.0 - Enhanced Client Generation & Developer Experience
+
+- 🚀 **Fully-Typed API Client Generation** - Generate type-safe clients for Fetch, Axios, React Query, SWR, and RTK Query with comprehensive inline documentation
+- ⚡ **RTK Query Simplified Setup** - New `setupApiStore` helper reduces Redux configuration from ~15 lines to ~5 lines
+- ✅ **Perfect TypeScript Support** - Fixed SWR mutation types, ESLint-compliant Fetch clients, and unique RTK Query reducer paths
+- 🎨 **Better File Organization** - Streamlined non-folder-split mode with `clients.ts` and `hooks.ts` directly at root
+- 🔧 **CLI Improvements** - Arguments now correctly override config file settings as expected
+- 📚 **230+ Lines of SWR Documentation** - Every generated hooks file includes comprehensive usage examples
+
+### Core Features
+
+- 🔄 **Real-time API Synchronization** - Automatically syncs OpenAPI specs from remote URLs with configurable intervals
+- 📝 **Automatic Type Generation** - Generates TypeScript interfaces for all endpoints with full nested support
+- 🔐 **Runtime Validation** - Generate Zod, Yup, or Joi schemas from OpenAPI specs with all constraints preserved
+- 🎯 **Interactive Setup Wizard** - Streamlined configuration with auto-enabled tag-based folder splitting
+- 🛡️ **Enterprise Ready** - Error handling, validation, state persistence, and custom code preservation
+- 📦 **Folder Splitting** - Organize code by tags or custom logic with aggregator files for easy imports
+- 📚 **Rich Documentation** - JSDoc comments with cURL examples and inline usage guides
+- 🔄 **Custom Code Injection** - Preserve your custom code between regenerations with protected sections
 
 [View all features →](https://openapi-sync.com/docs#features)
 
@@ -31,6 +43,28 @@ npx openapi-sync
 ```
 
 ## Quick Start
+
+### Option 1: Interactive Setup (Recommended) 🎯
+
+The easiest way to get started is with the interactive setup wizard:
+
+```bash
+npx openapi-sync init
+```
+
+The wizard will guide you through:
+
+- 📝 Configuration file format selection (TypeScript, JSON, or JavaScript)
+- 🌐 API specification source (URL or local file)
+- 📁 Folder organization options (split by tags or custom logic)
+- 🚀 Client generation options (React Query, SWR, Fetch, Axios, RTK Query)
+- ✅ Validation library setup (Zod, Yup, Joi)
+- 🔧 Custom code preservation settings
+- 🏷️ Type naming preferences (operationId usage, prefix)
+- 🚫 Endpoint filtering (exclude by tags)
+- 📚 Documentation options (cURL examples)
+
+### Option 2: Manual Setup
 
 **1. Create `openapi.sync.json` in your project root:**
 
@@ -60,6 +94,139 @@ const petUrl = getPetById("123"); // Returns: "/pet/123"
 ```
 
 [View detailed quick start guide →](https://openapi-sync.com/docs#quick-start)
+
+## API Client Generation
+
+Generate fully-typed API clients with hooks for popular libraries:
+
+### Generate Fetch Client
+
+```bash
+npx openapi-sync generate-client --type fetch
+```
+
+### Generate Axios Client
+
+```bash
+npx openapi-sync generate-client --type axios
+```
+
+### Generate React Query Hooks
+
+```bash
+npx openapi-sync generate-client --type react-query --api petstore
+```
+
+### Generate SWR Hooks
+
+```bash
+npx openapi-sync generate-client --type swr
+```
+
+### Generate RTK Query API
+
+```bash
+npx openapi-sync generate-client --type rtk-query
+```
+
+### Filter by Tags or Endpoints
+
+```bash
+# Filter by tags
+npx openapi-sync generate-client --type fetch --tags pets,users
+
+# Filter by specific endpoints
+npx openapi-sync generate-client --type axios --endpoints getPetById,createPet
+```
+
+### Usage Example (React Query)
+
+**1. Generate the client:**
+
+```bash
+npx openapi-sync generate-client --type react-query
+```
+
+**2. Use in your React components:**
+
+```typescript
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useGetPetById, useCreatePet } from "./api/petstore/client/hooks";
+import apiClient from "./api/petstore/client/client";
+
+// Configure API client
+apiClient.updateConfig({
+  baseURL: "https://api.example.com",
+});
+apiClient.setAuthToken("your-auth-token");
+
+function PetDetails({ petId }: { petId: string }) {
+  // Query hook for GET requests with structured params
+  const { data, isLoading, error } = useGetPetById({
+    url: { petId }, // Path parameters
+    query: { includeOwner: true }, // Query parameters (if any)
+  });
+
+  // Mutation hook for POST/PUT/PATCH/DELETE requests
+  const createPet = useCreatePet({
+    onSuccess: () => {
+      console.log("Pet created!");
+    },
+  });
+
+  const handleCreate = () => {
+    createPet.mutate({
+      data: {
+        // Request body
+        name: "Fluffy",
+        species: "cat",
+      },
+    });
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <h1>{data?.name}</h1>
+      <button onClick={handleCreate}>Create New Pet</button>
+    </div>
+  );
+}
+```
+
+### Client Generation Options
+
+| Option            | Description              | Example                                             |
+| ----------------- | ------------------------ | --------------------------------------------------- |
+| `--type, -t`      | Client type to generate  | `fetch`, `axios`, `react-query`, `swr`, `rtk-query` |
+| `--api, -a`       | Specific API from config | `--api petstore`                                    |
+| `--tags`          | Filter by endpoint tags  | `--tags pets,users`                                 |
+| `--endpoints, -e` | Filter by endpoint names | `--endpoints getPetById,createPet`                  |
+| `--output, -o`    | Output directory         | `--output ./src/clients`                            |
+| `--base-url, -b`  | Base URL for requests    | `--base-url https://api.example.com`                |
+
+### Custom Code Preservation
+
+Generated clients support custom code sections that are preserved during regeneration:
+
+```typescript
+// client.ts (Generated)
+
+// ============================================================
+// 🔒 CUSTOM CODE START
+// Add your custom code below this line
+// This section will be preserved during regeneration
+// ============================================================
+
+// Your custom helper functions, middleware, etc.
+
+// 🔒 CUSTOM CODE END
+// ============================================================
+```
+
+[View complete client generation guide →](https://openapi-sync.com/docs#client-generation)
 
 ## Configuration
 
@@ -101,6 +268,56 @@ export default config;
 ```
 
 [View full configuration options →](https://openapi-sync.com/docs#configuration)
+
+## CLI Commands
+
+### Interactive Setup
+
+```bash
+npx openapi-sync init
+```
+
+Launch an interactive wizard that guides you through creating your configuration file. Perfect for first-time setup or exploring available options.
+
+### Sync API Types
+
+```bash
+# Sync with default config
+npx openapi-sync
+
+# Sync with custom refetch interval
+npx openapi-sync --refreshinterval 10000
+```
+
+Synchronize your OpenAPI specifications and generate TypeScript types, endpoints, and validation schemas.
+
+### Generate API Client
+
+```bash
+# Generate React Query hooks
+npx openapi-sync generate-client --type react-query
+
+# Generate for specific API
+npx openapi-sync generate-client --type axios --api petstore
+
+# Generate with filters
+npx openapi-sync generate-client --type fetch --tags pets,users
+
+# Generate for specific endpoints
+npx openapi-sync generate-client --type swr --endpoints getPetById,createPet
+```
+
+Generate fully-typed API clients for various frameworks and libraries.
+
+### Available Options
+
+| Command           | Description                           |
+| ----------------- | ------------------------------------- |
+| `init`            | Interactive setup wizard              |
+| `sync` (default)  | Sync OpenAPI specs and generate types |
+| `generate-client` | Generate API client code              |
+| `--help, -h`      | Show help information                 |
+| `--version, -v`   | Show version number                   |
 
 ## Documentation
 

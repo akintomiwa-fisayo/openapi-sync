@@ -5,7 +5,28 @@ import { FiCopy, FiCheck } from "react-icons/fi";
 
 const examples = [
   {
-    category: "Basic Configuration",
+    category: "Getting Started",
+    title: "Interactive Setup Wizard",
+    description:
+      "Use the interactive wizard to configure your project (Recommended)",
+    code: `# Launch the interactive setup wizard
+npx openapi-sync init
+
+# The wizard will guide you through:
+# ✓ Configuration format (TypeScript/JSON/JavaScript)
+# ✓ API specification source (URL or local file)
+# ✓ Folder organization (split by tags automatically)
+# ✓ Client generation (Fetch, Axios, React Query, SWR, RTK Query)
+# ✓ Validation library (Zod, Yup, Joi)
+# ✓ Custom code preservation
+# ✓ Type naming preferences
+# ✓ Endpoint filtering
+# ✓ Documentation options
+
+# Creates openapi.sync.ts with all your preferences`,
+  },
+  {
+    category: "Getting Started",
     title: "Simple Setup",
     description: "Get started with a minimal configuration",
     code: `// openapi.sync.json
@@ -15,7 +36,10 @@ const examples = [
   "api": {
     "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
   }
-}`,
+}
+
+// Run sync command
+// npx openapi-sync`,
   },
   {
     category: "Validation Schemas",
@@ -58,9 +82,183 @@ try {
 }`,
   },
   {
+    category: "Client Generation",
+    title: "Generate Fetch Client",
+    description:
+      "Generate type-safe Fetch API client with ESLint compliance (v5.0.0)",
+    code: `# Generate Fetch client
+npx openapi-sync generate-client --type fetch
+
+# Usage
+import apiClient from "./api/petstore/clients";
+
+// Configure the client
+apiClient.setApiConfig({
+  baseURL: "https://api.example.com",
+  headers: { Authorization: "Bearer token" },
+});
+
+// Make type-safe requests
+const pet = await apiClient.getPetById({ 
+  url: { petId: "123" } 
+});`,
+  },
+  {
+    category: "Client Generation",
+    title: "Generate Axios Client",
+    description: "Generate Axios-based API client with interceptors",
+    code: `# Generate Axios client
+npx openapi-sync generate-client --type axios
+
+# Usage
+import apiClient from "./api/petstore/client";
+
+apiClient.updateConfig({
+  baseURL: "https://api.example.com",
+});
+apiClient.setAuthToken("your-token");
+
+// Axios interceptors available
+const response = await apiClient.getPetById({ 
+  url: { petId: "123" } 
+});`,
+  },
+  {
+    category: "Client Generation",
+    title: "Generate React Query Hooks",
+    description: "Generate TanStack Query hooks for React applications",
+    code: `# Generate React Query hooks
+npx openapi-sync generate-client --type react-query
+
+# Usage in React component
+import { useGetPetById, useCreatePet } from "./api/petstore/hooks";
+
+function PetDetails({ petId }) {
+  const { data, isLoading } = useGetPetById({
+    url: { petId },
+    query: { includeOwner: true },
+  });
+
+  const createPet = useCreatePet({
+    onSuccess: () => console.log("Pet created!"),
+  });
+
+  return <div>{data?.name}</div>;
+}`,
+  },
+  {
+    category: "Client Generation",
+    title: "Generate SWR Hooks",
+    description:
+      "Generate SWR hooks with comprehensive inline documentation (v5.0.0)",
+    code: `# Generate SWR hooks (230+ lines of inline docs)
+npx openapi-sync generate-client --type swr
+
+# Usage
+import { useGetPetById, useCreatePet } from "./api/petstore/hooks";
+
+function PetComponent({ petId }) {
+  // GET request with SWR
+  const { data, error, isLoading } = useGetPetById({
+    url: { petId },
+  });
+
+  // Mutation with optimistic updates
+  const { trigger } = useCreatePet({
+    onSuccess: () => mutate("/pets"),
+  });
+
+  return <div>{data?.name}</div>;
+}`,
+  },
+  {
+    category: "Client Generation",
+    title: "Generate RTK Query API",
+    description:
+      "Generate Redux Toolkit Query with simplified store setup (v5.0.0)",
+    code: `# Generate RTK Query API (with setupApiStore helper)
+npx openapi-sync generate-client --type rtk-query
+
+# Simplified Redux store setup (5 lines instead of 15!)
+import { setupApiStore } from "./api/petstore/apis";
+
+const store = configureStore({
+  reducer: setupApiStore.reducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(setupApiStore.middleware),
+});
+
+// Use in components
+import { useGetPetByIdQuery } from "./api/petstore/pets/apis";
+
+function Pet({ petId }) {
+  const { data } = useGetPetByIdQuery({ url: { petId } });
+  return <div>{data?.name}</div>;
+}`,
+  },
+  {
+    category: "Client Generation",
+    title: "Client Generation with Filters",
+    description: "Generate clients for specific tags or endpoints",
+    code: `# Generate client for specific tags
+npx openapi-sync generate-client --type fetch --tags pets,users
+
+# Generate client for specific endpoints
+npx openapi-sync generate-client \\
+  --type axios \\
+  --endpoints getPetById,createPet,updatePet
+
+# Generate with custom output directory
+npx openapi-sync generate-client \\
+  --type react-query \\
+  --output ./src/clients \\
+  --base-url https://api.example.com`,
+  },
+  {
+    category: "Real-time Sync",
+    title: "Auto-Sync with Refetch Interval",
+    description: "Automatically sync API changes in development",
+    code: `// openapi.sync.json
+{
+  "refetchInterval": 5000,  // Sync every 5 seconds
+  "folder": "./src/api",
+  "api": {
+    "petstore": "https://api.example.com/openapi.json"
+  }
+}
+
+// Run in watch mode
+// npx openapi-sync
+
+// Output:
+// ✓ Syncing petstore...
+// ✓ Changes detected - regenerating types...
+// ✓ Generated 15 endpoints, 25 types
+// ⏱ Next sync in 5 seconds...`,
+  },
+  {
+    category: "Real-time Sync",
+    title: "Environment-Aware Sync",
+    description: "Different refetch intervals for different environments",
+    code: `// openapi.sync.ts
+export default (): IConfig => {
+  const isDev = process.env.NODE_ENV === "development";
+  
+  return {
+    refetchInterval: isDev ? 5000 : 0,  // Only sync in dev
+    folder: "./src/api",
+    api: {
+      myapi: isDev 
+        ? "http://localhost:3000/openapi.json"
+        : "https://api.example.com/openapi.json"
+    }
+  };
+};`,
+  },
+  {
     category: "Folder Splitting",
-    title: "Organize by Tags",
-    description: "Split generated code into folders based on API tags",
+    title: "Organize by Tags (v5.0.0)",
+    description: "Automatic tag-based organization with streamlined setup",
     code: `// openapi.sync.ts
 const config: IConfig = {
   folder: "./src/api",
@@ -68,11 +266,18 @@ const config: IConfig = {
     myapi: "https://api.example.com/openapi.json"
   },
   folderSplit: {
-    byTags: true  // Creates folders like admin/, user/, etc.
+    byTags: true  // Auto-enabled in wizard!
   }
 };
 
-export default config;`,
+// Generated structure:
+// api/
+//   petstore/
+//     pets/        ← Tag-based folder
+//     users/       ← Tag-based folder
+//     apis.ts      ← RTK Query aggregator (v5.0.0)
+//     clients.ts   ← Fetch/Axios aggregator
+//     hooks.ts     ← React Query/SWR aggregator`,
   },
   {
     category: "Folder Splitting",
@@ -188,6 +393,45 @@ export const buildPetUrl = (petId: string, includePhotos: boolean) => {
   },
   {
     category: "Advanced",
+    title: "CLI Arguments Override Config",
+    description:
+      "Command-line arguments now correctly override config file (v5.0.0)",
+    code: `# Config file specifies react-query, but CLI overrides
+npx openapi-sync generate-client --type rtk-query
+
+# Override base URL
+npx openapi-sync generate-client \\
+  --type fetch \\
+  --base-url https://staging.api.example.com
+
+# Override output directory
+npx openapi-sync generate-client \\
+  --type axios \\
+  --output ./custom/path
+
+# All CLI args now take precedence over config file!`,
+  },
+  {
+    category: "Advanced",
+    title: "Multi-API Configuration",
+    description: "Manage multiple APIs in one project",
+    code: `// openapi.sync.ts
+const config: IConfig = {
+  folder: "./src/api",
+  api: {
+    "users": "https://users-api.example.com/openapi.json",
+    "products": "https://products-api.example.com/openapi.json",
+    "orders": "https://orders-api.example.com/openapi.json"
+  },
+  folderSplit: { byTags: true }
+};
+
+// Generate clients for specific API
+// npx openapi-sync generate-client --type fetch --api users
+// npx openapi-sync generate-client --type rtk-query --api products`,
+  },
+  {
+    category: "Advanced",
     title: "Multi-Environment Setup",
     description: "Different configs for different environments",
     code: `// openapi.sync.ts
@@ -212,6 +456,52 @@ export default (): IConfig => {
   
   return baseConfig;
 };`,
+  },
+  {
+    category: "Advanced",
+    title: "Complete Configuration",
+    description: "Full configuration with all available options",
+    code: `// openapi.sync.ts
+import { IConfig } from "openapi-sync/types";
+
+const config: IConfig = {
+  refetchInterval: 5000,
+  folder: "./src/api",
+  api: {
+    petstore: "https://petstore3.swagger.io/api/v3/openapi.json"
+  },
+  
+  // Client generation (v5.0.0)
+  clientGeneration: {
+    type: "react-query",
+    baseURL: "https://api.example.com",
+  },
+  
+  // Folder splitting
+  folderSplit: { byTags: true },
+  
+  // Type naming
+  types: {
+    name: {
+      prefix: "I",
+      useOperationId: true,
+    }
+  },
+  
+  // Endpoint filtering
+  endpoints: {
+    exclude: { tags: ["deprecated"] },
+    doc: { showCurl: true }
+  },
+  
+  // Validation
+  validations: {
+    library: "zod",
+    generate: { query: true, dto: true }
+  }
+};
+
+export default config;`,
   },
   {
     category: "Advanced",
@@ -263,7 +553,10 @@ export default function Examples() {
   };
 
   return (
-    <section id="examples" className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900">
+    <section
+      id="examples"
+      className="py-20 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900"
+    >
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12">
@@ -271,8 +564,10 @@ export default function Examples() {
             Comprehensive Examples
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Real-world examples showing TypeScript generation, validation schemas, 
-            and endpoint synchronization
+            Real-world examples covering all features: Interactive setup wizard,
+            client generation (Fetch, Axios, React Query, SWR, RTK Query),
+            validation schemas, real-time sync, folder splitting, and v5.0.0
+            improvements
           </p>
         </div>
 
@@ -285,7 +580,7 @@ export default function Examples() {
               className={`px-6 py-2 rounded-full font-medium transition-all ${
                 activeCategory === category
                   ? "bg-red-600 text-white shadow-lg"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
               }`}
             >
               {category === "all" ? "All Examples" : category}
@@ -307,7 +602,9 @@ export default function Examples() {
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                   {example.title}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">{example.description}</p>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  {example.description}
+                </p>
               </div>
 
               <div className="bg-gray-900">
@@ -342,18 +639,27 @@ export default function Examples() {
         <div className="mt-12 text-center">
           <div className="inline-block bg-gradient-to-br from-red-50 to-rose-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8 border border-red-100 dark:border-red-900">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-              Need More Examples?
+              Ready to Get Started?
             </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl">
-              Check out our comprehensive documentation with detailed examples,
-              best practices, and troubleshooting guides.
+              Explore our comprehensive documentation for in-depth guides, API
+              reference, troubleshooting tips, and advanced use cases. All
+              examples are production-ready and include v5.0.0 improvements!
             </p>
-            <a
-              href="/docs"
-              className="inline-block bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              View Full Documentation
-            </a>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a
+                href="/docs"
+                className="inline-block bg-red-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                View Full Documentation
+              </a>
+              <a
+                href="/#quick-start"
+                className="inline-block bg-white dark:bg-gray-950 text-red-600 dark:text-red-400 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-900 transition-all shadow-lg hover:shadow-xl border-2 border-red-600 dark:border-red-400"
+              >
+                Quick Start Guide
+              </a>
+            </div>
           </div>
         </div>
       </div>

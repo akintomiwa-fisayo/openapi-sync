@@ -18,9 +18,11 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-gray-400 dark:text-gray-500 mb-4 max-w-md">
-              Automate TypeScript types, validation schemas (Zod/Yup/Joi), and
-              endpoint generation with OpenAPI Sync. Keep your codebase in
-              perfect sync with your API specifications.
+              Automate TypeScript types, fully-typed API clients (Fetch, Axios,
+              React Query, SWR, RTK Query), validation schemas (Zod/Yup/Joi),
+              and comprehensive documentation from your OpenAPI specifications.
+              Now with v5.0.0 enhanced client generation and developer
+              experience.
             </p>
             <div className="flex space-x-4">
               <a

@@ -27,6 +27,8 @@ import axiosRetry from "axios-retry";
 import SwaggerParser from "@apidevtools/swagger-parser";
 import { getState, setState } from "./state";
 import { CurlGenerator } from "curl-generator";
+import { EndpointInfo } from "../client-generators";
+import { storeEndpoints } from "./endpoint-store";
 
 const rootUsingCwd = process.cwd();
 let fetchTimeout: Record<string, null | NodeJS.Timeout> = {};
@@ -52,7 +54,18 @@ axiosRetry(apiClient, {
 
 /**
  * Write file with custom code preservation
- * Reads existing file, preserves custom code sections, and merges with new generated content
+ *
+ * Writes generated content to a file while preserving any custom code sections
+ * that exist between special marker comments. This allows users to add custom
+ * code that won't be overwritten during regeneration.
+ *
+ * @param {string} filePath - Absolute path to the file to write
+ * @param {string} generatedContent - Newly generated content
+ * @param {IConfig} config - OpenAPI sync configuration containing custom code settings
+ * @returns {Promise<void>}
+ * @throws {Error} When file write operations fail
+ *
+ * @internal
  */
 const writeFileWithCustomCode = async (
   filePath: string,
@@ -87,6 +100,22 @@ const writeFileWithCustomCode = async (
   await fs.promises.writeFile(filePath, finalContent);
 };
 
+/**
+ * Core OpenAPI synchronization function
+ *
+ * Fetches and parses an OpenAPI specification, then generates TypeScript types,
+ * endpoint functions, validation schemas, and optionally API clients. Supports
+ * folder splitting, custom code preservation, and automatic refetching.
+ *
+ * @param {string} apiUrl - URL to the OpenAPI specification (JSON or YAML)
+ * @param {string} apiName - Name identifier for this API (used in folder names and state)
+ * @param {IConfig} config - Complete OpenAPI sync configuration
+ * @param {number} [refetchInterval] - Optional interval in milliseconds to automatically refetch the spec
+ * @returns {Promise<void>}
+ * @throws {Error} When spec fetching, parsing, or file generation fails
+ *
+ * @internal
+ */
 const OpenapiSync = async (
   apiUrl: string,
   apiName: string,
@@ -546,6 +575,7 @@ const OpenapiSync = async (
   let endpointsFileContent = "";
   let typesFileContent = "";
   let sharedTypesFileContent: Record<string, string> = {};
+  const collectedEndpoints: EndpointInfo[] = [];
 
   if (spec.components) {
     Object.keys(spec.components).forEach((key) => {
@@ -1179,6 +1209,7 @@ const OpenapiSync = async (
       const eSpec = endpointSpec[method];
 
       let queryTypeCnt = "";
+      let queryTypeNameForClient: string | undefined;
 
       if (eSpec?.parameters) {
         // create query parameters types
@@ -1219,6 +1250,7 @@ const OpenapiSync = async (
             );
             if (formattedName) name = `${typePrefix}${formattedName}`;
           }
+          queryTypeNameForClient = name;
           const typeContent = `export type ${name} = ${queryTypeCnt};\n`;
           if (config?.folderSplit) {
             folderGroups[folderName].types += typeContent;
@@ -1330,6 +1362,7 @@ const OpenapiSync = async (
 
       const requestBody: IOpenApiRequestBodySpec = eSpec?.requestBody;
       let dtoTypeCnt = "";
+      let dtoTypeNameForClient: string | undefined;
       if (requestBody) {
         //create requestBody types
         dtoTypeCnt = getBodySchemaType(requestBody);
@@ -1359,6 +1392,7 @@ const OpenapiSync = async (
             );
             if (formattedName) name = `${typePrefix}${formattedName}`;
           }
+          dtoTypeNameForClient = name;
           const typeContent = `export type ${name} = ${dtoTypeCnt};\n`;
           if (config?.folderSplit) {
             folderGroups[folderName].types += typeContent;
@@ -1454,6 +1488,7 @@ const OpenapiSync = async (
       const responseTypeObject: Record<string, string> = {};
 
       let responseTypeCnt = "";
+      let responseTypeNameForClient = ""; // Store the type name for client generation
       if (eSpec?.responses) {
         // create request response types
         const responses: IOpenApiResponseSpec = eSpec?.responses;
@@ -1491,6 +1526,15 @@ const OpenapiSync = async (
               folderGroups[folderName].types += typeContent;
             } else {
               typesFileContent += typeContent;
+            }
+
+            // Update responseTypeObject with the generated type name
+            responseTypeObject[code] = name;
+
+            // Store success response (2xx) for client generation
+            const codeNum = parseInt(code);
+            if (codeNum >= 200 && codeNum < 300) {
+              responseTypeNameForClient = name;
             }
           }
         });
@@ -1673,6 +1717,40 @@ ${CurlGenerator({
       } else {
         endpointsFileContent += endpointContent;
       }
+
+      // Collect endpoint information for client generation
+      const endpointInfo: EndpointInfo = {
+        name: `${endpointPrefix}${name}`,
+        method,
+        path: endpointPath,
+        summary: eSpec?.summary,
+        operationId: eSpec?.operationId,
+        tags: endpointTags,
+        parameters: eSpec?.parameters
+          ?.filter((p: any) => !p.$ref && p.in && p.name)
+          .map((p: any) => ({
+            name: p.name,
+            in: p.in,
+            required: p.required,
+            type: p.schema?.type || "string",
+          })),
+        requestBody: requestBody
+          ? {
+              type: dtoTypeCnt,
+              required: requestBody.required,
+            }
+          : undefined,
+        responses: responseTypeObject
+          ? Object.entries(responseTypeObject).reduce((acc, [code, type]) => {
+              acc[code] = { type: type as string };
+              return acc;
+            }, {} as Record<string, { type: string }>)
+          : undefined,
+        queryType: queryTypeNameForClient,
+        dtoType: dtoTypeNameForClient,
+        responseType: responseTypeNameForClient || undefined,
+      };
+      collectedEndpoints.push(endpointInfo);
     });
   });
 
@@ -1801,7 +1879,8 @@ ${CurlGenerator({
   }
 
   // Write validation file for non-folder-split (inline generation)
-  if (config?.validations?.disable !== true) {
+  // Skip if folder splitting is enabled (each folder has its own validations.ts)
+  if (config?.validations?.disable !== true && !config?.folderSplit) {
     const validationLibrary = config.validations?.library || "zod";
     const importStatement =
       validationLibrary === "joi"
@@ -1832,6 +1911,9 @@ ${CurlGenerator({
       );
     }
   }
+
+  // Store collected endpoints for client generation
+  storeEndpoints(apiName, collectedEndpoints);
 };
 
 export default OpenapiSync;
