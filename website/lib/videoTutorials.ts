@@ -16,8 +16,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Getting Started with OpenAPI Sync",
     description:
       "Learn the basics of OpenAPI Sync and how it can automate your API development workflow.",
-    duration: "5:30",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   installation: {
@@ -25,8 +25,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Installation & Setup",
     description:
       "Step-by-step guide to installing and configuring OpenAPI Sync in your project.",
-    duration: "3:45",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   quickStart: {
@@ -34,8 +34,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Quick Start Tutorial",
     description:
       "Get up and running with OpenAPI Sync in under 5 minutes with this quick start guide.",
-    duration: "4:20",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   basicConfig: {
@@ -43,8 +43,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Basic Configuration",
     description:
       "Learn how to configure OpenAPI Sync with JSON, TypeScript, or JavaScript config files.",
-    duration: "6:15",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   folderSplitting: {
@@ -52,8 +52,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Folder Splitting & Organization",
     description:
       "Organize your generated code by tags or custom logic for better project structure.",
-    duration: "7:30",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   validationSchemas: {
@@ -61,8 +61,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Runtime Validation with Zod, Yup & Joi",
     description:
       "Generate and use runtime validation schemas for type-safe API requests.",
-    duration: "10:45",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   customCode: {
@@ -70,8 +70,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Custom Code Preservation",
     description:
       "Learn how to add custom code that survives regeneration using special markers.",
-    duration: "5:50",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   endpointFiltering: {
@@ -79,8 +79,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Endpoint Filtering & Selection",
     description:
       "Filter endpoints by tags, paths, or regex patterns to control what gets generated.",
-    duration: "6:40",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   clientGenerationOverview: {
@@ -88,8 +88,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "API Client Generation Overview",
     description:
       "Introduction to generating fully-typed API clients from your OpenAPI specification.",
-    duration: "8:00",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   fetchClient: {
@@ -97,8 +97,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Generating Fetch API Clients",
     description:
       "Generate native browser Fetch API clients with full TypeScript support and error handling.",
-    duration: "9:15",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   axiosClient: {
@@ -106,8 +106,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Generating Axios Clients",
     description:
       "Create Axios clients with interceptors, authentication, and custom configuration.",
-    duration: "11:30",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   reactQuery: {
@@ -115,8 +115,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "React Query / TanStack Query Hooks",
     description:
       "Generate React Query hooks for queries and mutations with full type safety.",
-    duration: "14:20",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   swrHooks: {
@@ -124,8 +124,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "SWR Hooks Generation",
     description:
       "Create SWR hooks for data fetching with automatic caching and revalidation.",
-    duration: "12:45",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   rtkQuery: {
@@ -133,8 +133,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "RTK Query API Slices",
     description:
       "Generate Redux Toolkit Query API slices for seamless Redux integration.",
-    duration: "15:30",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   cliUsage: {
@@ -142,8 +142,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "CLI Commands & Options",
     description:
       "Master the OpenAPI Sync CLI with all available commands and options.",
-    duration: "8:50",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   programmaticUsage: {
@@ -151,8 +151,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Programmatic API Usage",
     description:
       "Use OpenAPI Sync programmatically in your Node.js scripts and build tools.",
-    duration: "7:20",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   advancedConfig: {
@@ -160,8 +160,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Advanced Configuration & Customization",
     description:
       "Deep dive into advanced configuration options, custom naming, and transformations.",
-    duration: "13:40",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
   troubleshooting: {
@@ -169,8 +169,8 @@ export const videoTutorials: Record<string, VideoTutorial> = {
     title: "Common Issues & Troubleshooting",
     description:
       "Learn how to debug and resolve common issues when using OpenAPI Sync.",
-    duration: "9:30",
-    videoId: "dQw4w9WgXcQ", // Replace with actual video ID
+    duration: "0:10",
+    videoId: "", // Replace with actual video ID
     comingSoon: false,
   },
 };
