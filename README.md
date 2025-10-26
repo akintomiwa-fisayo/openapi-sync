@@ -352,7 +352,7 @@ If you find OpenAPI Sync useful and would like to support its development, thank
 You can support the project in any of the following ways:
 
 - Sponsor the maintainer on GitHub: https://github.com/sponsors/akintomiwa-fisayo
-- Back the project on Open Collective (placeholder): https://opencollective.com/openapi-sync
+- Back the project on Open Collective (placeholder): https://opencollective.com/fisayo-akintomiwa
 - Become a patron on Patreon (placeholder): https://patreon.com/openapi_sync
 - One-time donation via PayPal (placeholder): https://paypal.me/yourname
 
