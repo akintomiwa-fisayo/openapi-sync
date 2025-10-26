@@ -179,5 +179,5 @@ If you'd like to support the website and library financially, you can do so via:
 
 - GitHub Sponsors: https://github.com/sponsors/akintomiwa-fisayo
 - Open Collective (placeholder): https://opencollective.com/openapi-sync
-- Patreon (placeholder): https://patreon.com/yourname
+- Patreon (placeholder): https://patreon.com/openapi_sync
 - PayPal (placeholder): https://paypal.me/yourname
