@@ -345,4 +345,17 @@ Contributions welcome! Submit pull requests to our [GitHub repository](https://g
 
 ---
 
+## Support / Donate
+
+If you find OpenAPI Sync useful and would like to support its development, thank you — your support helps pay for hosting, CI, and ongoing maintenance.
+
+You can support the project in any of the following ways:
+
+- Sponsor the maintainer on GitHub: https://github.com/sponsors/akintomiwa-fisayo
+- Back the project on Open Collective (placeholder): https://opencollective.com/openapi-sync
+- Become a patron on Patreon (placeholder): https://patreon.com/yourname
+- One-time donation via PayPal (placeholder): https://paypal.me/yourname
+
+Thank you for considering supporting the project — every bit helps.
+
 **[📘 Full Documentation](https://openapi-sync.com) | [GitHub](https://github.com/akintomiwa-fisayo/openapi-sync) | [npm](https://www.npmjs.com/package/openapi-sync)**

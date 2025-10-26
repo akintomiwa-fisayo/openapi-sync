@@ -172,3 +172,12 @@ If you have any questions or need help, please:
 - Check the [documentation](/docs)
 - Open an [issue](https://github.com/akintomiwa-fisayo/openapi-sync/issues)
 - Star the project on [GitHub](https://github.com/akintomiwa-fisayo/openapi-sync)
+
+### Donate / Support the Project
+
+If you'd like to support the website and library financially, you can do so via:
+
+- GitHub Sponsors: https://github.com/sponsors/akintomiwa-fisayo
+- Open Collective (placeholder): https://opencollective.com/openapi-sync
+- Patreon (placeholder): https://patreon.com/yourname
+- PayPal (placeholder): https://paypal.me/yourname

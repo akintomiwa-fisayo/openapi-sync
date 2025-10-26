@@ -33,7 +33,7 @@ export default function Footer() {
               >
                 <FiGithub className="text-2xl" />
               </a>
-              <a
+              {/* <a
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -46,6 +46,16 @@ export default function Footer() {
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <FiMail className="text-2xl" />
+              </a> */}
+              {/* Donate button */}
+              <a
+                href="https://github.com/sponsors/akintomiwa-fisayo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-2 inline-flex items-center px-3 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                aria-label="Donate to OpenAPI Sync"
+              >
+                Donate
               </a>
             </div>
           </div>
@@ -125,6 +135,16 @@ export default function Footer() {
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   Report Issue
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/sponsors/akintomiwa-fisayo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  Donate
                 </a>
               </li>
               <li>
