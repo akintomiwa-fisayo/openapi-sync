@@ -115,8 +115,10 @@ import apiClient from "./api/petstore/client";
 
 apiClient.updateConfig({
   baseURL: "https://api.example.com",
+  headers: {
+    Authorization: "Bearer your-token",
+  },
 });
-apiClient.setAuthToken("your-token");
 
 // Axios interceptors available
 const response = await apiClient.getPetById({ 

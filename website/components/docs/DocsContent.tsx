@@ -646,8 +646,10 @@ import apiClient from "./api/petstore/client/client";
 // Configure API client
 apiClient.updateConfig({
   baseURL: "https://api.example.com",
+  headers: {
+    Authorization: "Bearer your-auth-token",
+  },
 });
-apiClient.setAuthToken("your-auth-token");
 
 const queryClient = new QueryClient();
 
@@ -748,11 +750,9 @@ apiClient.updateConfig({
   timeout: 10000,
   headers: {
     "X-App-Version": "1.0.0",
+    Authorization: "Bearer your-auth-token",
   },
 });
-
-// Set auth token
-apiClient.setAuthToken("your-auth-token");
 
 // Use the client
 async function example() {

@@ -341,15 +341,35 @@ const OpenapiSync = async (
           type += "{[k: string]: any}";
         }
       } else if (schema.enum && schema.enum.length > 0) {
-        if (schema.enum.length > 1) type += "(";
-        schema.enum
+        // @ts-ignoreCheck if null is in the enum array
+        const hasNullInEnum = schema.enum.includes(null);
+        // Separate null from other enum values
+        const nonNullValues = schema.enum
+          .filter((v) => v !== null)
           .map((v) => JSON.stringify(v))
-          .filter((v) => !!v)
-          .forEach((v, i) => {
-            type += `${i === 0 ? "" : "|"}${v}`;
-          });
+          .filter((v) => v !== undefined);
 
-        if (schema.enum.length > 1) type += ")";
+        const needsParens =
+          nonNullValues.length > 1 ||
+          (nonNullValues.length > 0 && hasNullInEnum);
+
+        if (needsParens) {
+          type += "(";
+        }
+
+        // Add non-null enum values
+        nonNullValues.forEach((v, i) => {
+          type += `${i === 0 ? "" : "|"}${v}`;
+        });
+
+        // Add null if it's in the enum
+        if (hasNullInEnum) {
+          type += `${nonNullValues.length > 0 ? "|" : ""}null`;
+        }
+
+        if (needsParens) {
+          type += ")";
+        }
       } else if (schema.type) {
         const handleType = (_type: typeof schema.type) => {
           let typeCnt = "";
@@ -425,7 +445,9 @@ const OpenapiSync = async (
 
     let typeName = _name ? `\t"${_name}"${isRequired ? "" : "?"}: ` : "";
 
-    const nullable = schema?.nullable ? " | null" : "";
+    // @ts-ignore Check if null is already in the enum (to avoid adding it twice)
+    const hasNullInEnum = schema?.enum && schema.enum.includes(null);
+    const nullable = schema?.nullable && !hasNullInEnum ? " | null" : "";
     return type.length > 0
       ? `${typeName}${type}${nullable}${_name ? ";\n" : ""}`
       : "";
