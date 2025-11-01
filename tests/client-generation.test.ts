@@ -200,20 +200,17 @@ describe("Client Generation", () => {
       expect(client).toContain("export const apiClient = new ApiClient()");
     });
 
-    it("should include auth interceptors when configured", () => {
+    it("should support headers configuration", () => {
       const config: IConfigClientGeneration = {
         enabled: true,
         type: "axios",
-        auth: {
-          type: "bearer",
-          in: "header",
-        },
       };
       const client = generateAxiosClient([mockEndpoints[0]], config);
 
-      expect(client).toContain("interceptors.request.use");
-      expect(client).toContain("setAuthToken");
-      expect(client).toContain("getAuthToken");
+      expect(client).toContain("headers?: Record<string, string>");
+      expect(client).toContain("updateConfig");
+      expect(client).not.toContain("setAuthToken");
+      expect(client).not.toContain("getAuthToken");
     });
 
     it("should generate endpoint methods", () => {

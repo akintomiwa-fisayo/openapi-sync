@@ -189,11 +189,6 @@ export const generateFetchClient = (
   // Generate config interface
   content += `export interface ApiConfig {\n`;
   content += `  baseURL?: string;\n`;
-  if (authConfig) {
-    content += `  auth?: {\n`;
-    content += `    token?: string;\n`;
-    content += `  };\n`;
-  }
   content += `  headers?: Record<string, string>;\n`;
   content += `}\n\n`;
 
@@ -230,18 +225,6 @@ export const generateFetchClient = (
   content += `    ...globalConfig.headers,\n`;
   content += `    ...(options.headers as Record<string, string>),\n`;
   content += `  };\n\n`;
-
-  if (authConfig?.type === "bearer") {
-    content += `  if (globalConfig.auth?.token) {\n`;
-    content += `    headers['Authorization'] = \`Bearer \${globalConfig.auth.token}\`;\n`;
-    content += `  }\n\n`;
-  } else if (authConfig?.type === "apiKey" && authConfig.in === "header") {
-    content += `  if (globalConfig.auth?.token) {\n`;
-    content += `    headers['${
-      authConfig.name || "X-API-Key"
-    }'] = globalConfig.auth.token;\n`;
-    content += `  }\n\n`;
-  }
 
   content += `  const response = await fetch(\`\${globalConfig.baseURL}\${url}\`, {\n`;
   content += `    ...options,\n`;
@@ -442,11 +425,6 @@ export const generateAxiosClient = (
   // Generate config interface
   content += `export interface ApiConfig {\n`;
   content += `  baseURL?: string;\n`;
-  if (authConfig) {
-    content += `  auth?: {\n`;
-    content += `    token?: string;\n`;
-    content += `  };\n`;
-  }
   content += `  headers?: Record<string, string>;\n`;
   content += `  timeout?: number;\n`;
   content += `}\n\n`;
@@ -479,27 +457,6 @@ export const generateAxiosClient = (
   content += `      },\n`;
   content += `    });\n\n`;
 
-  // Add request interceptor for auth
-  if (authConfig) {
-    content += `    // Request interceptor for auth\n`;
-    content += `    this.client.interceptors.request.use((config) => {\n`;
-    if (authConfig.type === "bearer") {
-      content += `      const token = this.getAuthToken();\n`;
-      content += `      if (token) {\n`;
-      content += `        config.headers.Authorization = \`Bearer \${token}\`;\n`;
-      content += `      }\n`;
-    } else if (authConfig.type === "apiKey" && authConfig.in === "header") {
-      content += `      const token = this.getAuthToken();\n`;
-      content += `      if (token) {\n`;
-      content += `        config.headers['${
-        authConfig.name || "X-API-Key"
-      }'] = token;\n`;
-      content += `      }\n`;
-    }
-    content += `      return config;\n`;
-    content += `    });\n\n`;
-  }
-
   // Add response interceptor for error handling
   content += `    // Response interceptor for error handling\n`;
   content += `    this.client.interceptors.response.use(\n`;
@@ -515,16 +472,6 @@ export const generateAxiosClient = (
   content += `      }\n`;
   content += `    );\n`;
   content += `  }\n\n`;
-
-  if (authConfig) {
-    content += `  private authToken?: string;\n\n`;
-    content += `  setAuthToken(token: string) {\n`;
-    content += `    this.authToken = token;\n`;
-    content += `  }\n\n`;
-    content += `  getAuthToken(): string | undefined {\n`;
-    content += `    return this.authToken;\n`;
-    content += `  }\n\n`;
-  }
 
   content += `  updateConfig(config: Partial<ApiConfig>) {\n`;
   content += `    Object.assign(this.client.defaults, config);\n`;
@@ -669,6 +616,11 @@ export const generateReactQueryHooks = (
 ): string => {
   const version = config.reactQuery?.version || 5;
   const enableMutations = config.reactQuery?.mutations !== false;
+  const enableInfinite = !!(
+    config.reactQuery &&
+    config.reactQuery.infiniteQueries &&
+    !config.reactQuery.infiniteQueries.disable
+  );
 
   let content = `// Generated React Query Hooks\n`;
   content += `// This file was auto-generated. Add custom code in the marked sections.\n\n`;
@@ -681,14 +633,27 @@ export const generateReactQueryHooks = (
     );
 
   if (version === 5) {
-    const imports = hasMutations
+    let imports = hasMutations
       ? `import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';\n`
       : `import { useQuery, UseQueryOptions } from '@tanstack/react-query';\n`;
+    if (enableInfinite) {
+      // include infinite query imports
+      imports = imports.replace(
+        "@tanstack/react-query';\\n",
+        "@tanstack/react-query';\nimport { useInfiniteQuery, UseInfiniteQueryOptions } from '@tanstack/react-query';\n"
+      );
+    }
     content += imports;
   } else {
-    const imports = hasMutations
+    let imports = hasMutations
       ? `import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from 'react-query';\n`
       : `import { useQuery, UseQueryOptions } from 'react-query';\n`;
+    if (enableInfinite) {
+      imports = imports.replace(
+        "react-query';\\n",
+        "react-query';\nimport { useInfiniteQuery, UseInfiniteQueryOptions } from 'react-query';\n"
+      );
+    }
     content += imports;
   }
   content += `\n`;
@@ -725,6 +690,16 @@ export const generateReactQueryHooks = (
     const responseType = endpoint.responseType || "any";
 
     if (isQuery) {
+      // detect simple pagination patterns (page-based or cursor-based)
+      const queryParamNames = queryParams.map((p) => p.name.toLowerCase());
+      const isPaginated =
+        queryParamNames.includes("page") ||
+        queryParamNames.includes("cursor") ||
+        queryParamNames.includes("cursorid") ||
+        queryParamNames.includes("after") ||
+        queryParamNames.includes("before");
+
+      const shouldGenerateInfinite = isPaginated && enableInfinite;
       // Generate useQuery hook
       const hookName = `use${
         endpoint.name.charAt(0).toUpperCase() + endpoint.name.slice(1)
@@ -778,6 +753,7 @@ export const generateReactQueryHooks = (
         content += `    queryFn: () => apiClient.${endpoint.name}(params),\n`;
         content += `    ...options,\n`;
         content += `  });\n`;
+        content += `}\n\n`;
       } else {
         content += `export function ${hookName}(\n`;
         content += `  options?: Omit<UseQueryOptions<${responseType}>, 'queryKey' | 'queryFn'>\n`;
@@ -787,8 +763,65 @@ export const generateReactQueryHooks = (
         content += `    queryFn: () => apiClient.${endpoint.name}(),\n`;
         content += `    ...options,\n`;
         content += `  });\n`;
+        content += `}\n\n`;
       }
-      content += `}\n\n`;
+
+      // Generate infinite query hook if applicable (separate function)
+      if (shouldGenerateInfinite) {
+        const infiniteHookName = `${hookName}Infinite`;
+
+        if (hasPathParams || hasQueryParams) {
+          content += `export function ${infiniteHookName}(\n`;
+          content += `  params: {\n`;
+          if (hasPathParams) {
+            content += `    url: {\n`;
+            pathParams.forEach((param) => {
+              const typeMap: Record<string, string> = {
+                string: "string",
+                number: "number",
+                integer: "number",
+                boolean: "boolean",
+                array: "any[]",
+                object: "any",
+              };
+              const tsType = typeMap[param.type || "string"] || "any";
+              const optional = param.required ? "" : "?";
+              content += `      ${param.name}${optional}: ${tsType};\n`;
+            });
+            content += `    };\n`;
+          }
+
+          if (hasQueryParams) {
+            content += `    query: ${
+              endpoint.queryType || "Record<string, any>"
+            };\n`;
+          }
+
+          content += `  },\n`;
+          content += `  options?: Omit<UseInfiniteQueryOptions<${responseType}, Error, ${responseType}>, 'queryKey' | 'queryFn'>\n`;
+          content += `) {\n`;
+
+          content += `  return useInfiniteQuery({\n`;
+          content += `    queryKey: ['${endpoint.name}', params],\n`;
+          content += `    queryFn: ({ pageParam = 1 }) => apiClient.${endpoint.name}({ ...params, query: { ...(params.query || {}), page: pageParam } }),\n`;
+          content += `    getNextPageParam: (lastPage) => lastPage?.nextPage ?? lastPage?.nextCursor ?? null,\n`;
+          content += `    ...options,\n`;
+          content += `  });\n`;
+          content += `}\n\n`;
+        } else {
+          // No params
+          content += `export function ${infiniteHookName}(\n`;
+          content += `  options?: Omit<UseInfiniteQueryOptions<${responseType}, Error, ${responseType}>, 'queryKey' | 'queryFn'>\n`;
+          content += `) {\n`;
+          content += `  return useInfiniteQuery({\n`;
+          content += `    queryKey: ['${endpoint.name}'],\n`;
+          content += `    queryFn: ({ pageParam = 1 }) => apiClient.${endpoint.name}({ query: { page: pageParam } }),\n`;
+          content += `    getNextPageParam: (lastPage) => lastPage?.nextPage ?? lastPage?.nextCursor ?? null,\n`;
+          content += `    ...options,\n`;
+          content += `  });\n`;
+          content += `}\n\n`;
+        }
+      }
     } else if (isMutation && enableMutations) {
       // Generate useMutation hook
       const hookName = `use${

@@ -308,12 +308,23 @@ export type IConfigClientGeneration = {
     /** Enable mutation hooks for POST/PUT/PATCH/DELETE (default: true) */
     mutations?: boolean;
     /** Enable infinite query hooks for paginated endpoints (default: false) */
-    infiniteQueries?: boolean;
+    infiniteQueries?: {
+      disable?: boolean;
+      /** Include/exclude advanced filters for client generation */
+      include?: IConfigInclude;
+      exclude?: IConfigExclude;
+    };
   };
   /** Configuration for SWR hooks */
   swr?: {
     /** Enable SWR mutation hooks (default: true) */
     mutations?: boolean;
+    infiniteQueries?: {
+      disable?: boolean;
+      /** Include/exclude advanced filters for client generation */
+      include?: IConfigInclude;
+      exclude?: IConfigExclude;
+    };
   };
   /** Configuration for RTK Query */
   rtkQuery?: {
@@ -321,6 +332,12 @@ export type IConfigClientGeneration = {
     apiName?: string;
     /** Base query type */
     baseQuery?: "fetchBaseQuery" | "axiosBaseQuery";
+    infiniteQueries?: {
+      disable?: boolean;
+      /** Include/exclude advanced filters for client generation */
+      include?: IConfigInclude;
+      exclude?: IConfigExclude;
+    };
   };
   /** Include authentication/authorization setup */
   auth?: {

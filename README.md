@@ -157,8 +157,10 @@ import apiClient from "./api/petstore/client/client";
 // Configure API client
 apiClient.updateConfig({
   baseURL: "https://api.example.com",
+  headers: {
+    Authorization: "Bearer your-auth-token",
+  },
 });
-apiClient.setAuthToken("your-auth-token");
 
 function PetDetails({ petId }: { petId: string }) {
   // Query hook for GET requests with structured params
