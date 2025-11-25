@@ -122,7 +122,46 @@ const OpenapiSync = async (
   config: IConfig,
   refetchInterval?: number
 ) => {
-  const specResponse = await apiClient.get(apiUrl);
+  const res = await processOpenapiSync(
+    apiUrl,
+    apiName,
+    config,
+    refetchInterval
+  );
+
+  // auto sync if refetchInterval is provided
+  if (refetchInterval && !isNaN(refetchInterval) && refetchInterval > 0) {
+    if (
+      !(
+        process.env.NODE_ENV &&
+        ["production", "prod", "test", "staging"].includes(process.env.NODE_ENV)
+      )
+    ) {
+      // auto sync at interval
+      if (fetchTimeout[apiName]) clearTimeout(fetchTimeout[apiName]);
+
+      // set next request timeout
+      fetchTimeout[apiName] = setTimeout(() => {
+        console.info(`🔄 Auto syncing ${apiName}`);
+        OpenapiSync(apiUrl, apiName, config, refetchInterval);
+      }, refetchInterval);
+    }
+  }
+
+  return res;
+};
+
+const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
+  const [apiUrl, apiName, config] = args;
+
+  const specResponse = await apiClient.get(apiUrl).catch((error) => {
+    console.error(error);
+    return { data: null };
+  });
+
+  if (!specResponse.data) {
+    return;
+  }
 
   const source = isJson(specResponse.data)
     ? specResponse.data
@@ -568,25 +607,6 @@ const OpenapiSync = async (
 
     return type;
   };
-
-  // auto update only on dev
-  if (refetchInterval && !isNaN(refetchInterval) && refetchInterval > 0) {
-    if (
-      !(
-        process.env.NODE_ENV &&
-        ["production", "prod", "test", "staging"].includes(process.env.NODE_ENV)
-      )
-    ) {
-      // auto sync at interval
-      if (fetchTimeout[apiName]) clearTimeout(fetchTimeout[apiName]);
-
-      // set next request timeout
-      fetchTimeout[apiName] = setTimeout(
-        () => OpenapiSync(apiUrl, apiName, config, refetchInterval),
-        refetchInterval
-      );
-    }
-  }
 
   // compare new spec with old spec, continuing only if spec it different
   const prevSpec = getState(apiName);
@@ -1936,6 +1956,9 @@ ${CurlGenerator({
 
   // Store collected endpoints for client generation
   storeEndpoints(apiName, collectedEndpoints);
+
+  console.info(`✅ Successfully synced ${apiName}`);
+  return { success: true };
 };
 
 export default OpenapiSync;
