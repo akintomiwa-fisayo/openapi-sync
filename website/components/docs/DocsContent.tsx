@@ -74,6 +74,28 @@ npm install -g openapi-sync
 npx openapi-sync`}
           language="bash"
         />
+
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-600 dark:border-yellow-500 p-4 rounded mt-4">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            <strong>⚠️ macOS Big Sur Users:</strong> If you encounter an esbuild
+            installation error (
+            <code className="text-xs bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">
+              Symbol not found: _SecTrustCopyCertificateChain
+            </code>
+            ), please install esbuild@0.17.19 first:{" "}
+            <code className="text-xs bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">
+              npm install esbuild@0.17.19
+            </code>{" "}
+            then install openapi-sync. See{" "}
+            <a
+              href="#troubleshooting"
+              className="text-yellow-700 dark:text-yellow-400 hover:underline font-semibold"
+            >
+              Troubleshooting
+            </a>{" "}
+            for details.
+          </p>
+        </div>
       </section>
 
       {/* Quick Start */}
@@ -1559,6 +1581,47 @@ try {
           <p className="text-sm text-gray-700 dark:text-gray-300">
             <strong>Solution:</strong> Ensure the sync process completed
             successfully and check that the folder path in config is correct.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          macOS Big Sur (11.x) - esbuild Installation Error
+        </h3>
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-600 dark:border-red-500 p-4 rounded mb-4">
+          <p className="text-sm text-gray-900 dark:text-white mb-2">
+            <strong>Error:</strong> dyld: Symbol not found:
+            _SecTrustCopyCertificateChain
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+            <strong>Cause:</strong> The default esbuild version requires macOS
+            12.0+ APIs that aren&apos;t available in Big Sur (darwin 20.x).
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+            <strong>Solution 1:</strong> Install compatible esbuild first:
+          </p>
+          <CodeBlock
+            code={`# Install compatible esbuild first
+npm install esbuild@0.17.19
+
+# Then install openapi-sync
+npm install openapi-sync`}
+            language="bash"
+          />
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-3 mb-2">
+            <strong>Solution 2:</strong> Add an override to your package.json:
+          </p>
+          <CodeBlock
+            code={`{
+  "overrides": {
+    "esbuild": "0.17.19"
+  }
+}`}
+            language="json"
+          />
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-3">
+            <strong>Note:</strong> This issue only affects macOS Big Sur. Users
+            on macOS 12+ are not affected and will get the latest esbuild
+            version automatically.
           </p>
         </div>
       </section>

@@ -42,6 +42,8 @@ npm install -g openapi-sync
 npx openapi-sync
 ```
 
+> ⚠️ **macOS Big Sur Users:** If you encounter an esbuild error (`Symbol not found: _SecTrustCopyCertificateChain`), install `esbuild@0.17.19` first. See [Troubleshooting](#troubleshooting) for details.
+
 ## Quick Start
 
 ### Option 1: Interactive Setup (Recommended) 🎯
@@ -334,6 +336,38 @@ For complete documentation including:
 - **Troubleshooting** - Common issues and solutions
 
 **Visit [openapi-sync.com](https://openapi-sync.com)**
+
+---
+
+## Troubleshooting
+
+### macOS Big Sur (11.x) - esbuild Installation Error
+
+**Error:** `dyld: Symbol not found: _SecTrustCopyCertificateChain` when installing `openapi-sync`
+
+**Cause:** The default esbuild version requires macOS 12.0+ APIs that aren't available in Big Sur.
+
+**Solution:** Install a compatible esbuild version before installing openapi-sync:
+
+```bash
+# Install compatible esbuild first
+npm install esbuild@0.17.19
+
+# Then install openapi-sync
+npm install openapi-sync
+```
+
+Alternatively, add an override to your `package.json`:
+
+```json
+{
+  "overrides": {
+    "esbuild": "0.17.19"
+  }
+}
+```
+
+**Note:** This issue only affects macOS Big Sur (darwin 20.x). Users on macOS 12+ are not affected.
 
 ---
 
