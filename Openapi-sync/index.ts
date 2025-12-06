@@ -107,7 +107,7 @@ const writeFileWithCustomCode = async (
  * endpoint functions, validation schemas, and optionally API clients. Supports
  * folder splitting, custom code preservation, and automatic refetching.
  *
- * @param {string} apiUrl - URL to the OpenAPI specification (JSON or YAML)
+ * @param {string} apiUrl - URL or local file path to the OpenAPI specification (JSON or YAML). URLs must start with http:// or https://. Local paths can be relative to project root or absolute.
  * @param {string} apiName - Name identifier for this API (used in folder names and state)
  * @param {IConfig} config - Complete OpenAPI sync configuration
  * @param {number} [refetchInterval] - Optional interval in milliseconds to automatically refetch the spec
@@ -154,18 +154,39 @@ const OpenapiSync = async (
 const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
   const [apiUrl, apiName, config] = args;
 
-  const specResponse = await apiClient.get(apiUrl).catch((error) => {
-    console.error(error);
-    return { data: null };
-  });
+  // Helper function to check if path is a URL or local file
+  const isUrl = (str: string): boolean => {
+    return str.startsWith("http://") || str.startsWith("https://");
+  };
 
-  if (!specResponse.data) {
+  // Fetch spec from URL or read from local file
+  let specData: any;
+  try {
+    if (isUrl(apiUrl)) {
+      // Fetch from URL
+      const specResponse = await apiClient.get(apiUrl);
+      specData = specResponse.data;
+    } else {
+      // Read from local file
+      const filePath = path.isAbsolute(apiUrl)
+        ? apiUrl
+        : path.join(rootUsingCwd, apiUrl);
+
+      console.log(`📂 Reading local OpenAPI spec from: ${filePath}`);
+
+      const fileContent = await fs.promises.readFile(filePath, "utf-8");
+      specData = fileContent;
+    }
+  } catch (error) {
+    console.error(`Failed to load OpenAPI spec for ${apiName}:`, error);
     return;
   }
 
-  const source = isJson(specResponse.data)
-    ? specResponse.data
-    : yamlStringToJson(specResponse.data);
+  if (!specData) {
+    return;
+  }
+
+  const source = isJson(specData) ? specData : yamlStringToJson(specData);
 
   // Parse the OpenAPI spec using swagger-parser with lenient parsing
   let spec: IOpenApiSpec;
@@ -279,7 +300,13 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
       if (schema.$ref) {
         if (schema.$ref[0] === "#") {
           let pathToComponentParts = (schema.$ref || "").split("/");
-          pathToComponentParts.shift();
+          pathToComponentParts.shift(); // Remove the "#"
+
+          // Handle both Swagger 2.0 (#/definitions/) and OpenAPI 3.x (#/components/schemas/)
+          // For Swagger 2.0: ["definitions", "Pet"]
+          // For OpenAPI 3.x: ["components", "schemas", "Pet"]
+          const isSwagger2 = pathToComponentParts[0] === "definitions";
+
           const partsClone = [...pathToComponentParts];
           partsClone.pop();
 
@@ -320,27 +347,39 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
         }
       } else if (schema.anyOf) {
         type += `(${schema.anyOf
-          .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+          .map((v) =>
+            parseSchemaToType(apiDoc, v, "", isRequired, {
+              ...options,
+              useComponentName: false,
+            })
+          )
           .filter((v) => !!v)
           .join("|")})`;
       } else if (schema.oneOf) {
         type += `(${schema.oneOf
-          .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+          .map((v) =>
+            parseSchemaToType(apiDoc, v, "", isRequired, {
+              ...options,
+              useComponentName: false,
+            })
+          )
           .filter((v) => !!v)
           .join("|")})`;
       } else if (schema.allOf) {
         type += `(${schema.allOf
-          .map((v) => parseSchemaToType(apiDoc, v, "", isRequired, options))
+          .map((v) =>
+            parseSchemaToType(apiDoc, v, "", isRequired, {
+              ...options,
+              useComponentName: false,
+            })
+          )
           .filter((v) => !!v)
           .join("&")})`;
       } else if (schema.items) {
-        type += `${parseSchemaToType(
-          apiDoc,
-          schema.items,
-          "",
-          false,
-          options
-        )}[]`;
+        type += `${parseSchemaToType(apiDoc, schema.items, "", false, {
+          ...options,
+          useComponentName: false,
+        })}[]`;
       } else if (schema.properties) {
         //parse object key one at a time
         const objKeys = Object.keys(schema.properties);
@@ -451,7 +490,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
                     schema.additionalProperties,
                     "",
                     true,
-                    options
+                    { ...options, useComponentName: false }
                   ) || "any"
                 }}`;
               } else {
@@ -619,6 +658,94 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
   let sharedTypesFileContent: Record<string, string> = {};
   const collectedEndpoints: EndpointInfo[] = [];
 
+  // Helper function to process schemas (works for both OpenAPI 3.x components and Swagger 2.0 definitions)
+  const processSchemas = (
+    schemas: Record<string, IOpenApiMediaTypeSpec>,
+    sourceType: "components" | "definitions"
+  ) => {
+    const componentInterfaces: Record<string, string> = {};
+    const componentSchema: Record<string, string> = {};
+
+    const contentKeys = Object.keys(schemas);
+
+    // Process each schema
+    contentKeys.forEach((contentKey) => {
+      const schema = (
+        schemas[contentKey]?.schema
+          ? schemas[contentKey].schema
+          : schemas[contentKey]
+      ) as IOpenApSchemaSpec;
+
+      const typeCnt = `${parseSchemaToType(spec, schema, "", true, {
+        noSharedImport: true,
+        useComponentName: false,
+      })}`;
+
+      if (typeCnt) {
+        const parts = contentKey.split(".");
+        let currentLevel: any = componentInterfaces;
+        let currentSchemaLevel: any = componentSchema;
+
+        // Navigate or create the nested structure
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (i < parts.length - 1) {
+            // If it's not the last part, create a nested object if it doesn't exist
+            if (!(part in currentLevel)) {
+              currentLevel[part] = {};
+              currentSchemaLevel[part] = {};
+            }
+            currentLevel = currentLevel[part];
+            currentSchemaLevel = currentSchemaLevel[part];
+          } else {
+            // This is the last part, assign the original schema value
+            currentLevel[part] = typeCnt;
+            currentSchemaLevel[part] = schema;
+          }
+        }
+      }
+    });
+
+    // Generate TypeScript interfaces for each component
+    Object.keys(componentInterfaces).forEach((key) => {
+      const name = getSharedComponentName(key);
+      const cnt = componentInterfaces[key];
+      let doc: string = "";
+      if (
+        !config?.types?.doc?.disable &&
+        key in schemas &&
+        //@ts-expect-error
+        schemas[key]?.description
+      ) {
+        doc =
+          " *  " +
+          //@ts-expect-error
+          schemas[key].description
+            .split("\n")
+            .filter((line: string) => line.trim() !== "")
+            .join(`  \n *${"  ".repeat(1)}`);
+      }
+
+      sharedTypesFileContent[key] =
+        (sharedTypesFileContent[key] ?? "") +
+        (doc ? `/**\n${doc}\n */\n` : "") +
+        "export type " +
+        name +
+        " = " +
+        (typeof cnt === "string" ? cnt : JSONStringify(cnt)) +
+        ";\n";
+    });
+  };
+
+  // Process Swagger 2.0 definitions (if present)
+  if (spec.definitions) {
+    processSchemas(
+      spec.definitions as Record<string, IOpenApiMediaTypeSpec>,
+      "definitions"
+    );
+  }
+
+  // Process OpenAPI 3.x components (if present)
   if (spec.components) {
     Object.keys(spec.components).forEach((key) => {
       if (
@@ -637,86 +764,8 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
         const components: Record<string, IOpenApiMediaTypeSpec> =
           spec.components[key];
 
-        const componentInterfaces: Record<string, string> = {};
-        const componentSchema: Record<string, string> = {};
-
-        const contentKeys = Object.keys(components);
-
-        // only need 1 schema so will us the first schema provided
-        contentKeys.forEach((contentKey) => {
-          /*  const schema = (() => {
-            switch (key) {
-              case "parameters":
-                return components[contentKey].schema;
-              default:
-                return components[contentKey];
-            }
-          })() as IOpenApSchemaSpec; */
-          const schema = (
-            components[contentKey]?.schema
-              ? components[contentKey].schema
-              : components[contentKey]
-          ) as IOpenApSchemaSpec;
-
-          const typeCnt = `${parseSchemaToType(spec, schema, "", true, {
-            noSharedImport: true,
-            useComponentName: ["parameters"].includes(key),
-          })}`;
-
-          if (typeCnt) {
-            const parts = contentKey.split(".");
-            let currentLevel: any = componentInterfaces;
-            let currentSchemaLevel: any = componentSchema;
-
-            // Navigate or create the nested structure
-            for (let i = 0; i < parts.length; i++) {
-              const part = parts[i];
-              if (i < parts.length - 1) {
-                // If it's not the last part, create a nested object if it doesn't exist
-                if (!(part in currentLevel)) {
-                  currentLevel[part] = {}; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentInterfaces
-                  currentSchemaLevel[part] = {}; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentSchema
-                }
-                currentLevel = currentLevel[part]; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentInterfaces
-                currentSchemaLevel = currentSchemaLevel[part]; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentSchema
-              } else {
-                // This is the last part, assign the original schema value
-                currentLevel[part] = typeCnt; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentInterfaces
-                currentSchemaLevel[part] = schema; //<== This rely on js ability to assign value to origianl object by reference, so this assignment will be reflected in componentSchema
-              }
-            }
-          }
-        });
-
-        // Generate TypeScript interfaces for each component
-        Object.keys(componentInterfaces).forEach((key) => {
-          const name = getSharedComponentName(key);
-          const cnt = componentInterfaces[key];
-          let doc: string = "";
-          if (
-            !config?.types?.doc?.disable &&
-            key in components &&
-            //@ts-expect-error
-            components[key]?.description
-          ) {
-            doc =
-              " *  " +
-              //@ts-expect-error
-              components[key].description
-                .split("\n")
-                .filter((line: string) => line.trim() !== "")
-                .join(`  \n *${"  ".repeat(1)}`);
-          }
-
-          sharedTypesFileContent[key] =
-            (sharedTypesFileContent[key] ?? "") +
-            (doc ? `/**\n${doc}\n */\n` : "") +
-            "export type " +
-            name +
-            " = " +
-            (typeof cnt === "string" ? cnt : JSONStringify(cnt)) +
-            ";\n";
-        });
+        // Process using the shared function
+        processSchemas(components, "components");
       }
     });
   }
