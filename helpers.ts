@@ -189,6 +189,7 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
  * Render TypeScript type reference as markdown code block
  *
  * Formats a TypeScript type definition for inclusion in markdown documentation.
+ * Converts multiline/JSDoc comments to single-line comments to prevent breaking outer JSDoc.
  *
  * @param {string} typeRef - TypeScript type definition
  * @param {number} [indent=1] - Indentation level
@@ -197,7 +198,21 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
  * @public
  */
 export const renderTypeRefMD = (typeRef: string, indent = 1) => {
-  return `\n\`\`\`typescript\n${"  ".repeat(indent)}  ${typeRef
+  // Convert all block comments (/* */ and /** */) to single-line comments (//)
+  const sanitizedTypeRef = typeRef.replace(/\/\*\*?[\s\S]*?\*\//g, (match) => {
+    // Extract content between /* and */
+    const content = match
+      .replace(/^\/\*\*?\s*/, "") // Remove opening /* or /**
+      .replace(/\s*\*\/$/, "") // Remove closing */
+      .split("\n")
+      .map((line) => line.replace(/^\s*\*\s?/, "").trim()) // Remove leading * from each line
+      .filter((line) => line.length > 0)
+      .map((line) => `// ${line}`)
+      .join("\n");
+    return content;
+  });
+
+  return `\n\`\`\`typescript\n${"  ".repeat(indent)}  ${sanitizedTypeRef
     .split("\n")
     .filter((line) => line.trim() !== "")
     .join(`\n${"  ".repeat(indent)}  `)}\n\`\`\``;
