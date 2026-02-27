@@ -1,5 +1,6 @@
 import OpenapiSync from "../Openapi-sync";
 import fs from "fs";
+import SwaggerParser from "@apidevtools/swagger-parser";
 import { IConfig } from "../types";
 
 // Mock dependencies
@@ -17,6 +18,7 @@ jest.mock("fs", () => ({
 jest.mock("axios-retry");
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
+const mockedSwaggerParser = SwaggerParser as jest.Mocked<typeof SwaggerParser>;
 
 describe("Python Type Generation", () => {
 	beforeEach(() => {
@@ -68,15 +70,33 @@ describe("Python Type Generation", () => {
 							tag: { type: "string" },
 						},
 					},
+					Address: {
+						type: "object",
+						nullable: true,
+						description: "An address.",
+						properties: {
+							street1: {
+								type: "string",
+								description:
+									"The street1 field, limited to 40 characters. Use street2 for overflow.",
+							},
+						},
+					},
 				},
 			},
 		};
 
 		// Overriding the local file path loading logic to mock it correctly.
-		// Instead of doing proper axios request, we simulate reading a local file.
-		(mockedFs.promises.readFile as jest.Mock).mockResolvedValueOnce(
-			JSON.stringify(mockSpec),
+		// Load spec from the requested local file and treat generated files as non-existing.
+		(mockedFs.promises.readFile as jest.Mock).mockImplementation(
+			(filePath: string) => {
+				if (filePath.includes("mock_local_file.json")) {
+					return Promise.resolve(JSON.stringify(mockSpec));
+				}
+				return Promise.reject(new Error("File not found"));
+			},
 		);
+		mockedSwaggerParser.parse.mockResolvedValue(mockSpec as any);
 
 		// Actually run sync on local mock file
 		await OpenapiSync("mock_local_file.json", "petstore", mockConfig);
@@ -89,19 +109,27 @@ describe("Python Type Generation", () => {
 		const sharedPyCall = writeCalls.find((c: any) =>
 			(c[0] as string).endsWith("shared.py"),
 		);
-console.log("FILES WRITTEN:", writeCalls.map((c: any) => c[0]));
 		expect(sharedPyCall).toBeDefined();
 
 		if (sharedPyCall) {
-			console.log("SHARED PY:", sharedPyCall[1]);
 			const content = sharedPyCall[1] as string;
+			expect(content).toContain("from __future__ import annotations");
+			expect(content).toContain("from dataclasses import dataclass");
+			expect(content).not.toContain("from typing import");
+			expect(content).not.toContain("Union");
+			expect(content).toContain("@dataclass");
+			expect(content).toContain("class IPet:");
+			expect(content).toContain("class IAddress:");
+			expect(content).toContain('    """\n    An address.');
+			expect(content).toContain("    Attributes:");
 			expect(content).toContain(
-				"from typing import Any, List, Dict, Union, Optional, Literal, TypedDict",
+				"street1: The street1 field, limited to 40 characters. Use street2 for overflow.",
 			);
-			expect(content).toContain("class IPet(TypedDict, total=False):");
+			expect(content).not.toContain(" *  An address.");
+			expect(content).not.toContain("class IAddress:\n    Optional[");
 			expect(content).toContain("id: int");
 			expect(content).toContain("name: str");
-			expect(content).toContain("tag: Optional[str]");
+			expect(content).toContain("tag: str");
 		}
 
 		const indexPyCall = writeCalls.find((c: any) =>
@@ -109,19 +137,44 @@ console.log("FILES WRITTEN:", writeCalls.map((c: any) => c[0]));
 		);
 		expect(indexPyCall).toBeDefined();
 
-		const typesPyCall = writeCalls.find((c: any) =>
-			(c[0] as string).endsWith("types.py"),
+		const endpointsPyCall = writeCalls.find((c: any) =>
+			(c[0] as string).endsWith("endpoints.py"),
 		);
-		expect(typesPyCall).toBeDefined();
+		expect(endpointsPyCall).toBeDefined();
 
-		if (typesPyCall) {
-			console.log("TYPES PY:", typesPyCall[1]);
-			const content = typesPyCall[1] as string;
+		if (indexPyCall) {
+			const content = indexPyCall[1] as string;
+			expect(content).toContain("from __future__ import annotations");
+			expect(content).toContain("from dataclasses import dataclass");
 			expect(content).toContain("from . import shared as Shared");
+			expect(content).toContain("from typing import List");
+			expect(content).not.toContain("Union");
 			expect(content).toContain(
-				"class IGetPetsResponse(TypedDict, total=False):",
+				"class IGetPets200Response:",
 			);
-			expect(content).toContain("List[Shared.IPet]");
+			expect(content).toContain(
+				"class IGetPets200Response:\n    value: List[Shared.IPet]",
+			);
+		}
+
+		if (endpointsPyCall) {
+			const content = endpointsPyCall[1] as string;
+			expect(content).toContain("@dataclass");
+			expect(content).toContain("class Endpoint:");
+			expect(content).toContain("tags: List[str]");
+			expect(content).toContain(
+				'GetPets = Endpoint(\n    method="get",\n    operationId="getPets",\n    url="/pets",\n    tags=[]\n)',
+			);
+			expect(content).toContain('"""');
+			expect(content).toContain("* **Method**: GET");
+			expect(content).toContain("* **OperationId**: getPets");
+			expect(content).toContain("```python");
+			expect(content).toContain("```bash");
+			expect(content).toContain("curl /pets -X GET");
+			expect(content).not.toContain("undefined");
+			expect(content).not.toContain("/**");
+			expect(content).not.toContain("```typescript");
+			expect(content).not.toContain("#:");
 		}
 	});
 });

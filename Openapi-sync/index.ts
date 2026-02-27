@@ -90,10 +90,12 @@ const writeFileWithCustomCode = async (
 	}
 
 	// Merge with custom code
+	const commentPrefix: "//" | "#" = filePath.endsWith(".py") ? "#" : "//";
 	const finalContent = mergeCustomCode(generatedContent, existingContent, {
 		position: config?.customCode?.position || "bottom",
 		markerText: config?.customCode?.markerText,
 		includeInstructions: config?.customCode?.includeInstructions,
+		commentPrefix,
 	});
 
 	// Write the merged content
@@ -618,14 +620,14 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				const requiredKeys = schema.required || [];
 				let typeCnt = "";
 				objKeys.forEach((key) => {
-					let doc: string = "";
-					if (
-						!config?.types?.doc?.disable &&
-						schema.properties?.[key]?.description
-					) {
-						doc = `    """${schema.properties?.[key].description.replace(/\n/g, " ")}"""\n`;
-					}
-					typeCnt += `${doc}${parseSchemaToPythonType(apiDoc, schema.properties?.[key] as IOpenApSchemaSpec, key, requiredKeys.includes(key), options, indentLevel + 1)}`;
+					typeCnt += parseSchemaToPythonType(
+						apiDoc,
+						schema.properties?.[key] as IOpenApSchemaSpec,
+						key,
+						requiredKeys.includes(key),
+						options,
+						indentLevel + 1,
+					);
 				});
 				if (typeCnt.length > 0) {
 					if (name) {
@@ -684,7 +686,8 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		}
 
 		let nullable = type;
-		if (schema?.nullable) {
+		const isInlineDataclassBody = !_name && type.includes("\n");
+		if (schema?.nullable && !isInlineDataclassBody) {
 			if (type.startsWith("Union[")) {
 				nullable = type.replace("Union[", "Union[None, ");
 			} else {
@@ -693,6 +696,106 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		}
 
 		return type.length > 0 ? `${typeName}${nullable}${_name ? "\n" : ""}` : "";
+	};
+
+	const toPythonDataclassBody = (typeContent: string): string => {
+		const normalized = (typeContent || "").replace(/^\n+/, "").trimEnd();
+		if (!normalized) return "    pass\n";
+
+		const lines = normalized.split("\n");
+		const fieldRegex = /^[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
+		const nonEmptyNonDocLines = lines
+			.map((line) => line.trim())
+			.filter((line) => !!line)
+			.filter((line) => !line.startsWith('"""') && !line.endsWith('"""'));
+
+		const hasFieldLine = nonEmptyNonDocLines.some((line) => fieldRegex.test(line));
+
+		if (!hasFieldLine && nonEmptyNonDocLines.length === 1) {
+			return `    value: ${nonEmptyNonDocLines[0]}\n`;
+		}
+
+		const indented = normalized
+			.split("\n")
+			.map((line) => {
+				if (!line.trim()) return line;
+				return /^\s/.test(line) ? line : `    ${line}`;
+			})
+			.join("\n");
+
+		return `${indented}\n`;
+	};
+
+	const toPythonDataclass = (name: string, body: string) => {
+		return `@dataclass\nclass ${name}:\n${toPythonDataclassBody(body)}`;
+	};
+
+	const getPythonTypingImportLine = (typeContent: string): string => {
+		const typingNames = [
+			"Any",
+			"List",
+			"Dict",
+			"Union",
+			"Optional",
+			"Literal",
+		];
+		const used = typingNames.filter((name) =>
+			new RegExp(`\\b${name}\\b`).test(typeContent),
+		);
+		return used.length > 0 ? `from typing import ${used.join(", ")}\n` : "";
+	};
+
+	const wrapPythonDocText = (text: string, maxWidth: number = 72): string[] => {
+		const words = (text || "").replace(/\s+/g, " ").trim().split(" ");
+		if (!words[0]) return [];
+
+		const lines: string[] = [];
+		let line = "";
+		words.forEach((word) => {
+			const candidate = line ? `${line} ${word}` : word;
+			if (candidate.length > maxWidth && line) {
+				lines.push(line);
+				line = word;
+			} else {
+				line = candidate;
+			}
+		});
+		if (line) lines.push(line);
+		return lines;
+	};
+
+	const buildPythonClassDoc = (schema?: IOpenApSchemaSpec): string => {
+		if (!schema || config?.types?.doc?.disable) return "";
+
+		const classDesc = (schema.description || "").trim();
+		const attrs = Object.entries(schema.properties || {})
+			.map(([name, prop]) => ({
+				name,
+				desc: (prop?.description || "").trim(),
+			}))
+			.filter((item) => item.desc.length > 0);
+
+		if (!classDesc && attrs.length === 0) return "";
+
+		const lines: string[] = ['    """'];
+
+		if (classDesc) {
+			wrapPythonDocText(classDesc).forEach((line) => lines.push(`    ${line}`));
+		}
+
+		if (attrs.length > 0) {
+			if (classDesc) lines.push("");
+			lines.push("    Attributes:");
+			attrs.forEach((attr) => {
+				const wrapped = wrapPythonDocText(attr.desc);
+				if (!wrapped.length) return;
+				lines.push(`        ${attr.name}: ${wrapped[0]}`);
+				wrapped.slice(1).forEach((extra) => lines.push(`            ${extra}`));
+			});
+		}
+
+		lines.push('    """');
+		return `${lines.join("\n")}\n`;
 	};
 
 	const getSchemaExamples = (
@@ -879,34 +982,43 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		Object.keys(componentInterfaces).forEach((key) => {
 			const name = getSharedComponentName(key);
 			const cnt = componentInterfaces[key];
-			let doc: string = "";
+			const schemaEntry = (schemas as Record<string, any>)[key];
+			const sourceSchema = (schemaEntry?.schema
+				? schemaEntry.schema
+				: schemaEntry) as IOpenApSchemaSpec | undefined;
+			let docTs: string = "";
+			let docPy = "";
 			if (
 				!config?.types?.doc?.disable &&
 				key in schemas &&
 				//@ts-expect-error
 				schemas[key]?.description
 			) {
-				doc =
-					" *  " +
+				const descriptionLines =
 					//@ts-expect-error
 					schemas[key].description
 						.split("\n")
-						.filter((line: string) => line.trim() !== "")
+						.filter((line: string) => line.trim() !== "");
+
+				docTs =
+					" *  " +
+					descriptionLines
 						.join(`  \n *${"  ".repeat(1)}`);
 			}
+
+			docPy = buildPythonClassDoc(sourceSchema);
 
 			if (isPython) {
 				sharedTypesFileContent[key] =
 					(sharedTypesFileContent[key] ?? "") +
-					`class ${name}(TypedDict, total=False):\n` +
-					(doc ? `    """\n${doc}    """\n` : "") +
-					(typeof cnt === "string" && cnt.trim().length > 0
-						? cnt
-						: "    pass\n\n");
+					`@dataclass\nclass ${name}:\n` +
+					(docPy || "") +
+					toPythonDataclassBody(typeof cnt === "string" ? cnt : "") +
+					"\n";
 			} else {
 				sharedTypesFileContent[key] =
 					(sharedTypesFileContent[key] ?? "") +
-					(doc ? `/**\n${doc}\n */\n` : "") +
+					(docTs ? `/**\n${docTs}\n */\n` : "") +
 					"export type " +
 					name +
 					" = " +
@@ -1491,9 +1603,8 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				});
 
 				if (queryTypeCnt) {
-					queryTypeCnt = isPython
-						? `class ${queryTypeNameForClient || "Query"}(TypedDict, total=False):\n${queryTypeCnt || "    pass\n"}`
-						: `{\n${queryTypeCnt}}`;
+					const queryTypeBody = queryTypeCnt;
+					queryTypeCnt = isPython ? queryTypeBody : `{\n${queryTypeCnt}}`;
 					let name = `${endpoint.name}Query`;
 
 					// Use operationId if configured and available
@@ -1519,7 +1630,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					}
 					queryTypeNameForClient = name;
 					const typeContent = isPython
-						? `${queryTypeCnt.replace("Query(TypedDict", name + "(TypedDict")}\n`
+						? `${toPythonDataclass(name, queryTypeCnt)}\n`
 						: `export type ${name} = ${queryTypeCnt};\n`;
 					if (config?.folderSplit) {
 						folderGroups[folderName].types += typeContent;
@@ -1663,7 +1774,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					}
 					dtoTypeNameForClient = name;
 					const typeContent = isPython
-						? `class ${name}(TypedDict, total=False):\n${dtoTypeCnt ? dtoTypeCnt : "    pass\n"}\n`
+						? `${toPythonDataclass(name, dtoTypeCnt)}\n`
 						: `export type ${name} = ${dtoTypeCnt};\n`;
 					if (config?.folderSplit) {
 						folderGroups[folderName].types += typeContent;
@@ -1793,7 +1904,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 							if (formattedName) name = `${typePrefix}${formattedName}`;
 						}
 						const typeContent = isPython
-							? `class ${name}(TypedDict, total=False):\n${responseTypeCnt ? responseTypeCnt : "    pass\n"}\n`
+							? `${toPythonDataclass(name, responseTypeCnt)}\n`
 							: `export type ${name} = ${responseTypeCnt};\n`;
 						if (config?.folderSplit) {
 							folderGroups[folderName].types += typeContent;
@@ -1846,7 +1957,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 			let doc = "";
 			if (!config?.endpoints?.doc?.disable) {
 				let curl = "";
-				if (config?.endpoints?.doc?.showCurl) {
+				if (config?.endpoints?.doc?.showCurl || isPython) {
 					// console.log("cirl data", {
 					//   body: eSpec?.requestBody,
 					//   bodyContent:
@@ -1919,17 +2030,66 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 
 					// console.log("curlHeaders", { headers, curlHeaders, body });
 
-					curl = `\n\`\`\`bash  
-${CurlGenerator({
-	url: serverUrl + endpointPath,
-	method: method.toUpperCase() as any,
-	headers: curlHeaders,
-	body,
-})}${extras}
-\`\`\``;
+					const generatedCurl = CurlGenerator({
+						url: serverUrl + endpointPath,
+						method: method.toUpperCase() as any,
+						headers: curlHeaders,
+						body,
+					}) as unknown as string;
+					const curlCmd = `${generatedCurl || `curl ${serverUrl + endpointPath} -X ${method.toUpperCase()}`}${extras}`;
+					curl = isPython
+						? `\n\`\`\`bash\n${curlCmd}\n\`\`\``
+						: `\n\`\`\`bash  \n${curlCmd}\n\`\`\``;
 				}
 
-				doc = `/**${eSpec?.description ? `\n* ${eSpec?.description}  ` : ""}
+				if (isPython) {
+					const pyDocLines: string[] = [];
+					if (eSpec?.description) pyDocLines.push(`* ${eSpec.description}`);
+					pyDocLines.push(`* **Method**: ${method.toUpperCase()}`);
+					pyDocLines.push(`* **Summary**: ${eSpec?.summary || ""}`);
+					pyDocLines.push(`* **Tags**: [${eSpec?.tags?.join(", ") || ""}]`);
+					pyDocLines.push(`* **OperationId**: ${eSpec?.operationId || ""}`);
+
+					if (queryTypeCnt) {
+						pyDocLines.push("* **Query**:");
+						pyDocLines.push("```python");
+						queryTypeCnt
+							.split("\n")
+							.filter((line) => line.trim().length > 0)
+							.forEach((line) => pyDocLines.push(line));
+						pyDocLines.push("```");
+					}
+
+					if (dtoTypeCnt) {
+						pyDocLines.push("* **DTO**:");
+						pyDocLines.push("```python");
+						dtoTypeCnt
+							.split("\n")
+							.filter((line) => line.trim().length > 0)
+							.forEach((line) => pyDocLines.push(line));
+						pyDocLines.push("```");
+					}
+
+					if (responseTypeCnt) {
+						pyDocLines.push("* **Response**:");
+						pyDocLines.push("```python");
+						Object.entries(responseTypeObject).forEach(([code, type]) => {
+							pyDocLines.push(`${code}: ${String(type).replace(/\n/g, " ")}`);
+						});
+						pyDocLines.push("```");
+					}
+
+					if (securitySpec) {
+						pyDocLines.push("* **Security**:");
+						securitySpec
+							.split("\n")
+							.filter((line) => line.trim().length > 0)
+							.forEach((line) => pyDocLines.push(line.replace(/\*\*/g, "")));
+					}
+
+					doc = `"""\n${pyDocLines.join("\n")}${curl}\n"""\n`;
+				} else {
+					doc = `/**${eSpec?.description ? `\n* ${eSpec?.description}  ` : ""}
  * **Method**: \`${method.toUpperCase()}\`  
  * **Summary**: ${eSpec?.summary || ""}  
  * **Tags**: [${eSpec?.tags?.join(", ") || ""}]  
@@ -1946,6 +2106,7 @@ ${CurlGenerator({
 			: ""
  }${securitySpec ? `\n * **Security**:  ${securitySpec}\n` : ""}${curl}
  */\n`;
+				}
 			}
 
 			let name =
@@ -1973,12 +2134,13 @@ ${CurlGenerator({
 				url: endpointUrl,
 				tags: eSpec?.tags || [],
 			};
-			// Add the endpoint url to the specific folder group
+
+			const pythonEndpointObjectValue = `Endpoint(\n    method="${method}",\n    operationId="${eSpec?.operationId || ""}",\n    url=${endpointUrl},\n    tags=[${(eSpec?.tags || []).map((tag: string) => `"${tag}"`).join(", ")}]\n)`;
+
 			const endpointContent = isPython
-				? `${doc}${endpointPrefix}${name} = ${config?.endpoints?.value?.type === "object" ? JSONStringify(content).replace(/true/g, "True").replace(/false/g, "False").replace(/null/g, "None") : endpointUrl}\n\n`
+				? `${endpointPrefix}${name} = ${pythonEndpointObjectValue}\n${doc ? `${doc}` : ""}\n\n`
 				: `${doc}export const ${endpointPrefix}${name} = ${config?.endpoints?.value?.type === "object" ? JSONStringify(content) : endpointUrl};\n`;
 
-			// Add to folder group if folder splitting is enabled, otherwise add to global content
 			if (config?.folderSplit) {
 				folderGroups[folderName].endpoints += endpointContent;
 			} else {
@@ -2010,7 +2172,7 @@ ${CurlGenerator({
 				responses: responseTypeObject
 					? Object.entries(responseTypeObject).reduce(
 							(acc, [code, type]) => {
-								acc[code] = { type: type as string };
+								acc[code] = { type };
 								return acc;
 							},
 							{} as Record<string, { type: string }>,
@@ -2026,6 +2188,8 @@ ${CurlGenerator({
 
 	// Write files based on folder splitting configuration
 	if (config?.folderSplit) {
+		const pythonEndpointsHeader =
+			"from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass Endpoint:\n    method: str\n    operationId: str\n    url: str\n    tags: List[str]\n\n\n\n";
 		// Write files for each folder group
 		for (const [folderName, group] of Object.entries(folderGroups)) {
 			if (group.endpoints || group.types) {
@@ -2043,7 +2207,7 @@ ${CurlGenerator({
 					});
 					await writeFileWithCustomCode(
 						endpointsFilePath,
-						group.endpoints,
+						isPython ? `${pythonEndpointsHeader}${group.endpoints}` : group.endpoints,
 						config,
 					);
 				}
@@ -2062,7 +2226,7 @@ ${CurlGenerator({
 					const typesContent =
 						Object.values(sharedTypesFileContent).length > 0
 							? isPython
-								? `from . import shared as Shared\nfrom typing import Any, List, Dict, Union, Optional, Literal, TypedDict\n\n${group.types}`
+								? `from __future__ import annotations\nfrom dataclasses import dataclass\nfrom . import shared as Shared\n${getPythonTypingImportLine(group.types)}\n${group.types}`
 								: `import * as Shared from "../shared";\n\n${group.types}`
 							: group.types;
 
@@ -2103,22 +2267,25 @@ ${CurlGenerator({
 	}
 
 	if (endpointsFileContent.length > 0) {
+		const pythonEndpointsHeader =
+			"from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass Endpoint:\n    method: str\n    operationId: str\n    url: str\n    tags: List[str]\n\n\n\n";
 		// Original behavior - write to single files
 		const endpointsFilePath = path.join(
 			rootUsingCwd,
 			folderPath,
-			"endpoints.ts",
+			`endpoints.${ext}`,
 		);
 		await fs.promises.mkdir(path.dirname(endpointsFilePath), {
 			recursive: true,
 		});
 		await writeFileWithCustomCode(
 			endpointsFilePath,
-			endpointsFileContent,
+			isPython ? `${pythonEndpointsHeader}${endpointsFileContent}` : endpointsFileContent,
 			config,
 		);
 	}
 	if (Object.values(sharedTypesFileContent).length > 0) {
+		const sharedTypesBody = Object.values(sharedTypesFileContent).join("\n");
 		const sharedTypesFilePath = path.join(
 			rootUsingCwd,
 			folderPath,
@@ -2131,8 +2298,8 @@ ${CurlGenerator({
 		await writeFileWithCustomCode(
 			sharedTypesFilePath,
 			(isPython
-				? "from typing import Any, List, Dict, Union, Optional, Literal, TypedDict\n\n"
-				: "") + Object.values(sharedTypesFileContent).join("\n"),
+				? `from __future__ import annotations\nfrom dataclasses import dataclass\n${getPythonTypingImportLine(sharedTypesBody)}\n`
+				: "") + sharedTypesBody,
 			config,
 		);
 	}
@@ -2149,7 +2316,7 @@ ${CurlGenerator({
 			typesFilePath,
 			(Object.values(sharedTypesFileContent).length > 0
 				? isPython
-					? `from . import shared as Shared\nfrom typing import Any, List, Dict, Union, Optional, Literal, TypedDict\n\n`
+					? `from __future__ import annotations\nfrom dataclasses import dataclass\nfrom . import shared as Shared\n${getPythonTypingImportLine(typesFileContent)}\n`
 					: `import * as Shared from "./shared";\n\n`
 				: "") + typesFileContent,
 			config,
