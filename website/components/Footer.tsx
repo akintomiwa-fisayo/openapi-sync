@@ -21,8 +21,7 @@ export default function Footer() {
               Automate TypeScript types, fully-typed API clients (Fetch, Axios,
               React Query, SWR, RTK Query), validation schemas (Zod/Yup/Joi),
               and comprehensive documentation from your OpenAPI specifications.
-              Now with v5.0.0 enhanced client generation and developer
-              experience.
+              Now with v5.0.4 Python type generation, auto-sync, and enhanced client generation.
             </p>
             <div className="flex space-x-4">
               <a

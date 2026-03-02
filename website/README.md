@@ -155,6 +155,13 @@ import routes from "@/lib/routes";
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Contributors
+
+A special thanks to the following contributors for their valuable work on this project:
+
+- **Akintomiwa Opemipo**
+- **Fisayo Akintomiwa**
+
 ## License
 
 This project is licensed under the ISC License - see the LICENSE file in the root directory.
