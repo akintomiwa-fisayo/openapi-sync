@@ -20,6 +20,14 @@ const features = [
     bgColor: "bg-blue-100",
   },
   {
+    icon: FiCode,
+    title: "Python Type Generation",
+    description:
+      "Generate Python dataclass types from your OpenAPI specifications alongside TypeScript.",
+    color: "text-green-600",
+    bgColor: "bg-green-100",
+  },
+  {
     icon: FiCheckCircle,
     title: "Powerful Runtime Validation",
     description:

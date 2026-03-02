@@ -155,6 +155,17 @@ import routes from "@/lib/routes";
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Contributors
+
+A special thanks to the following contributors for their valuable work on this project:
+
+<a href="https://github.com/akintomiwa-fisayo">
+  <img src="https://github.com/akintomiwa-fisayo.png" width="50" height="50" alt="Fisayo Akintomiwa" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/akintomiwaopemipo">
+  <img src="https://github.com/akintomiwaopemipo.png" width="50" height="50" alt="Opemipo Akintomiwa" style="border-radius: 50%;" />
+</a>
+
 ## License
 
 This project is licensed under the ISC License - see the LICENSE file in the root directory.

@@ -107,6 +107,24 @@ export const custom = "test";
       expect(result.afterGenerated).toContain("MY CUSTOM MARKER START");
       expect(result.afterGenerated).toContain("custom");
     });
+
+  it("should extract custom code from python-style markers", () => {
+    const fileContent = `# ============================================================
+# 🔒 CUSTOM CODE START
+# ============================================================
+
+custom_var = "python"
+
+# ============================================================
+# 🔒 CUSTOM CODE END
+# ============================================================`;
+
+    const result = extractCustomCode(fileContent);
+    const extracted = `${result.beforeGenerated}\n${result.afterGenerated}`;
+
+    expect(extracted).toContain("CUSTOM CODE START");
+    expect(extracted).toContain("custom_var");
+  });
   });
 
   describe("createCustomCodeMarker", () => {
@@ -141,6 +159,14 @@ export const custom = "test";
       expect(marker).toContain("🔒 MY MARKER START");
       expect(marker).toContain("🔒 MY MARKER END");
     });
+
+	it("should create python markers with hash comments", () => {
+		const marker = createCustomCodeMarker("bottom", "CUSTOM CODE", true, "#");
+
+		expect(marker).toContain("# 🔒 CUSTOM CODE START");
+		expect(marker).toContain("# 🔒 CUSTOM CODE END");
+		expect(marker).not.toContain("// 🔒 CUSTOM CODE START");
+	});
   });
 
   describe("mergeCustomCode", () => {
@@ -327,5 +353,31 @@ export interface ICustomType {
       expect(result).toContain("ICustomType");
       expect(result).toContain("endpoint");
     });
+
+  it("should convert legacy marker comments to python hash markers", () => {
+    const existing = `generated = True
+
+// ============================================================
+// 🔒 CUSTOM CODE START
+// Add your custom code above this line
+// This section will be preserved during regeneration
+// ============================================================
+
+custom_value = 1
+
+// 🔒 CUSTOM CODE END
+// ============================================================`;
+
+    const generated = `api_value: int = 1`;
+
+    const result = mergeCustomCode(generated, existing, {
+      commentPrefix: "#",
+    });
+
+    expect(result).toContain("# 🔒 CUSTOM CODE START");
+    expect(result).toContain("# 🔒 CUSTOM CODE END");
+    expect(result).not.toContain("// 🔒 CUSTOM CODE START");
+    expect(result).toContain("custom_value = 1");
+  });
   });
 });

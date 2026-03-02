@@ -10,6 +10,12 @@
 
 ## Features
 
+### 🎉 v5.0.4 - Python Support, Auto-Sync & Infinite Queries
+
+- 🐍 **Python Type Generation** - Generate Python `dataclass` definitions alongside TypeScript types.
+- 🔄 **Auto-Sync Capability** - Enhanced OpenAPI sync functionality with real-time auto-sync capability.
+- ⚡ **Infinite Queries & Headers** - Added support for headers configuration and infinite query hooks in API clients.
+
 ### 🎉 v5.0.0 - Enhanced Client Generation & Developer Experience
 
 - 🚀 **Fully-Typed API Client Generation** - Generate type-safe clients for Fetch, Axios, React Query, SWR, and RTK Query with comprehensive inline documentation
@@ -72,11 +78,11 @@ The wizard will guide you through:
 
 ```json
 {
-  "refetchInterval": 5000,
-  "folder": "./src/api",
-  "api": {
-    "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
-  }
+	"refetchInterval": 5000,
+	"folder": "./src/api",
+	"api": {
+		"petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
+	}
 }
 ```
 
@@ -240,11 +246,11 @@ Supports multiple configuration formats: `openapi.sync.json`, `openapi.sync.ts`,
 
 ```json
 {
-  "refetchInterval": 5000,
-  "folder": "./src/api",
-  "api": {
-    "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
-  }
+	"refetchInterval": 5000,
+	"folder": "./src/api",
+	"api": {
+		"petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
+	}
 }
 ```
 
@@ -254,18 +260,18 @@ Supports multiple configuration formats: `openapi.sync.json`, `openapi.sync.ts`,
 import { IConfig } from "openapi-sync/types";
 
 const config: IConfig = {
-  refetchInterval: 10000,
-  folder: "./src/api",
-  api: {
-    "main-api": "https://api.example.com/openapi.json",
-  },
-  folderSplit: { byTags: true },
-  types: { name: { prefix: "I", useOperationId: true } },
-  endpoints: {
-    exclude: { tags: ["deprecated"] },
-    doc: { showCurl: true },
-  },
-  validations: { library: "zod" },
+	refetchInterval: 10000,
+	folder: "./src/api",
+	api: {
+		"main-api": "https://api.example.com/openapi.json",
+	},
+	folderSplit: { byTags: true },
+	types: { name: { prefix: "I", useOperationId: true } },
+	endpoints: {
+		exclude: { tags: ["deprecated"] },
+		doc: { showCurl: true },
+	},
+	validations: { library: "zod" },
 };
 
 export default config;
@@ -361,9 +367,9 @@ Alternatively, add an override to your `package.json`:
 
 ```json
 {
-  "overrides": {
-    "esbuild": "0.17.19"
-  }
+	"overrides": {
+		"esbuild": "0.17.19"
+	}
 }
 ```
 
@@ -378,6 +384,17 @@ ISC License - see [LICENSE](LICENSE) file for details.
 ## Contributing
 
 Contributions welcome! Submit pull requests to our [GitHub repository](https://github.com/akintomiwa-fisayo/openapi-sync).
+
+### Contributors
+
+A special thanks to the following contributors for their valuable work on this project:
+
+<a href="https://github.com/akintomiwa-fisayo">
+  <img src="https://github.com/akintomiwa-fisayo.png" width="50" height="50" alt="Fisayo Akintomiwa" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/akintomiwaopemipo">
+  <img src="https://github.com/akintomiwaopemipo.png" width="50" height="50" alt="Opemipo Akintomiwa" style="border-radius: 50%;" />
+</a>
 
 ---
 

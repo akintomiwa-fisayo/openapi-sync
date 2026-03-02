@@ -189,6 +189,7 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
  * Render TypeScript type reference as markdown code block
  *
  * Formats a TypeScript type definition for inclusion in markdown documentation.
+ * Converts multiline/JSDoc comments to single-line comments to prevent breaking outer JSDoc.
  *
  * @param {string} typeRef - TypeScript type definition
  * @param {number} [indent=1] - Indentation level
@@ -197,7 +198,21 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
  * @public
  */
 export const renderTypeRefMD = (typeRef: string, indent = 1) => {
-  return `\n\`\`\`typescript\n${"  ".repeat(indent)}  ${typeRef
+  // Convert all block comments (/* */ and /** */) to single-line comments (//)
+  const sanitizedTypeRef = typeRef.replace(/\/\*\*?[\s\S]*?\*\//g, (match) => {
+    // Extract content between /* and */
+    const content = match
+      .replace(/^\/\*\*?\s*/, "") // Remove opening /* or /**
+      .replace(/\s*\*\/$/, "") // Remove closing */
+      .split("\n")
+      .map((line) => line.replace(/^\s*\*\s?/, "").trim()) // Remove leading * from each line
+      .filter((line) => line.length > 0)
+      .map((line) => `// ${line}`)
+      .join("\n");
+    return content;
+  });
+
+  return `\n\`\`\`typescript\n${"  ".repeat(indent)}  ${sanitizedTypeRef
     .split("\n")
     .filter((line) => line.trim() !== "")
     .join(`\n${"  ".repeat(indent)}  `)}\n\`\`\``;
@@ -259,8 +274,11 @@ export const extractCustomCode = (
   fileContent: string,
   markerText: string = "CUSTOM CODE"
 ): ExtractedCustomCode => {
-  const startMarker = `// 🔒 ${markerText} START`;
-  const endMarker = `// 🔒 ${markerText} END`;
+  const markerPrefixes = ["//", "#"];
+  const markerPairs = markerPrefixes.map((prefix) => ({
+    start: `${prefix} 🔒 ${markerText} START`,
+    end: `${prefix} 🔒 ${markerText} END`,
+  }));
 
   const result: ExtractedCustomCode = {
     beforeGenerated: "",
@@ -272,17 +290,29 @@ export const extractCustomCode = (
   const blocks: Array<{ start: number; end: number; content: string }> = [];
 
   while (searchPos < fileContent.length) {
-    const startIndex = fileContent.indexOf(startMarker, searchPos);
-    if (startIndex === -1) break;
+    let selectedPair: { start: string; end: string } | null = null;
+    let startIndex = -1;
 
-    const endIndex = fileContent.indexOf(endMarker, startIndex);
+    for (const pair of markerPairs) {
+      const idx = fileContent.indexOf(pair.start, searchPos);
+      if (idx !== -1 && (startIndex === -1 || idx < startIndex)) {
+        startIndex = idx;
+        selectedPair = pair;
+      }
+    }
+
+    if (startIndex === -1 || !selectedPair) break;
+
+    const endIndex = fileContent.indexOf(selectedPair.end, startIndex);
     if (endIndex === -1) break;
 
-    let blockEnd = endIndex + endMarker.length;
+    let blockEnd = endIndex + selectedPair.end.length;
 
     // Include the closing separator line if it exists
     const afterEndMarker = fileContent.substring(blockEnd, blockEnd + 100);
-    const closingSeparatorMatch = afterEndMarker.match(/^\s*\n\s*(\/\/ =+)/);
+    const closingSeparatorMatch = afterEndMarker.match(
+      /^\s*\n\s*((?:\/\/|#)\s*=+)/
+    );
     if (closingSeparatorMatch) {
       // Find the end of the closing separator line
       const separatorEnd = afterEndMarker.indexOf(
@@ -304,9 +334,14 @@ export const extractCustomCode = (
       Math.max(0, startIndex - 200),
       startIndex
     );
-    const separatorMatch = precedingText.lastIndexOf("// ==========");
-    if (separatorMatch !== -1) {
-      blockStart = Math.max(0, startIndex - 200) + separatorMatch;
+    const separatorRegex = /(^|\n)\s*(?:\/\/|#)\s*=+/g;
+    let separatorMatch: RegExpExecArray | null;
+    let lastSeparatorIndex = -1;
+    while ((separatorMatch = separatorRegex.exec(precedingText)) !== null) {
+      lastSeparatorIndex = separatorMatch.index + separatorMatch[1].length;
+    }
+    if (lastSeparatorIndex !== -1) {
+      blockStart = Math.max(0, startIndex - 200) + lastSeparatorIndex;
     }
 
     const customBlock = fileContent.substring(blockStart, blockEnd);
@@ -324,7 +359,11 @@ export const extractCustomCode = (
       .split("\n")
       .filter((line) => {
         const trimmed = line.trim();
-        return trimmed.length > 0 && !trimmed.startsWith("//");
+        return (
+          trimmed.length > 0 &&
+          !trimmed.startsWith("//") &&
+          !trimmed.startsWith("#")
+        );
       })
       .join("");
 
@@ -363,22 +402,44 @@ export const extractCustomCode = (
 export const createCustomCodeMarker = (
   position: "top" | "bottom",
   markerText: string = "CUSTOM CODE",
-  includeInstructions: boolean = true
+  includeInstructions: boolean = true,
+  commentPrefix: "//" | "#" = "//"
 ): string => {
   const instructions = includeInstructions
-    ? `// ${
+    ? `${commentPrefix} ${
         position === "top"
           ? "Add your custom code below this line"
           : "Add your custom code above this line"
-      }\n// This section will be preserved during regeneration\n`
+      }\n${commentPrefix} This section will be preserved during regeneration\n`
     : "";
 
-  return `// ${"=".repeat(60)}
-// 🔒 ${markerText} START
-${instructions}// ${"=".repeat(60)}
+  return `${commentPrefix} ${"=".repeat(60)}
+${commentPrefix} 🔒 ${markerText} START
+${instructions}${commentPrefix} ${"=".repeat(60)}
 
-// 🔒 ${markerText} END
-// ${"=".repeat(60)}`;
+${commentPrefix} 🔒 ${markerText} END
+${commentPrefix} ${"=".repeat(60)}`;
+};
+
+const normalizeMarkerCommentPrefix = (
+  block: string,
+  markerText: string,
+  commentPrefix: "//" | "#"
+): string => {
+  if (!block) return block;
+
+  const markerLineRegex = new RegExp(
+    `^\\s*//\\s*(?:={3,}|🔒\\s+${markerText}\\s+(?:START|END)|Add your custom code (?:below|above) this line|This section will be preserved during regeneration)\\s*$`
+  );
+
+  return block
+    .split("\n")
+    .map((line) =>
+      markerLineRegex.test(line)
+        ? line.replace(/^\s*\/\//, commentPrefix)
+        : line
+    )
+    .join("\n");
 };
 
 /**
@@ -405,12 +466,14 @@ export const mergeCustomCode = (
     position?: "top" | "bottom" | "both";
     markerText?: string;
     includeInstructions?: boolean;
+    commentPrefix?: "//" | "#";
   } = {}
 ): string => {
   const {
     position = "bottom",
     markerText = "CUSTOM CODE",
     includeInstructions = true,
+    commentPrefix = "//",
   } = config;
 
   let customCode: ExtractedCustomCode = {
@@ -421,6 +484,16 @@ export const mergeCustomCode = (
   // Extract existing custom code if file exists
   if (existingFileContent) {
     customCode = extractCustomCode(existingFileContent, markerText);
+    customCode.beforeGenerated = normalizeMarkerCommentPrefix(
+      customCode.beforeGenerated,
+      markerText,
+      commentPrefix
+    );
+    customCode.afterGenerated = normalizeMarkerCommentPrefix(
+      customCode.afterGenerated,
+      markerText,
+      commentPrefix
+    );
   }
 
   // If no existing custom code, create empty markers
@@ -429,14 +502,16 @@ export const mergeCustomCode = (
       customCode.beforeGenerated = createCustomCodeMarker(
         "top",
         markerText,
-        includeInstructions
+        includeInstructions,
+        commentPrefix
       );
     }
     if (position === "bottom" || position === "both") {
       customCode.afterGenerated = createCustomCodeMarker(
         "bottom",
         markerText,
-        includeInstructions
+        includeInstructions,
+        commentPrefix
       );
     }
   }
