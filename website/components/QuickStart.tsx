@@ -69,7 +69,7 @@ export default function QuickStart() {
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Get up and running in less than 5 minutes with full TypeScript
             types, fully-typed API clients, and validation schemas—now with
-            v5.0.4 improvements
+            v5.0.5 improvements
           </p>
         </div>
 

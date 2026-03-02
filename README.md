@@ -10,7 +10,7 @@
 
 ## Features
 
-### 🎉 v5.0.4 - Python Support, Auto-Sync & Infinite Queries
+### 🎉 v5.0.5 - Python Support, Auto-Sync & Infinite Queries
 
 - 🐍 **Python Type Generation** - Generate Python `dataclass` definitions alongside TypeScript types.
 - 🔄 **Auto-Sync Capability** - Enhanced OpenAPI sync functionality with real-time auto-sync capability.

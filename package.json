@@ -1,95 +1,95 @@
 {
-  "name": "openapi-sync",
-  "version": "5.0.4",
-  "description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "openapi-sync": "./bin/cli.js"
-  },
-  "keywords": [
-    "openapi",
-    "rest",
-    "api",
-    "swagger",
-    "typescript",
-    "ts",
-    "dts",
-    "zod",
-    "yup",
-    "joi",
-    "validation schema",
-    "validation schema generation",
-    "validation schema generator",
-    "node",
-    "codegen",
-    "generation",
-    "generator",
-    "generate types",
-    "api client",
-    "fetch",
-    "axios",
-    "react-query",
-    "tanstack query",
-    "swr",
-    "rtk-query",
-    "redux toolkit",
-    "type-safe",
-    "hooks",
-    "client generation"
-  ],
-  "files": [
-    "bin",
-    "dist/**/*.js",
-    "dist/**/*.mjs",
-    "dist/**/*.d.ts",
-    "dist/**/*.d.mts",
-    "!dist/**/*.map",
-    "LICENSE",
-    "README.md",
-    "package.json",
-    "!website/**/*"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/akintomiwa-fisayo/openapi-sync"
-  },
-  "homepage": "https://openapi-sync.com",
-  "bugs": {
-    "url": "https://github.com/akintomiwa-fisayo/openapi-sync/issues"
-  },
-  "scripts": {
-    "build": "rm -rf dist db.json && tsup && echo '{}' > db.json",
-    "publish-package": "npm run build && npm publish",
-    "test": "jest",
-    "test:coverage": "jest --coverage"
-  },
-  "author": "P-Technologies",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/prompts": "^2.4.9",
-    "@types/jest": "^30.0.0",
-    "@types/js-yaml": "^4.0.9",
-    "@types/lodash": "^4.17.7",
-    "@types/lodash.get": "^4.4.9",
-    "@types/lodash.isequal": "^4.5.8",
-    "@types/node": "^22.1.0",
-    "jest": "^30.2.0",
-    "source-map-explorer": "^2.5.3",
-    "ts-jest": "^29.4.4",
-    "tsup": "^8.5.0",
-    "typescript": "^5.5.4"
-  },
-  "dependencies": {
-    "@apidevtools/swagger-parser": "^12.0.0",
-    "axios": "^1.7.3",
-    "axios-retry": "^4.5.0",
-    "curl-generator": "^0.4.2",
-    "esbuild-register": "^3.6.0",
-    "js-yaml": "^4.1.0",
-    "lodash.get": "^4.4.2",
-    "lodash.isequal": "^4.5.0",
-    "prompts": "^2.4.2",
-    "yargs": "^17.7.2"
-  }
+	"name": "openapi-sync",
+	"version": "5.0.5",
+	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"bin": {
+		"openapi-sync": "./bin/cli.js"
+	},
+	"keywords": [
+		"openapi",
+		"rest",
+		"api",
+		"swagger",
+		"typescript",
+		"ts",
+		"dts",
+		"zod",
+		"yup",
+		"joi",
+		"validation schema",
+		"validation schema generation",
+		"validation schema generator",
+		"node",
+		"codegen",
+		"generation",
+		"generator",
+		"generate types",
+		"api client",
+		"fetch",
+		"axios",
+		"react-query",
+		"tanstack query",
+		"swr",
+		"rtk-query",
+		"redux toolkit",
+		"type-safe",
+		"hooks",
+		"client generation"
+	],
+	"files": [
+		"bin",
+		"dist/**/*.js",
+		"dist/**/*.mjs",
+		"dist/**/*.d.ts",
+		"dist/**/*.d.mts",
+		"!dist/**/*.map",
+		"LICENSE",
+		"README.md",
+		"package.json",
+		"!website/**/*"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/akintomiwa-fisayo/openapi-sync"
+	},
+	"homepage": "https://openapi-sync.com",
+	"bugs": {
+		"url": "https://github.com/akintomiwa-fisayo/openapi-sync/issues"
+	},
+	"scripts": {
+		"build": "rm -rf dist db.json && tsup && echo '{}' > db.json",
+		"publish-package": "npm run build && npm publish",
+		"test": "jest",
+		"test:coverage": "jest --coverage"
+	},
+	"author": "P-Technologies",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/prompts": "^2.4.9",
+		"@types/jest": "^30.0.0",
+		"@types/js-yaml": "^4.0.9",
+		"@types/lodash": "^4.17.7",
+		"@types/lodash.get": "^4.4.9",
+		"@types/lodash.isequal": "^4.5.8",
+		"@types/node": "^22.1.0",
+		"jest": "^30.2.0",
+		"source-map-explorer": "^2.5.3",
+		"ts-jest": "^29.4.4",
+		"tsup": "^8.5.0",
+		"typescript": "^5.5.4"
+	},
+	"dependencies": {
+		"@apidevtools/swagger-parser": "^12.0.0",
+		"axios": "^1.7.3",
+		"axios-retry": "^4.5.0",
+		"curl-generator": "^0.4.2",
+		"esbuild-register": "^3.6.0",
+		"js-yaml": "^4.1.0",
+		"lodash.get": "^4.4.2",
+		"lodash.isequal": "^4.5.0",
+		"prompts": "^2.4.2",
+		"yargs": "^17.7.2"
+	}
 }
