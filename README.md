@@ -389,8 +389,12 @@ Contributions welcome! Submit pull requests to our [GitHub repository](https://g
 
 A special thanks to the following contributors for their valuable work on this project:
 
-- **Akintomiwa Opemipo**
-- **Fisayo Akintomiwa**
+<a href="https://github.com/akintomiwa-fisayo">
+  <img src="https://github.com/akintomiwa-fisayo.png" width="50" height="50" alt="Fisayo Akintomiwa" style="border-radius: 50%;" />
+</a>
+<a href="https://github.com/akintomiwaopemipo">
+  <img src="https://github.com/akintomiwaopemipo.png" width="50" height="50" alt="Opemipo Akintomiwa" style="border-radius: 50%;" />
+</a>
 
 ---
 
