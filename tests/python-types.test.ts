@@ -58,6 +58,32 @@ describe("Python Type Generation", () => {
 						},
 					},
 				},
+				"/bind": {
+					post: {
+						operationId: "postBind",
+						requestBody: {
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/BindRequestData",
+									},
+								},
+							},
+						},
+						responses: {
+							"200": {
+								description: "Bound.",
+								content: {
+									"application/json": {
+										schema: {
+											$ref: "#/components/schemas/BindRequestData",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 			components: {
 				schemas: {
@@ -80,6 +106,13 @@ describe("Python Type Generation", () => {
 								description:
 									"The street1 field, limited to 40 characters. Use street2 for overflow.",
 							},
+						},
+					},
+					BindRequestData: {
+						type: "object",
+						required: ["token"],
+						properties: {
+							token: { type: "string" },
 						},
 					},
 				},
@@ -150,10 +183,25 @@ describe("Python Type Generation", () => {
 			expect(content).toContain("from typing import List");
 			expect(content).not.toContain("Union");
 			expect(content).toContain(
-				"class IGetPets200Response:",
+				"class IGetPets200Response(List[Shared.IPet]):",
 			);
 			expect(content).toContain(
+				"class IGetPets200Response(List[Shared.IPet]):\n    pass",
+			);
+			expect(content).not.toContain(
 				"class IGetPets200Response:\n    value: List[Shared.IPet]",
+			);
+			expect(content).toContain(
+				"class IPostBindDTO(Shared.IBindRequestData):\n    pass",
+			);
+			expect(content).not.toContain(
+				"class IPostBindDTO:\n    value: Shared.IBindRequestData",
+			);
+			expect(content).toContain(
+				"class IPostBind200Response(Shared.IBindRequestData):\n    pass",
+			);
+			expect(content).not.toContain(
+				"class IPostBind200Response:\n    value: Shared.IBindRequestData",
 			);
 		}
 
