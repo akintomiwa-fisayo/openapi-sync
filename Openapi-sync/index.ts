@@ -726,7 +726,41 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		return `${indented}\n`;
 	};
 
-	const toPythonDataclass = (name: string, body: string) => {
+	const getSinglePythonTypeExpression = (typeContent: string): string | null => {
+		const normalized = (typeContent || "").replace(/^\n+/, "").trimEnd();
+		if (!normalized) return null;
+
+		const lines = normalized.split("\n");
+		const fieldRegex = /^[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
+		const nonEmptyNonDocLines = lines
+			.map((line) => line.trim())
+			.filter((line) => !!line)
+			.filter((line) => !line.startsWith('"""') && !line.endsWith('"""'));
+
+		const hasFieldLine = nonEmptyNonDocLines.some((line) => fieldRegex.test(line));
+
+		if (!hasFieldLine && nonEmptyNonDocLines.length === 1) {
+			return nonEmptyNonDocLines[0];
+		}
+
+		return null;
+	};
+
+	const toPythonDataclass = (
+		name: string,
+		body: string,
+		options?: {
+			inheritSingleTypeExpression?: boolean;
+		},
+	) => {
+		const singleTypeExpression = getSinglePythonTypeExpression(body);
+		const shouldInheritSingleType =
+			options?.inheritSingleTypeExpression === true && !!singleTypeExpression;
+
+		if (shouldInheritSingleType) {
+			return `@dataclass\nclass ${name}(${singleTypeExpression}):\n    pass\n`;
+		}
+
 		return `@dataclass\nclass ${name}:\n${toPythonDataclassBody(body)}`;
 	};
 
@@ -1774,7 +1808,9 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					}
 					dtoTypeNameForClient = name;
 					const typeContent = isPython
-						? `${toPythonDataclass(name, dtoTypeCnt)}\n`
+						? `${toPythonDataclass(name, dtoTypeCnt, {
+								inheritSingleTypeExpression: true,
+						  })}\n`
 						: `export type ${name} = ${dtoTypeCnt};\n`;
 					if (config?.folderSplit) {
 						folderGroups[folderName].types += typeContent;
@@ -1904,7 +1940,9 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 							if (formattedName) name = `${typePrefix}${formattedName}`;
 						}
 						const typeContent = isPython
-							? `${toPythonDataclass(name, responseTypeCnt)}\n`
+							? `${toPythonDataclass(name, responseTypeCnt, {
+									inheritSingleTypeExpression: true,
+							  })}\n`
 							: `export type ${name} = ${responseTypeCnt};\n`;
 						if (config?.folderSplit) {
 							folderGroups[folderName].types += typeContent;
