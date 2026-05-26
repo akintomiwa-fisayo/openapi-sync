@@ -165,6 +165,9 @@ A special thanks to the following contributors for their valuable work on this p
 <a href="https://github.com/akintomiwaopemipo">
   <img src="https://github.com/akintomiwaopemipo.png" width="50" height="50" alt="Opemipo Akintomiwa" style="border-radius: 50%;" />
 </a>
+<a href="https://github.com/ayotunde-codes">
+  <img src="https://github.com/ayotunde-codes.png" width="50" height="50" alt="Ayotunde Obasa" style="border-radius: 50%;" />
+</a>
 
 ## License
 
@@ -190,5 +193,5 @@ If you'd like to support the website and library financially, you can do so via:
 
 - GitHub Sponsors: https://github.com/sponsors/akintomiwa-fisayo
 - Open Collective (placeholder): https://opencollective.com/fisayo-akintomiwa
-- Patreon (placeholder): https://patreon.com/openapi_sync
-- PayPal (placeholder): https://paypal.me/yourname
+  <!-- - Patreon (placeholder): https://patreon.com/openapi_sync -->
+  <!-- - PayPal (placeholder): https://paypal.me/yourname -->
