@@ -260,18 +260,18 @@ describe.skip("Init Function", () => {
       const originalEnv = process.env.NODE_ENV;
 
       // Test development environment
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       await Init();
       expect(mockedOpenapiSync).toHaveBeenCalled();
 
       jest.clearAllMocks();
 
       // Test production environment
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       await Init();
       expect(mockedOpenapiSync).toHaveBeenCalled();
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
   });
 

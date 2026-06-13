@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["index.ts"],
+  entry: ["index.ts", "mcp/server.ts"],
   format: ["cjs", "esm"],
   dts: true,
   clean: true,
@@ -13,6 +13,8 @@ export default defineConfig({
     "yargs",
     "esbuild-register",
     "curl-generator",
+    "@modelcontextprotocol/sdk",
+    "zod",
     "fs",
     "path",
   ],

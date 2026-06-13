@@ -455,3 +455,91 @@ export type IOpenApiSecuritySchemes = {
 		name?: string;
 	};
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Programmatic API result types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Summary of a single endpoint returned by {@link ListEndpoints}.
+ *
+ * AI agents can use this to understand the API surface before deciding which
+ * client type to generate, or to filter endpoints by tag/method.
+ *
+ * @public
+ */
+export type EndpointSummary = {
+	/** Camel-case function name used in generated code (e.g. `getPetById`) */
+	name: string;
+	/** HTTP method in uppercase (e.g. `"GET"`) */
+	method: string;
+	/** OpenAPI path (e.g. `"/pet/{petId}"`) */
+	path: string;
+	/** OpenAPI operation ID if present */
+	operationId?: string;
+	/** OpenAPI tags assigned to this endpoint */
+	tags?: string[];
+	/** Short human-readable summary from the OpenAPI spec */
+	summary?: string;
+};
+
+/**
+ * Structured result returned by {@link Init} and {@link GenerateClient}.
+ *
+ * When the CLI is invoked with `--json`, this object is serialized to stdout.
+ * AI agents should parse this to determine success, discover written files,
+ * and surface errors without screen-scraping emoji log lines.
+ *
+ * @example
+ * ```ts
+ * const result = await Init();
+ * if (!result.success) {
+ *   console.error(result.errors);
+ * } else {
+ *   console.log(`Wrote ${result.filesWritten.length} files`);
+ * }
+ * ```
+ *
+ * @public
+ */
+export type SyncResult = {
+	/** Whether the operation completed without fatal errors */
+	success: boolean;
+	/** API name(s) that were processed */
+	apis: string[];
+	/** Absolute paths of all files written to disk */
+	filesWritten: string[];
+	/** Total number of endpoints discovered across all processed APIs */
+	endpointCount: number;
+	/** Non-fatal warnings (e.g. skipped endpoints) */
+	warnings: string[];
+	/** Fatal or per-file error messages; non-empty when `success` is false */
+	errors: string[];
+};
+
+/**
+ * Structured result returned by {@link ValidateConfig}.
+ *
+ * Lets agents check configuration and spec validity before running a full sync.
+ * No files are written to disk during validation.
+ *
+ * @public
+ */
+export type ValidationResult = {
+	/** Whether the config file and all specs are valid */
+	valid: boolean;
+	/** Per-API validation results */
+	apis: Record<
+		string,
+		{
+			/** Whether this specific API's spec is valid and reachable */
+			valid: boolean;
+			/** Number of endpoints found in the spec */
+			endpointCount: number;
+			/** Error message if invalid */
+			error?: string;
+		}
+	>;
+	/** Config-level errors (missing fields, bad types, etc.) */
+	configErrors: string[];
+};

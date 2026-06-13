@@ -510,3 +510,207 @@ export default config;
     throw error;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Non-interactive init (agent-safe)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Options accepted by {@link nonInteractiveInit}.
+ * Each field corresponds to a `--flag` on the CLI `init` command.
+ *
+ * @public
+ */
+export interface NonInteractiveInitOptions {
+  /** API name used as the key in `config.api` (e.g. `"petstore"`) */
+  apiName: string;
+  /** URL or local file path to the OpenAPI spec */
+  apiSource: string;
+  /** Output folder for generated files (default: `"./src/api"`) */
+  outputFolder?: string;
+  /** Config file format (default: `"typescript"`) */
+  configFormat?: "typescript" | "json" | "javascript";
+  /** Client type to generate (omit to skip client generation) */
+  clientType?: "react-query" | "swr" | "fetch" | "axios" | "rtk-query";
+  /** Validation library (omit to skip validation schema generation) */
+  validationLibrary?: "zod" | "yup" | "joi";
+  /** Organize files into folders by OpenAPI tags (default: `false`) */
+  folderSplit?: boolean;
+  /** Prefix for generated TypeScript interface names (default: `"I"`) */
+  typesPrefix?: string;
+  /** Use operationId from spec for naming (default: `true`) */
+  useOperationId?: boolean;
+  /** Tags to exclude from generation */
+  excludeTags?: string[];
+  /** Include cURL examples in generated docs (default: `true`) */
+  showCurl?: boolean;
+  /** Auto-refetch interval in milliseconds (omit to disable) */
+  refetchInterval?: number;
+  /** Run an initial sync after creating the config (default: `false`) */
+  runSync?: boolean;
+  /** Suppress all console output (default: `false`) */
+  silent?: boolean;
+}
+
+/**
+ * Create an openapi-sync config file without any interactive prompts.
+ *
+ * This is the **agent-safe** counterpart to {@link interactiveInit}. Pass all
+ * settings as a plain options object — no stdin required.
+ *
+ * CLI equivalent:
+ * ```bash
+ * npx openapi-sync init --no-interactive \
+ *   --api-name petstore \
+ *   --api-url https://petstore3.swagger.io/api/v3/openapi.json \
+ *   --client-type react-query \
+ *   --validation-library zod
+ * ```
+ *
+ * @returns Structured result; `success` is false when the config write or sync fails.
+ *
+ * @public
+ */
+export async function nonInteractiveInit(
+  opts: NonInteractiveInitOptions,
+): Promise<{
+  success: boolean;
+  configFile: string;
+  message: string;
+  errors: string[];
+}> {
+  const {
+    apiName,
+    apiSource,
+    outputFolder = "./src/api",
+    configFormat = "typescript",
+    clientType,
+    validationLibrary,
+    folderSplit = false,
+    typesPrefix = "I",
+    useOperationId = true,
+    excludeTags = [],
+    showCurl = true,
+    refetchInterval,
+    runSync = false,
+    silent = false,
+  } = opts;
+
+  const log = silent
+    ? { log: () => {}, warn: () => {}, error: () => {} }
+    : { log: console.log, warn: console.warn, error: console.error };
+
+  const errors: string[] = [];
+
+  // ── Build config object ──────────────────────────────────────────────────
+  const config: any = {
+    folder: outputFolder,
+    api: { [apiName]: apiSource },
+  };
+
+  if (refetchInterval && refetchInterval > 0) {
+    config.refetchInterval = refetchInterval;
+  }
+
+  if (folderSplit) {
+    config.folderSplit = { byTags: true };
+  }
+
+  config.types = {
+    name: { prefix: typesPrefix, useOperationId },
+  };
+
+  config.endpoints = {
+    name: { useOperationId },
+    doc: { showCurl },
+  };
+
+  if (excludeTags.length > 0) {
+    config.endpoints.exclude = { tags: excludeTags };
+  }
+
+  if (clientType) {
+    config.clientGeneration = {
+      enabled: true,
+      type: clientType,
+      outputDir: path.join(outputFolder, apiName, "client"),
+    };
+    if (clientType === "react-query") {
+      config.clientGeneration.reactQuery = { version: 5, mutations: true };
+    } else if (clientType === "swr") {
+      config.clientGeneration.swr = { mutations: true };
+    }
+  }
+
+  if (validationLibrary) {
+    config.validations = { library: validationLibrary };
+  }
+
+  config.customCode = { enabled: true, position: "bottom" };
+
+  // ── Serialise to chosen format ───────────────────────────────────────────
+  let configContent: string;
+  let configFileName: string;
+
+  if (configFormat === "json") {
+    configFileName = "openapi.sync.json";
+    configContent = JSON.stringify(config, null, 2);
+  } else if (configFormat === "typescript") {
+    configFileName = "openapi.sync.ts";
+    configContent =
+      `import { IConfig } from "openapi-sync";\n\n` +
+      `const config: IConfig = ${JSON.stringify(config, null, 2)};\n\n` +
+      `export default config;\n`;
+  } else {
+    configFileName = "openapi.sync.js";
+    configContent = `module.exports = ${JSON.stringify(config, null, 2)};\n`;
+  }
+
+  const configPath = path.join(process.cwd(), configFileName);
+
+  // ── Write config file ────────────────────────────────────────────────────
+  try {
+    fs.writeFileSync(configPath, configContent, "utf-8");
+    log.log(`\n✅ Config written: ${configFileName}`);
+  } catch (err: any) {
+    errors.push(`Failed to write config: ${err.message}`);
+    return {
+      success: false,
+      configFile: configFileName,
+      message: "Config write failed.",
+      errors,
+    };
+  }
+
+  // ── Create output folder (best-effort) ───────────────────────────────────
+  const absOutput = path.isAbsolute(outputFolder)
+    ? outputFolder
+    : path.join(process.cwd(), outputFolder);
+  if (!fs.existsSync(absOutput)) {
+    try { fs.mkdirSync(absOutput, { recursive: true }); } catch { /* ok */ }
+  }
+
+  // ── Optionally run initial sync ──────────────────────────────────────────
+  if (runSync) {
+    log.log("\n🔄 Running initial sync...");
+    try {
+      const { Init, GenerateClient } = await import("../index");
+      await Init({ silent });
+      if (clientType) {
+        await GenerateClient({ type: clientType, apiName, silent });
+      }
+      log.log("✅ Sync complete.");
+    } catch (err: any) {
+      errors.push(`Sync failed: ${err.message}`);
+    }
+  }
+
+  const message =
+    errors.length === 0
+      ? `Config created: ${configFileName}. Run \`npx openapi-sync\` to generate types.`
+      : `Config created with errors (${errors.length}).`;
+
+  log.log(`\n${message}\n`);
+
+  return { success: errors.length === 0, configFile: configFileName, message, errors };
+}

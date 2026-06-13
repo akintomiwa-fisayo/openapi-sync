@@ -190,6 +190,18 @@ export const generateFetchClient = (
   content += `export interface ApiConfig {\n`;
   content += `  baseURL?: string;\n`;
   content += `  headers?: Record<string, string>;\n`;
+  if (authConfig) {
+    content += `  auth?: {\n`;
+    if (authConfig.type === "bearer") {
+      content += `    token?: string;\n`;
+    } else if (authConfig.type === "basic") {
+      content += `    username?: string;\n`;
+      content += `    password?: string;\n`;
+    } else if (authConfig.type === "apiKey") {
+      content += `    apiKey?: string;\n`;
+    }
+    content += `  };\n`;
+  }
   content += `}\n\n`;
 
   // Generate global config
@@ -225,6 +237,26 @@ export const generateFetchClient = (
   content += `    ...globalConfig.headers,\n`;
   content += `    ...(options.headers as Record<string, string>),\n`;
   content += `  };\n\n`;
+
+  if (authConfig) {
+    if (authConfig.type === "bearer") {
+      content += `  if (globalConfig.auth?.token) {\n`;
+      content += `    headers['Authorization'] = \`Bearer \${globalConfig.auth.token}\`;\n`;
+      content += `  }\n\n`;
+    } else if (authConfig.type === "basic") {
+      content += `  if (globalConfig.auth?.username && globalConfig.auth?.password) {\n`;
+      content += `    const credentials = btoa(\`\${globalConfig.auth.username}:\${globalConfig.auth.password}\`);\n`;
+      content += `    headers['Authorization'] = \`Basic \${credentials}\`;\n`;
+      content += `  }\n\n`;
+    } else if (authConfig.type === "apiKey") {
+      const authKeyName = authConfig.name || "X-API-Key";
+      if (authConfig.in === "header" || !authConfig.in) {
+        content += `  if (globalConfig.auth?.apiKey) {\n`;
+        content += `    headers['${authKeyName}'] = globalConfig.auth.apiKey;\n`;
+        content += `  }\n\n`;
+      }
+    }
+  }
 
   content += `  const response = await fetch(\`\${globalConfig.baseURL}\${url}\`, {\n`;
   content += `    ...options,\n`;

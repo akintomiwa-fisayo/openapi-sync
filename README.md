@@ -50,6 +50,124 @@ npx openapi-sync
 
 > ⚠️ **macOS Big Sur Users:** If you encounter an esbuild error (`Symbol not found: _SecTrustCopyCertificateChain`), install `esbuild@0.17.19` first. See [Troubleshooting](#troubleshooting) for details.
 
+---
+
+## 🤖 Using with AI Agents
+
+All CLI commands and programmatic APIs are **agent-safe** — no interactive prompts, fully non-blocking. Use `--json` for machine-readable output and `--silent` to suppress logs.
+
+> **Full agent reference:** [`llms.txt`](./llms.txt) — a structured discovery file for LLMs, Copilots, and MCP tools.
+
+### Agent Quick-Start (no prompts)
+
+```bash
+# 1. Create config (all settings as flags — no stdin required)
+npx openapi-sync init --no-interactive \
+  --api-name petstore \
+  --api-url https://petstore3.swagger.io/api/v3/openapi.json \
+  --output-folder ./src/api \
+  --client-type react-query \
+  --validation-library zod \
+  --config-format typescript \
+  --json
+
+# 2. Validate config + specs before writing any files
+npx openapi-sync validate --json
+
+# 3. Sync — generate types, endpoints, and schemas
+npx openapi-sync --json
+
+# 4. Generate a typed API client
+npx openapi-sync generate-client --type react-query --json
+```
+
+### Machine-Readable Output (`--json`)
+
+Every command emits a single JSON object when `--json` is passed:
+
+```bash
+$ npx openapi-sync --json
+{
+  "success": true,
+  "apis": ["petstore"],
+  "filesWritten": ["src/api/petstore/types.ts", "src/api/petstore/endpoints.ts"],
+  "endpointCount": 20,
+  "warnings": [],
+  "errors": []
+}
+```
+
+```bash
+$ npx openapi-sync validate --json
+{
+  "valid": true,
+  "apis": { "petstore": { "valid": true, "endpointCount": 20 } },
+  "configErrors": []
+}
+```
+
+```bash
+$ npx openapi-sync list-endpoints --json
+{
+  "petstore": [
+    { "name": "getPetById", "method": "GET", "path": "/pet/{petId}", "tags": ["pet"], "summary": "Find pet by ID" },
+    { "name": "addPet", "method": "POST", "path": "/pet", "tags": ["pet"], "summary": "Add a new pet" }
+  ]
+}
+```
+
+### Dry Run (preview without writing files)
+
+```bash
+npx openapi-sync --dry-run --json
+npx openapi-sync generate-client --type fetch --dry-run --json
+```
+
+### Programmatic API (TypeScript)
+
+```typescript
+import { ValidateConfig, Init, GenerateClient, ListEndpoints } from "openapi-sync";
+
+// Pre-flight check — no files written
+const validation = await ValidateConfig({ silent: true });
+if (!validation.valid) throw new Error(JSON.stringify(validation));
+
+// Inspect API surface
+const endpoints = await ListEndpoints({ apiName: "petstore", silent: true });
+console.log(endpoints.petstore.length, "endpoints found");
+
+// Sync and get structured result
+const syncResult = await Init({ silent: true });
+if (!syncResult.success) throw new Error(JSON.stringify(syncResult));
+console.log("Files written:", syncResult.filesWritten);
+
+// Generate client
+const clientResult = await GenerateClient({ type: "react-query", silent: true });
+console.log(JSON.stringify(clientResult));
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Config error or validation failed |
+| `2` | Network / spec fetch error |
+| `3` | Generation / file write error |
+
+### Agent-safe vs Interactive Commands
+
+| Command | Agent-safe? |
+|---------|------------|
+| `npx openapi-sync` | ✅ |
+| `npx openapi-sync validate` | ✅ |
+| `npx openapi-sync list-endpoints` | ✅ |
+| `npx openapi-sync generate-client` | ✅ |
+| `npx openapi-sync init --no-interactive` | ✅ |
+| `npx openapi-sync init` (no flag) | ❌ Requires stdin |
+
+---
+
 ## Quick Start
 
 ### Option 1: Interactive Setup (Recommended) 🎯
@@ -342,6 +460,89 @@ For complete documentation including:
 - **Troubleshooting** - Common issues and solutions
 
 **Visit [openapi-sync.com](https://openapi-sync.com)**
+
+---
+
+## 🔌 MCP Server (Model Context Protocol)
+
+`openapi-sync` ships a built-in MCP server that exposes all operations as **structured tool calls**. AI agents (Claude Desktop, Cursor, Copilot, and any MCP-compatible host) can call sync, validate, and generate operations directly — no CLI parsing needed.
+
+### Starting the server
+
+```bash
+# Via npx (no global install required — recommended)
+npx openapi-sync-mcp
+
+# Or if installed globally
+openapi-sync-mcp
+```
+
+> The server uses **stdio transport** — it reads JSON-RPC from stdin and writes responses to stdout. The `cwd` of the process is used as the project root for all operations.
+
+### Claude Desktop configuration
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "/path/to/your/project"
+    }
+  }
+}
+```
+
+### Cursor configuration
+
+Create `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+### Available MCP tools
+
+| Tool | Description |
+|------|-------------|
+| `openapi_sync_read_config` | Read the current config file — start here to understand what's configured |
+| `openapi_sync_validate` | Validate config + specs without writing any files |
+| `openapi_sync_list_endpoints` | List all endpoints from specs — inspect API surface before generating |
+| `openapi_sync_sync` | Generate types, endpoints, and validation schemas |
+| `openapi_sync_generate_client` | Generate a typed API client (fetch, axios, react-query, swr, rtk-query) |
+| `openapi_sync_init` | Create an openapi.sync config file (non-interactive, no prompts) |
+
+### Typical agent workflow via MCP
+
+```
+1. openapi_sync_read_config    → check if config exists
+2. openapi_sync_init           → create config if needed (non-interactive)
+3. openapi_sync_validate       → confirm specs are reachable and valid
+4. openapi_sync_list_endpoints → inspect endpoints, decide on filters
+5. openapi_sync_sync           → generate types + schemas
+6. openapi_sync_generate_client type=react-query → generate typed client
+```
+
+### Tool input/output types
+
+All tools return JSON-serialized versions of the same structured types used by the programmatic API:
+
+- `openapi_sync_sync` → [`SyncResult`](#structured-return-types)
+- `openapi_sync_generate_client` → [`SyncResult`](#structured-return-types)
+- `openapi_sync_validate` → [`ValidationResult`](#structured-return-types)
+- `openapi_sync_list_endpoints` → `Record<string, EndpointSummary[]>`
+- `openapi_sync_init` → `{ success, configFile, message, errors }`
+- `openapi_sync_read_config` → `{ found, file, path, content }`
 
 ---
 

@@ -1,0 +1,396 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openapi-sync.com/schema/openapi.sync.schema.json",
+  "title": "openapi-sync Configuration",
+  "description": "Configuration schema for openapi-sync (openapi.sync.json / openapi.sync.ts / openapi.sync.js). See https://openapi-sync.com for full documentation.",
+  "type": "object",
+  "required": ["api"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference (for editor autocomplete)"
+    },
+    "language": {
+      "type": "string",
+      "enum": ["typescript", "python"],
+      "default": "typescript",
+      "description": "Output language for generated types"
+    },
+    "refetchInterval": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Interval in milliseconds to automatically re-fetch and re-sync specs. Omit or set to 0 to disable auto-sync."
+    },
+    "folder": {
+      "type": "string",
+      "default": "api",
+      "description": "Root output folder for all generated files (relative to project root)"
+    },
+    "api": {
+      "type": "object",
+      "description": "Map of API names to their OpenAPI spec URLs or local file paths. At least one entry is required.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "description": "URL (https://...) or relative file path to the OpenAPI spec (JSON or YAML)"
+      },
+      "examples": [
+        { "petstore": "https://petstore3.swagger.io/api/v3/openapi.json" },
+        { "myapi": "./api/openapi.yaml" }
+      ]
+    },
+    "server": {
+      "oneOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "string" }
+      ],
+      "description": "Server index (0-based) or explicit base URL to use from the spec's servers array"
+    },
+    "folderSplit": {
+      "type": "object",
+      "description": "Controls how generated files are organized into sub-folders",
+      "additionalProperties": false,
+      "properties": {
+        "byTags": {
+          "type": "boolean",
+          "description": "When true, creates a sub-folder for each OpenAPI tag and places related types/endpoints/validations inside"
+        }
+      }
+    },
+    "customCode": {
+      "type": "object",
+      "description": "Controls preservation of custom code between regeneration runs",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable custom code preservation markers in generated files"
+        },
+        "position": {
+          "type": "string",
+          "enum": ["top", "bottom", "both"],
+          "default": "bottom",
+          "description": "Where to place the custom code marker block in each generated file"
+        },
+        "markerText": {
+          "type": "string",
+          "default": "CUSTOM CODE",
+          "description": "Text used in the custom code marker comments"
+        },
+        "includeInstructions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include human-readable instructions inside the marker block"
+        }
+      }
+    },
+    "validations": {
+      "type": "object",
+      "description": "Configuration for runtime validation schema generation",
+      "additionalProperties": false,
+      "properties": {
+        "disable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable validation schema generation entirely"
+        },
+        "library": {
+          "type": "string",
+          "enum": ["zod", "yup", "joi"],
+          "description": "Validation library to generate schemas for"
+        },
+        "generate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "query": {
+              "type": "boolean",
+              "default": true,
+              "description": "Generate validation schemas for query parameters"
+            },
+            "dto": {
+              "type": "boolean",
+              "default": true,
+              "description": "Generate validation schemas for request bodies (DTOs)"
+            }
+          }
+        },
+        "name": {
+          "type": "object",
+          "description": "Naming configuration for generated validation schemas",
+          "additionalProperties": false,
+          "properties": {
+            "prefix": { "type": "string" },
+            "suffix": { "type": "string" },
+            "useOperationId": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "clientGeneration": {
+      "type": "object",
+      "description": "Configuration for generating type-safe API clients",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable API client generation"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["fetch", "axios", "react-query", "swr", "rtk-query"],
+          "description": "Client framework to generate"
+        },
+        "outputDir": {
+          "type": "string",
+          "description": "Output directory for generated client files"
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "Base URL baked into the generated client (can be overridden at runtime)"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Only generate client methods for endpoints with these tags"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Only generate client methods for these specific endpoint names/operationIds"
+        },
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prefix": { "type": "string" },
+            "suffix": { "type": "string" },
+            "useOperationId": { "type": "boolean" }
+          }
+        },
+        "reactQuery": {
+          "type": "object",
+          "description": "React Query specific options",
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "type": "number",
+              "enum": [4, 5],
+              "default": 5
+            },
+            "mutations": {
+              "type": "boolean",
+              "default": true,
+              "description": "Generate mutation hooks for POST/PUT/PATCH/DELETE"
+            },
+            "infiniteQueries": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "disable": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "swr": {
+          "type": "object",
+          "description": "SWR specific options",
+          "additionalProperties": false,
+          "properties": {
+            "mutations": {
+              "type": "boolean",
+              "default": true
+            },
+            "infiniteQueries": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "disable": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "rtkQuery": {
+          "type": "object",
+          "description": "RTK Query specific options",
+          "additionalProperties": false,
+          "properties": {
+            "apiName": { "type": "string" },
+            "baseQuery": {
+              "type": "string",
+              "enum": ["fetchBaseQuery", "axiosBaseQuery"]
+            }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "description": "Authentication configuration for the generated client",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["bearer", "apiKey", "basic", "oauth2"]
+            },
+            "in": {
+              "type": "string",
+              "enum": ["header", "query", "cookie"]
+            },
+            "name": { "type": "string" }
+          }
+        },
+        "errorHandling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "generateErrorClasses": {
+              "type": "boolean",
+              "default": false,
+              "description": "Generate typed ApiError classes in the client"
+            },
+            "customHandler": { "type": "string" }
+          }
+        }
+      }
+    },
+    "types": {
+      "type": "object",
+      "description": "Configuration for TypeScript type generation",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prefix": {
+              "type": "string",
+              "default": "I",
+              "description": "Prefix added to all generated interface names (e.g. 'I' → IPet)"
+            },
+            "useOperationId": {
+              "type": "boolean",
+              "default": false,
+              "description": "Use the operationId from the spec to name types instead of path+method"
+            }
+          }
+        },
+        "doc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "disable": { "type": "boolean" },
+            "showCurl": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "description": "Configuration for endpoint function generation",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "includeServer": { "type": "boolean" },
+            "type": {
+              "type": "string",
+              "enum": ["string", "object"]
+            },
+            "replaceWords": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["replace", "with"],
+                "additionalProperties": false,
+                "properties": {
+                  "replace": { "type": "string" },
+                  "with": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prefix": { "type": "string" },
+            "useOperationId": { "type": "boolean" }
+          }
+        },
+        "doc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "disable": { "type": "boolean" },
+            "showCurl": {
+              "type": "boolean",
+              "description": "Include a cURL example in the generated JSDoc for each endpoint"
+            }
+          }
+        },
+        "exclude": {
+          "type": "object",
+          "description": "Endpoints matching these criteria will be excluded from generation",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Exclude all endpoints with any of these tags (e.g. [\"deprecated\", \"internal\"])"
+            },
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": { "type": "string" },
+                  "regex": { "type": "string" },
+                  "method": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "include": {
+          "type": "object",
+          "description": "When set, only endpoints matching these criteria will be generated",
+          "additionalProperties": false,
+          "properties": {
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": { "type": "string" },
+                  "regex": { "type": "string" },
+                  "method": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "api": {
+        "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
+      },
+      "folder": "./src/api",
+      "validations": { "library": "zod" },
+      "clientGeneration": { "enabled": true, "type": "react-query" }
+    }
+  ]
+}

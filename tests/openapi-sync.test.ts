@@ -562,7 +562,7 @@ describe("OpenapiSync", () => {
   describe("Refetch Interval", () => {
     it("should set up refetch interval in development", async () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       await OpenapiSync(
         "https://petstore3.swagger.io/api/v3/openapi.json",
@@ -573,12 +573,12 @@ describe("OpenapiSync", () => {
 
       expect(mockedAxios.create).toHaveBeenCalled();
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should not set up refetch interval in production", async () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
 
       await OpenapiSync(
         "https://petstore3.swagger.io/api/v3/openapi.json",
@@ -589,7 +589,7 @@ describe("OpenapiSync", () => {
 
       expect(mockedAxios.create).toHaveBeenCalled();
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
   });
 

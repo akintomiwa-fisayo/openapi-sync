@@ -336,7 +336,7 @@ describe.skip("Integration Tests", () => {
 
     it("should handle environment-based configuration", async () => {
       const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
 
       const config = {
         refetchInterval: 5000,
@@ -352,7 +352,7 @@ describe.skip("Integration Tests", () => {
 
       expect(mockedAxios.create).toHaveBeenCalled();
 
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("should handle missing configuration gracefully", async () => {
