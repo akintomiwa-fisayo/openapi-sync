@@ -1,0 +1,334 @@
+# openapi-sync
+
+A CLI + Node.js library that generates TypeScript types, fully-typed API clients,
+and runtime validation schemas from OpenAPI (Swagger) specifications.
+
+Supports: TypeScript, Python, Fetch, Axios, React Query, SWR, RTK Query, Zod, Yup, Joi.
+npm: https://www.npmjs.com/package/openapi-sync
+Docs: https://openapi-sync.com
+GitHub: https://github.com/akintomiwa-fisayo/openapi-sync
+
+
+## AGENT QUICK-START
+
+Minimum working setup (no interactive prompts needed):
+
+```bash
+# 1. Create config (agent-safe, no prompts)
+npx openapi-sync init --no-interactive \
+  --api-name petstore \
+  --api-url https://petstore3.swagger.io/api/v3/openapi.json \
+  --output-folder ./src/api \
+  --config-format typescript
+
+# 2. Validate config and spec before writing any files
+npx openapi-sync validate --json
+
+# 3. Sync — generates types, endpoints, validation schemas
+npx openapi-sync --json
+
+# 4. (Optional) generate a typed API client
+npx openapi-sync generate-client --type react-query --json
+```
+
+All commands support `--json` (machine-readable stdout) and exit codes:
+  0 = success | 1 = config/validation error | 2 = network error | 3 = generation error
+
+
+## CLI COMMANDS
+
+### Agent-safe commands (no stdin required)
+
+| Command | Description |
+|---------|-------------|
+| `npx openapi-sync` | Sync specs, generate types + endpoints + schemas |
+| `npx openapi-sync validate` | Validate config + specs; no files written |
+| `npx openapi-sync list-endpoints` | List all endpoints from spec; no files written |
+| `npx openapi-sync generate-client --type <TYPE>` | Generate typed API client |
+| `npx openapi-sync init --no-interactive [FLAGS]` | Create config file without prompts |
+
+### Interactive-only (requires human stdin — NOT safe for agents)
+
+| Command | Description |
+|---------|-------------|
+| `npx openapi-sync init` | Interactive wizard |
+
+### Global flags (all commands)
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Emit a single JSON object to stdout; suppress emoji logs |
+| `--silent` | Suppress all console output |
+| `--dry-run` | Show what would be written without writing (sync, generate-client) |
+| `--help, -h` | Help |
+| `--version, -v` | Version |
+
+### `init` flags (used with `--no-interactive`)
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--api-name` | `"myapi"` | API key in config |
+| `--api-url` | — | URL to OpenAPI spec |
+| `--api-file` | — | Path to local spec file |
+| `--output-folder` | `"./src/api"` | Generated files output |
+| `--config-format` | `"typescript"` | `typescript`, `json`, `javascript` |
+| `--client-type` | — | `react-query`, `swr`, `fetch`, `axios`, `rtk-query` |
+| `--validation-library` | — | `zod`, `yup`, `joi` |
+| `--folder-split` | `false` | Organise by OpenAPI tags |
+| `--types-prefix` | `"I"` | TS interface name prefix |
+| `--use-operation-id` | `true` | Use operationId for names |
+| `--exclude-tags` | — | Comma-separated tags to exclude |
+| `--show-curl` | `true` | Include cURL in JSDoc |
+| `--refetch-interval` | `0` | Auto-refetch ms (0=disabled) |
+| `--run-sync` | `false` | Run sync after config creation |
+
+### `generate-client` flags
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--type` | `-t` | Client type (required) |
+| `--api` | `-a` | Specific API from config |
+| `--tags` | | Filter endpoints by tags |
+| `--endpoints` | `-e` | Filter by endpoint names |
+| `--output` | `-o` | Output directory |
+| `--base-url` | `-b` | Base URL baked into client |
+
+### `list-endpoints` flags
+
+| Flag | Description |
+|------|-------------|
+| `--api` | Limit to a specific API |
+| `--tags` | Comma-separated tag filter |
+
+
+## PROGRAMMATIC API
+
+All functions are exported from the `openapi-sync` package.
+
+```typescript
+import {
+  Init,            // Sync specs → types, endpoints, schemas
+  GenerateClient,  // Generate typed API client
+  ValidateConfig,  // Pre-flight check (no file writes)
+  ListEndpoints,   // Inspect API surface (no file writes)
+  InteractiveInit, // NOT agent-safe — requires stdin
+} from "openapi-sync";
+```
+
+### Init(options?) → Promise<SyncResult>
+Agent-safe. Returns SyncResult.
+
+```typescript
+const result = await Init({ silent: true });
+// result: { success, apis, filesWritten, endpointCount, warnings, errors }
+```
+
+### GenerateClient(options) → Promise<SyncResult>
+Agent-safe. Syncs then generates a typed client.
+
+```typescript
+const result = await GenerateClient({
+  type: "react-query",    // "fetch"|"axios"|"react-query"|"swr"|"rtk-query"
+  apiName: "petstore",    // optional; defaults to all APIs
+  baseURL: "https://api.example.com",
+  tags: ["pets"],         // optional tag filter
+  silent: true,
+});
+```
+
+### ValidateConfig(options?) → Promise<ValidationResult>
+Agent-safe. No files written.
+
+```typescript
+const validation = await ValidateConfig({ silent: true });
+// validation: { valid, apis: { [name]: { valid, endpointCount, error? } }, configErrors }
+if (!validation.valid) process.exit(1);
+```
+
+### ListEndpoints(options?) → Promise<Record<string, EndpointSummary[]>>
+Agent-safe. No files written.
+
+```typescript
+const map = await ListEndpoints({ apiName: "petstore", tags: ["pet"] });
+// map: { petstore: [{ name, method, path, operationId, tags, summary }] }
+```
+
+### InteractiveInit() → Promise<void>
+NOT agent-safe — blocks on stdin prompts.
+Use CLI `init --no-interactive` instead.
+
+
+## CONFIG FILE FORMAT
+
+Config file: `openapi.sync.ts` | `openapi.sync.js` | `openapi.sync.json`
+JSON Schema: https://openapi-sync.com/schema/openapi.sync.schema.json
+
+### Minimal config
+
+```json
+{
+  "folder": "./src/api",
+  "api": {
+    "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
+  }
+}
+```
+
+### Full TypeScript config
+
+```typescript
+import { IConfig } from "openapi-sync";
+const config: IConfig = {
+  folder: "./src/api",
+  api: { petstore: "https://petstore3.swagger.io/api/v3/openapi.json" },
+  refetchInterval: 5000,
+  language: "typescript",           // "typescript" | "python"
+  folderSplit: { byTags: true },
+  types: { name: { prefix: "I", useOperationId: true } },
+  endpoints: {
+    doc: { showCurl: true },
+    exclude: { tags: ["deprecated"] },
+  },
+  validations: { library: "zod" },  // "zod" | "yup" | "joi"
+  clientGeneration: {
+    enabled: true,
+    type: "react-query",            // "fetch"|"axios"|"react-query"|"swr"|"rtk-query"
+    baseURL: "https://api.example.com",
+    reactQuery: { version: 5, mutations: true },
+  },
+  customCode: { enabled: true, position: "bottom" },
+};
+export default config;
+```
+
+### Key IConfig fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `api` | `Record<string, string>` | **Required.** Map of API name → spec URL or file path |
+| `folder` | `string` | Output folder (default: `"api"`) |
+| `language` | `"typescript"\|"python"` | Output language |
+| `refetchInterval` | `number` | Auto-refetch ms |
+| `folderSplit.byTags` | `boolean` | Split output by OpenAPI tags |
+| `validations.library` | `"zod"\|"yup"\|"joi"` | Validation schema library |
+| `clientGeneration.type` | string | Client type to generate |
+| `clientGeneration.baseURL` | `string` | Base URL for generated client |
+| `endpoints.exclude.tags` | `string[]` | Tags to exclude from generation |
+
+
+## STRUCTURED RETURN TYPES
+
+### SyncResult (returned by Init, GenerateClient)
+
+```typescript
+type SyncResult = {
+  success: boolean;
+  apis: string[];
+  filesWritten: string[];
+  endpointCount: number;
+  warnings: string[];
+  errors: string[];
+};
+```
+
+### ValidationResult (returned by ValidateConfig)
+
+```typescript
+type ValidationResult = {
+  valid: boolean;
+  apis: Record<string, { valid: boolean; endpointCount: number; error?: string }>;
+  configErrors: string[];
+};
+```
+
+### EndpointSummary (items in ListEndpoints result)
+
+```typescript
+type EndpointSummary = {
+  name: string;
+  method: string;
+  path: string;
+  operationId?: string;
+  tags?: string[];
+  summary?: string;
+};
+```
+
+
+## GENERATED FILE STRUCTURE
+
+```
+./src/api/
+  {apiName}/
+    types.ts          ← TypeScript interfaces for all schemas
+    endpoints.ts      ← Typed endpoint URL builder functions
+    shared.ts         ← Shared component types
+    validations.ts    ← Zod/Yup/Joi schemas (if enabled)
+    client/
+      client.ts       ← Fetch/Axios client instance
+      hooks.ts        ← React Query / SWR hooks (if enabled)
+```
+
+When `folderSplit.byTags` is true, types/endpoints/validations are split into
+tag-named subdirectories with aggregator index files for easy imports.
+
+
+## ERROR CODES (typed errors)
+
+| Code | Class | Trigger |
+|------|-------|---------|
+| `CONFIG_NOT_FOUND` | ConfigNotFoundError | No config file in cwd |
+| `CONFIG_PARSE_FAILED` | ConfigParseError | Config file parse error |
+| `CONFIG_INVALID` | ConfigValidationError | Bad config field value |
+| `SPEC_FETCH_FAILED` | SpecFetchError | Network error fetching spec |
+| `SPEC_READ_FAILED` | SpecReadError | Local file read error |
+| `SPEC_PARSE_FAILED` | SpecParseError | Not a valid OpenAPI spec |
+| `GENERATION_FAILED` | GenerationError | File write error |
+| `UNKNOWN_API` | UnknownApiError | API name not in config |
+
+All error classes extend `OpenApiSyncError` and expose `.code`, `.message`, and `.toJSON()`.
+
+
+## COMMON AGENT WORKFLOWS
+
+### Workflow 1: First-time setup
+
+```bash
+npx openapi-sync init --no-interactive \
+  --api-name myapi \
+  --api-url https://api.example.com/openapi.json \
+  --output-folder ./src/api \
+  --client-type react-query \
+  --validation-library zod \
+  --config-format typescript \
+  --json
+npx openapi-sync validate --json
+npx openapi-sync --json
+npx openapi-sync generate-client --type react-query --json
+```
+
+### Workflow 2: Inspect before generating
+
+```bash
+# See what endpoints exist before committing to a client type
+npx openapi-sync list-endpoints --json | jq '.petstore | map(.method + " " + .path)'
+
+# Preview what would be written
+npx openapi-sync --dry-run --json
+npx openapi-sync generate-client --type fetch --dry-run --json
+```
+
+### Workflow 3: Programmatic (TypeScript)
+
+```typescript
+import { ValidateConfig, Init, GenerateClient } from "openapi-sync";
+
+const validation = await ValidateConfig({ silent: true });
+if (!validation.valid) throw new Error(JSON.stringify(validation));
+
+const syncResult = await Init({ silent: true });
+if (!syncResult.success) throw new Error(JSON.stringify(syncResult));
+
+const clientResult = await GenerateClient({ type: "axios", silent: true });
+console.log(JSON.stringify(clientResult));
+```
