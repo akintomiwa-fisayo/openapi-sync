@@ -4,32 +4,33 @@ import {
   FiSettings,
   FiShield,
   FiCheckCircle,
-  FiBook,
   FiLayers,
   FiZap,
   FiPackage,
+  FiCpu,
+  FiTerminal,
 } from "react-icons/fi";
 
 const features = [
   {
+    icon: FiCpu,
+    title: "AI Agent Ready (MCP)",
+    description:
+      "Built-in Model Context Protocol server lets Claude, Cursor, Copilot, and other AI agents safely invoke sync operations as structured tool calls — no custom scripts needed.",
+    color: "text-violet-600",
+    bgColor: "bg-violet-100",
+  },
+  {
     icon: FiPackage,
     title: "API Client Generation",
     description:
-      "Generate fully-typed API clients and hooks for Fetch, Axios, React Query, SWR, and RTK Query with comprehensive inline documentation, ESLint compliance, and simplified Redux setup (v5.0.0).",
+      "Generate fully-typed API clients and hooks for Fetch, Axios, React Query, SWR, and RTK Query with comprehensive inline documentation and ESLint compliance.",
     color: "text-blue-600",
     bgColor: "bg-blue-100",
   },
   {
-    icon: FiCode,
-    title: "Python Type Generation",
-    description:
-      "Generate Python dataclass types from your OpenAPI specifications alongside TypeScript.",
-    color: "text-green-600",
-    bgColor: "bg-green-100",
-  },
-  {
     icon: FiCheckCircle,
-    title: "Powerful Runtime Validation",
+    title: "Runtime Validation",
     description:
       "Generate validation schemas using Zod, Yup, or Joi with full support for all OpenAPI data types, constraints, formats, and patterns.",
     color: "text-red-600",
@@ -39,7 +40,7 @@ const features = [
     icon: FiRefreshCw,
     title: "Real-time Synchronization",
     description:
-      "Automatically fetches and syncs OpenAPI specifications from remote URLs with configurable refetch intervals.",
+      "Automatically fetches and syncs OpenAPI specifications from remote URLs with configurable refetch intervals and environment-aware auto-sync.",
     color: "text-rose-600",
     bgColor: "bg-rose-100",
   },
@@ -47,15 +48,23 @@ const features = [
     icon: FiCode,
     title: "TypeScript Type Generation",
     description:
-      "Generates TypeScript interfaces for all endpoints with support for complex nested objects, arrays, and unions.",
+      "Generates TypeScript interfaces for all endpoints with support for complex nested objects, arrays, unions, and operationId-based naming.",
     color: "text-orange-600",
     bgColor: "bg-orange-100",
+  },
+  {
+    icon: FiTerminal,
+    title: "Programmatic API & CI/CD",
+    description:
+      "Use the fully-typed Node.js API or the --json CLI flag for machine-readable output, making it easy to integrate into complex build pipelines and agent workflows.",
+    color: "text-teal-600",
+    bgColor: "bg-teal-100",
   },
   {
     icon: FiSettings,
     title: "Highly Configurable",
     description:
-      "Customize naming conventions, exclude/include endpoints, folder splitting, and URL transformations.",
+      "Customize naming conventions, exclude/include endpoints, folder splitting, headers, and URL transformations via JSON, TypeScript, or JavaScript config files.",
     color: "text-purple-600",
     bgColor: "bg-purple-100",
   },
@@ -63,23 +72,15 @@ const features = [
     icon: FiShield,
     title: "Enterprise Ready",
     description:
-      "Network error handling with exponential backoff, schema validation, and environment-aware auto-sync.",
+      "Network error handling with exponential backoff, schema validation, and reliable config loading for production environments.",
     color: "text-green-600",
     bgColor: "bg-green-100",
   },
-  // {
-  //   icon: FiBook,
-  //   title: "Rich Documentation",
-  //   description:
-  //     "Generates comprehensive JSDoc comments with cURL examples, security schemes, and type references.",
-  //   color: "text-pink-600",
-  //   bgColor: "bg-pink-100",
-  // },
   {
     icon: FiLayers,
     title: "Folder Splitting",
     description:
-      "Organize generated code by tags, custom logic, or method-based splitting for better code organization.",
+      "Organize generated code by tags, custom logic, or method-based splitting for better code organization across large projects.",
     color: "text-indigo-600",
     bgColor: "bg-indigo-100",
   },
@@ -87,7 +88,7 @@ const features = [
     icon: FiZap,
     title: "Custom Code Preservation",
     description:
-      "Add your own custom code that survives regeneration with special comment markers.",
+      "Add your own custom code that survives regeneration with configurable comment markers — never lose your customizations.",
     color: "text-yellow-600",
     bgColor: "bg-yellow-100",
   },

@@ -38,7 +38,6 @@ const sections: NavSection[] = [
   },
   {
     title: "🚀 Client Generation",
-    badge: "v5.0.0",
     links: [
       {
         id: "client-generation",
@@ -74,10 +73,10 @@ const sections: NavSection[] = [
   },
   {
     title: "Usage & CLI",
-    badge: "v5.0.0",
     links: [
       { id: "cli-usage", label: "CLI Commands" },
       { id: "programmatic-usage", label: "Programmatic API" },
+      { id: "mcp-integration", label: "AI Agent (MCP)", icon: "🤖" },
     ],
   },
   {
