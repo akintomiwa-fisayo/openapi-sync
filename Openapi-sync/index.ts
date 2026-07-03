@@ -62,7 +62,7 @@ axiosRetry(apiClient, {
  * @param {string} filePath - Absolute path to the file to write
  * @param {string} generatedContent - Newly generated content
  * @param {IConfig} config - OpenAPI sync configuration containing custom code settings
- * @returns {Promise<void>}
+ * @returns {Promise<string>} The absolute path of the file that was written
  * @throws {Error} When file write operations fail
  *
  * @internal
@@ -71,14 +71,14 @@ const writeFileWithCustomCode = async (
 	filePath: string,
 	generatedContent: string,
 	config: IConfig,
-): Promise<void> => {
+): Promise<string> => {
 	// Check if custom code preservation is enabled (default: true)
 	const customCodeEnabled = config?.customCode?.enabled !== false;
 
 	if (!customCodeEnabled) {
 		// No custom code preservation - just write the file directly
 		await fs.promises.writeFile(filePath, generatedContent);
-		return;
+		return filePath;
 	}
 
 	// Read existing file if it exists
@@ -100,6 +100,7 @@ const writeFileWithCustomCode = async (
 
 	// Write the merged content
 	await fs.promises.writeFile(filePath, finalContent);
+	return filePath;
 };
 
 /**
@@ -192,8 +193,11 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	}
 
 	if (!specData) {
-		return;
+		return { success: false, filesWritten: [], warnings: [] };
 	}
+
+	const writtenFiles: string[] = [];
+
 
 	const source = isJson(specData) ? specData : yamlStringToJson(specData);
 
@@ -318,6 +322,13 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					// For OpenAPI 3.x: ["components", "schemas", "Pet"]
 					const isSwagger2 = pathToComponentParts[0] === "definitions";
 
+					// A "deep" $ref points into a nested property beyond a top-level component,
+					// e.g. #/components/schemas/Dashboard/properties/kpis (5 parts).
+					// Top-level refs are exactly 3 parts: ["components", "schemas", "Name"] or
+					// 2 parts for Swagger 2: ["definitions", "Name"].
+					const topLevelDepth = isSwagger2 ? 2 : 3;
+					const isDeepRef = pathToComponentParts.length > topLevelDepth;
+
 					const partsClone = [...pathToComponentParts];
 					partsClone.pop();
 
@@ -329,28 +340,35 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					) as IOpenApSchemaSpec;
 
 					if (component) {
-						if ((component as any)?.name) {
-							overrideName = (component as any).name;
-						}
-						componentName =
-							pathToComponentParts[pathToComponentParts.length - 1];
+						if (isDeepRef) {
+							// Deep pointer (e.g. into /properties/…): inline the resolved schema
+							// instead of emitting a named reference that was never declared.
+							type += parseSchemaToType(apiDoc, component, "", isRequired, {
+								...options,
+								useComponentName: false,
+							}, indentLevel);
+						} else {
+							if ((component as any)?.name) {
+								overrideName = (component as any).name;
+							}
+							componentName =
+								pathToComponentParts[pathToComponentParts.length - 1];
 
-						let name = getSharedComponentName(componentName);
-						if (name.includes(".")) {
-							const nameParts = name.split(".");
-							name = nameParts
-								.map((part, i) => {
-									if (i === 0) {
-										return part;
-									}
-									return `["${part}"]`;
-								})
-								.join("");
+							let name = getSharedComponentName(componentName);
+							if (name.includes(".")) {
+								const nameParts = name.split(".");
+								name = nameParts
+									.map((part, i) => {
+										if (i === 0) {
+											return part;
+										}
+										return `["${part}"]`;
+									})
+									.join("");
+							}
+							// Reference component via import instead of parsing
+							type += `${options?.noSharedImport ? "" : "Shared."}${name}`;
 						}
-
-						// Reference component via import instead of parsing
-						type += `${options?.noSharedImport ? "" : "Shared."}${name}`;
-						// type += `${parseSchemaToType(apiDoc, component, "", isRequired)}`;
 					}
 				} else {
 					type += "";
@@ -564,6 +582,10 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 
 					const isSwagger2 = pathToComponentParts[0] === "definitions";
 
+					// A "deep" $ref points into a nested property beyond a top-level component.
+					const topLevelDepth = isSwagger2 ? 2 : 3;
+					const isDeepRef = pathToComponentParts.length > topLevelDepth;
+
 					const partsClone = [...pathToComponentParts];
 					partsClone.pop();
 
@@ -575,18 +597,27 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					) as IOpenApSchemaSpec;
 
 					if (component) {
-						if ((component as any)?.name) {
-							overrideName = (component as any).name;
-						}
-						componentName =
-							pathToComponentParts[pathToComponentParts.length - 1];
+						if (isDeepRef) {
+							// Deep pointer: inline the resolved schema to avoid emitting an
+							// undeclared named reference (e.g. IKpis that was never defined).
+							type += parseSchemaToPythonType(apiDoc, component, "", isRequired, {
+								...options,
+								useComponentName: false,
+							}, indentLevel);
+						} else {
+							if ((component as any)?.name) {
+								overrideName = (component as any).name;
+							}
+							componentName =
+								pathToComponentParts[pathToComponentParts.length - 1];
 
-						let cname = getSharedComponentName(componentName);
-						if (cname.includes(".")) {
-							cname = cname.split(".").join("_");
-						}
+							let cname = getSharedComponentName(componentName);
+							if (cname.includes(".")) {
+								cname = cname.split(".").join("_");
+							}
 
-						type += `${options?.noSharedImport ? "" : "Shared."}${cname}`;
+							type += `${options?.noSharedImport ? "" : "Shared."}${cname}`;
+						}
 					}
 				} else {
 					type += "Any";
@@ -1821,9 +1852,12 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 			}
 
 			// Generate DTO validation inline (right after DTO types)
+			// Validation generation is strictly opt-in: the user must have an explicit
+			// `validations` block in their config.
 			if (
-				config?.validations?.disable !== true &&
-				config?.validations?.generate?.dto !== false &&
+				config?.validations &&
+				config.validations.disable !== true &&
+				config.validations?.generate?.dto !== false &&
 				requestBody
 			) {
 				const validationLibrary = config.validations?.library || "zod";
@@ -2243,11 +2277,11 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					await fs.promises.mkdir(path.dirname(endpointsFilePath), {
 						recursive: true,
 					});
-					await writeFileWithCustomCode(
+					writtenFiles.push(await writeFileWithCustomCode(
 						endpointsFilePath,
 						isPython ? `${pythonEndpointsHeader}${group.endpoints}` : group.endpoints,
 						config,
-					);
+					));
 				}
 
 				// Write types file
@@ -2268,12 +2302,13 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 								: `import * as Shared from "../shared";\n\n${group.types}`
 							: group.types;
 
-					await writeFileWithCustomCode(typesFilePath, typesContent, config);
+					writtenFiles.push(await writeFileWithCustomCode(typesFilePath, typesContent, config));
 				}
 
-				// Write validation file (inline generation)
+				// Write validation file (inline generation) — only when explicitly configured
 				if (
-					config?.validations?.disable !== true &&
+					config?.validations &&
+					config.validations.disable !== true &&
 					group.validation &&
 					!isPython
 				) {
@@ -2316,11 +2351,11 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		await fs.promises.mkdir(path.dirname(endpointsFilePath), {
 			recursive: true,
 		});
-		await writeFileWithCustomCode(
+		writtenFiles.push(await writeFileWithCustomCode(
 			endpointsFilePath,
 			isPython ? `${pythonEndpointsHeader}${endpointsFileContent}` : endpointsFileContent,
 			config,
-		);
+		));
 	}
 	if (Object.values(sharedTypesFileContent).length > 0) {
 		const sharedTypesBody = Object.values(sharedTypesFileContent).join("\n");
@@ -2333,13 +2368,13 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		await fs.promises.mkdir(path.dirname(sharedTypesFilePath), {
 			recursive: true,
 		});
-		await writeFileWithCustomCode(
+		writtenFiles.push(await writeFileWithCustomCode(
 			sharedTypesFilePath,
 			(isPython
 				? `from __future__ import annotations\nfrom dataclasses import dataclass\n${getPythonTypingImportLine(sharedTypesBody)}\n`
 				: "") + sharedTypesBody,
 			config,
-		);
+		));
 	}
 
 	if (typesFileContent.length > 0) {
@@ -2350,7 +2385,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 			`index.${ext}`,
 		);
 		await fs.promises.mkdir(path.dirname(typesFilePath), { recursive: true });
-		await writeFileWithCustomCode(
+		writtenFiles.push(await writeFileWithCustomCode(
 			typesFilePath,
 			(Object.values(sharedTypesFileContent).length > 0
 				? isPython
@@ -2358,13 +2393,15 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					: `import * as Shared from "./shared";\n\n`
 				: "") + typesFileContent,
 			config,
-		);
+		));
 	}
 
 	// Write validation file for non-folder-split (inline generation)
+	// Only written when the user has explicitly set a `validations` config block.
 	// Skip if folder splitting is enabled (each folder has its own validations.ts)
 	if (
-		config?.validations?.disable !== true &&
+		config?.validations &&
+		config.validations.disable !== true &&
 		!config?.folderSplit &&
 		!isPython
 	) {
@@ -2391,10 +2428,51 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				recursive: true,
 			});
 
-			await writeFileWithCustomCode(
+			writtenFiles.push(await writeFileWithCustomCode(
 				validationFilePath,
 				`${importStatement}\n\n${allValidation}`,
 				config,
+			));
+		}
+	}
+
+	// ── Post-generation integrity check (Issue #6) ───────────────────────────
+	// Collect all declared type names from the generated shared + index content,
+	// then scan every emitted string for Shared.<Name> or bare <Name> references
+	// that were never declared.  Mismatches are returned as warnings so the
+	// caller can surface them without aborting the sync.
+	const integrityWarnings: string[] = [];
+	if (!isPython) {
+		// Gather declared names: everything after "export type " or "export interface "
+		const declaredNames = new Set<string>();
+		const declareRegex = /export\s+(?:type|interface)\s+(\w+)/g;
+		const allGeneratedContent = [
+			...Object.values(sharedTypesFileContent),
+			typesFileContent,
+			...Object.values(folderGroups).map((g) => g.types),
+		].join("\n");
+
+		let m: RegExpExecArray | null;
+		while ((m = declareRegex.exec(allGeneratedContent)) !== null) {
+			declaredNames.add(m[1]);
+		}
+
+		// Scan for Shared.<Name> references
+		const refRegex = /\bShared\.(\w+)/g;
+		const undeclaredRefs = new Set<string>();
+		while ((m = refRegex.exec(allGeneratedContent)) !== null) {
+			const refName = m[1];
+			// Strip bracket-accessor suffix if present (e.g. IFoo["bar"] → IFoo)
+			const baseName = refName.split('[')[0];
+			if (!declaredNames.has(baseName)) {
+				undeclaredRefs.add(baseName);
+			}
+		}
+
+		for (const name of undeclaredRefs) {
+			integrityWarnings.push(
+				`[${apiName}] INTEGRITY_WARNING: Type "${name}" is referenced but never declared. ` +
+				`Add it manually or check for unresolved $ref pointers in your OpenAPI spec.`,
 			);
 		}
 	}
@@ -2403,7 +2481,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	storeEndpoints(apiName, collectedEndpoints);
 
 	console.info(`✅ Successfully synced ${apiName}`);
-	return { success: true };
+	return { success: true, filesWritten: writtenFiles, warnings: integrityWarnings };
 };
 
 export default OpenapiSync;

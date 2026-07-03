@@ -375,7 +375,7 @@ Supports multiple configuration formats: `openapi.sync.json`, `openapi.sync.ts`,
 **Advanced TypeScript Example:**
 
 ```typescript
-import { IConfig } from "openapi-sync/types";
+import { IConfig } from "openapi-sync";
 
 const config: IConfig = {
 	refetchInterval: 10000,
