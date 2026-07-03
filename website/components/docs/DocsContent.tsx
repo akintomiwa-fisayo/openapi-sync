@@ -3,6 +3,7 @@
 import CodeBlock from "./CodeBlock";
 import VideoTutorial from "./VideoTutorial";
 import { getVideoTutorial } from "@/lib/videoTutorials";
+import versionsData from "@/lib/changelog-data.json";
 
 export default function DocsContent() {
   const comingSoonId = "vmUVIqhZrHg";
@@ -22,9 +23,7 @@ export default function DocsContent() {
         </p>
         <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-600 dark:border-red-500 p-4 rounded mb-6">
           <p className="text-sm text-gray-700 dark:text-gray-300 mb-0">
-            <strong>Latest Version:</strong> 5.0.0 - Major improvements to
-            client generation with bug fixes, better TypeScript support, and
-            enhanced developer experience!
+            <strong>Latest Version:</strong> {versionsData[0].version} - {versionsData[0].changes[0]}
           </p>
         </div>
 
@@ -1472,6 +1471,40 @@ npx openapi-sync generate-client \\
 # ... continues with setup`}
           language="bash"
         />
+
+        <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Machine-Readable Output (CI/CD &amp; Agent-Safe)
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          All commands support <code>--json</code> for structured stdout output
+          and <code>--silent</code> to suppress all logs. Ideal for scripting,
+          CI pipelines, and AI agent integrations:
+        </p>
+        <CodeBlock
+          code={`# Sync and get a structured JSON result
+npx openapi-sync --json
+
+# Validate config without writing files
+npx openapi-sync validate --json
+
+# List all endpoints as JSON
+npx openapi-sync list-endpoints --json
+
+# Generate client with JSON output (great for agents)
+npx openapi-sync generate-client --type react-query --json
+
+# Silent mode (no stdout noise) — exit code tells you the result
+npx openapi-sync --silent && echo "Sync OK!"`}
+          language="bash"
+        />
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 dark:border-blue-500 p-4 rounded mt-4">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            <strong>Tip:</strong> The <code>--json</code> flag implies{" "}
+            <code>--silent</code>. The process exit code is{" "}
+            <code>0</code> on success and <code>1</code> on failure, so it
+            works naturally in shell pipelines and CI checks.
+          </p>
+        </div>
       </section>
 
       {/* Programmatic Usage */}
@@ -1513,6 +1546,123 @@ try {
   console.error("Failed to sync API types:", error);
 }`}
           language="typescript"
+        />
+      </section>
+
+      {/* MCP Integration */}
+      <section id="mcp-integration" className="mb-16">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+          AI Agent Integration (MCP)
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          OpenAPI Sync ships with a built-in{" "}
+          <strong>Model Context Protocol (MCP) server</strong>. This lets AI
+          assistants like Claude Desktop, Cursor, GitHub Copilot, and other
+          MCP-compatible agents safely call sync operations as structured tool
+          invocations — no shell scripts or custom wrappers needed.
+        </p>
+
+        <div className="bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-600 dark:border-violet-500 p-4 rounded mb-6">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            <strong>🤖 How it works:</strong> Start the MCP server with{" "}
+            <code>npx openapi-sync-mcp</code> and configure your AI client to
+            connect to it. The agent can then trigger syncs, generate clients,
+            validate configs, and list endpoints — all with full type-safety.
+          </p>
+        </div>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+          Setup for Claude Desktop
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Add the following to your Claude Desktop configuration file at{" "}
+          <code>
+            ~/Library/Application Support/Claude/claude_desktop_config.json
+          </code>
+          :
+        </p>
+        <CodeBlock
+          code={`{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "/path/to/your/project"
+    }
+  }
+}`}
+          language="json"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Setup for Cursor
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Create or update <code>.cursor/mcp.json</code> in your project root:
+        </p>
+        <CodeBlock
+          code={`{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "\${workspaceFolder}"
+    }
+  }
+}`}
+          language="json"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Available MCP Tools
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Once connected, the agent has access to these tools:
+        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Tool
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Description
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {[
+                ["sync", "Run the main sync command — generates types, clients, and endpoints"],
+                ["validate", "Validate your config and OpenAPI specs without writing any files"],
+                ["list-endpoints", "List all discovered endpoints with tags, methods, and paths"],
+                ["generate-client", "Generate a typed API client for Fetch, Axios, React Query, SWR, or RTK Query"],
+                ["init", "Non-interactively initialise a new openapi-sync configuration"],
+              ].map(([tool, desc]) => (
+                <tr key={tool} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <td className="px-4 py-3 text-sm font-mono text-violet-700 dark:text-violet-300">{tool}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Example Agent Prompt
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Once the MCP server is running, you can ask your AI agent:
+        </p>
+        <CodeBlock
+          code={`# Ask Claude or Cursor:
+"Sync my OpenAPI types and generate a React Query client for my petstore API"
+
+# The agent will:
+# 1. Call the 'sync' MCP tool to pull the latest spec
+# 2. Call 'generate-client' with --type react-query
+# 3. Report back the result as structured JSON`}
+          language="bash"
         />
       </section>
 
@@ -1675,146 +1825,56 @@ await Init({
         </p>
 
         <div className="space-y-6">
-          {/* v5.0.0 - Latest */}
-          <div className="border-l-4 border-green-600 dark:border-green-500 pl-4 bg-green-50 dark:bg-green-900/10 p-4 rounded-r">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-bold text-lg text-gray-900 dark:text-white">
-                v5.0.0
-              </h4>
-              <span className="px-2 py-1 text-xs font-semibold bg-green-600 text-white rounded-full">
-                LATEST
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                October 25, 2025
-              </span>
-            </div>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
-              Major improvements to client generation with enhanced TypeScript
-              support, better developer experience, and critical bug fixes
-            </p>
-            <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1 ml-4">
-              <li>
-                🎉 <strong>RTK Query:</strong> Simplified Redux store setup with
-                setupApiStore helper (15 lines → 5 lines)
-              </li>
-              <li>
-                ✅ <strong>RTK Query:</strong> Unique reducer paths per folder
-                preventing TypeScript conflicts
-              </li>
-              <li>
-                ✅ <strong>RTK Query:</strong> Default exports for cleaner
-                imports
-              </li>
-              <li>
-                ✅ <strong>SWR:</strong> Fixed mutation hooks type errors (no
-                more double-nesting)
-              </li>
-              <li>
-                📚 <strong>SWR:</strong> Added 230+ lines of comprehensive
-                inline documentation and usage examples
-              </li>
-              <li>
-                ✅ <strong>Fetch:</strong> Fixed naming conflicts with aliased
-                endpoint imports (_endpoint suffix)
-              </li>
-              <li>
-                ✅ <strong>Fetch:</strong> ESLint-compliant default exports
-                using named variables
-              </li>
-              <li>
-                🚀 <strong>CLI:</strong> Arguments now correctly override config
-                file settings
-              </li>
-              <li>
-                🎯 <strong>CLI:</strong> Streamlined interactive setup
-                (auto-enables byTags when folder splitting)
-              </li>
-              <li>
-                📦 <strong>Structure:</strong> Non-folder-split mode generates
-                files directly at root (clients.ts, hooks.ts)
-              </li>
-              <li>
-                🎨 <strong>DX:</strong> Better TypeScript support across all
-                client types
-              </li>
-              <li>
-                ⚡ <strong>Performance:</strong> Optimized code generation and
-                improved error handling
-              </li>
-            </ul>
-          </div>
+          {versionsData.slice(0, 5).map((release, index) => {
+            const isLatest = index === 0;
+            const containerClass = isLatest
+              ? "border-l-4 border-green-600 dark:border-green-500 pl-4 bg-green-50 dark:bg-green-900/10 p-4 rounded-r"
+              : `border-l-4 ${
+                  release.type === "major"
+                    ? "border-red-600 dark:border-red-500"
+                    : release.type === "minor"
+                    ? "border-blue-600 dark:border-blue-500"
+                    : "border-gray-300 dark:border-gray-700"
+                } pl-4`;
 
-          {/* v4.1.0 */}
-          <div className="border-l-4 border-blue-600 dark:border-blue-500 pl-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white">
-                v4.1.0
-              </h4>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                2024
-              </span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              API Client Generation - Generate fully-typed clients for Fetch,
-              Axios, React Query, SWR, and RTK Query with custom code
-              preservation
-            </p>
-          </div>
-
-          {/* v4.0.0 */}
-          <div className="border-l-4 border-red-600 dark:border-red-500 pl-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white">
-                v4.0.0
-              </h4>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                2024
-              </span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Major release with validation schema generation support (Zod, Yup,
-              Joi) for runtime type validation
-            </p>
-          </div>
-
-          {/* v2.1.13 */}
-          <div className="border-l-4 border-gray-300 dark:border-gray-700 pl-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white">
-                v2.1.13
-              </h4>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Type definition fixes, clean up tsup build configuration, and
-              introduction of comprehensive unit testing
-            </p>
-          </div>
-
-          {/* v2.1.11 */}
-          <div className="border-l-4 border-gray-300 dark:border-gray-700 pl-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white">
-                v2.1.11
-              </h4>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Folder splitting configuration for organized code generation by
-              tags or custom logic
-            </p>
-          </div>
-
-          {/* v2.1.10 */}
-          <div className="border-l-4 border-gray-300 dark:border-gray-700 pl-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white">
-                v2.1.10
-              </h4>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              OperationId-based naming for types and endpoints, enhanced
-              filtering and tag support
-            </p>
-          </div>
+            return (
+              <div key={release.version} className={containerClass}>
+                <div className="flex items-center gap-2 mb-2">
+                  <h4
+                    className={`${
+                      isLatest ? "font-bold text-lg" : "font-semibold"
+                    } text-gray-900 dark:text-white`}
+                  >
+                    v{release.version}
+                  </h4>
+                  {isLatest && (
+                    <span className="px-2 py-1 text-xs font-semibold bg-green-600 text-white rounded-full">
+                      LATEST
+                    </span>
+                  )}
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {release.date}
+                  </span>
+                </div>
+                {isLatest ? (
+                  <>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
+                      {release.changes[0]}
+                    </p>
+                    <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1 ml-4 list-disc">
+                      {release.changes.slice(1).map((change, i) => (
+                        <li key={i}>{change}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {release.changes[0]}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 dark:border-blue-500 p-4 rounded">

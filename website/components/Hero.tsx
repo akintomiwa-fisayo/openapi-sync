@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FiArrowRight, FiDownload, FiGithub } from "react-icons/fi";
+import versionsData from "@/lib/changelog-data.json";
 
 export default function Hero() {
   return (
@@ -25,8 +26,7 @@ export default function Hero() {
             Automate TypeScript type generation, fully-typed API clients (Fetch,
             Axios, React Query, SWR, RTK Query), runtime validation schemas
             (Zod, Yup, Joi), endpoint definitions, and comprehensive
-            documentation from your OpenAPI specifications. Keep your code in
-            perfect sync with enterprise-grade reliability.
+            documentation. Now with <strong>built-in MCP Server</strong> for seamless AI Agent integration!
           </p>
 
           {/* CTA Buttons */}
@@ -54,7 +54,7 @@ export default function Hero() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
             <div className="text-center">
               <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-2">
-                5.0.0
+                {versionsData[0].version}
               </div>
               <div className="text-gray-600 dark:text-gray-400">
                 Latest Version
