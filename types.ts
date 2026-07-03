@@ -509,7 +509,10 @@ export type SyncResult = {
 	apis: string[];
 	/** Absolute paths of all files written to disk */
 	filesWritten: string[];
-	/** Total number of endpoints discovered across all processed APIs */
+	/**
+	 * Total number of generated endpoints across all processed APIs.
+	 * Note: this reflects the count *after* applying include/exclude filters.
+	 */
 	endpointCount: number;
 	/** Non-fatal warnings (e.g. skipped endpoints) */
 	warnings: string[];
@@ -534,7 +537,13 @@ export type ValidationResult = {
 		{
 			/** Whether this specific API's spec is valid and reachable */
 			valid: boolean;
-			/** Number of endpoints found in the spec */
+			/**
+			 * Total number of operations (HTTP methods) found in the spec.
+			 */
+			operationCount?: number;
+			/**
+			 * @deprecated Alias for operationCount. Will be removed in v7.
+			 */
 			endpointCount: number;
 			/** Error message if invalid */
 			error?: string;

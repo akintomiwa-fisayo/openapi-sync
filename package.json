@@ -1,6 +1,6 @@
 {
 	"name": "openapi-sync",
-	"version": "6.0.0",
+	"version": "6.1.0",
 	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -63,6 +63,11 @@
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.js"
 		},
+		"./types": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.js"
+		},
 		"./schema": "./openapi.sync.schema.json",
 		"./llms": "./llms.txt"
 	},
@@ -94,7 +99,8 @@
 		"source-map-explorer": "^2.5.3",
 		"ts-jest": "^29.4.4",
 		"tsup": "^8.5.0",
-		"typescript": "^5.5.4"
+		"typescript": "^5.5.4",
+		"zod": "^3.23.8"
 	},
 	"dependencies": {
 		"@apidevtools/swagger-parser": "^12.0.0",
@@ -107,8 +113,23 @@
 		"lodash.get": "^4.4.2",
 		"lodash.isequal": "^4.5.0",
 		"prompts": "^2.4.2",
-		"yargs": "^17.7.2",
-		"zod": "^4.4.3"
+		"yargs": "^17.7.2"
+	},
+	"peerDependencies": {
+		"joi": ">=17.0.0",
+		"yup": ">=1.0.0",
+		"zod": ">=3.0.0"
+	},
+	"peerDependenciesMeta": {
+		"joi": {
+			"optional": true
+		},
+		"yup": {
+			"optional": true
+		},
+		"zod": {
+			"optional": true
+		}
 	},
 	"overrides": {
 		"esbuild": "0.28.1"

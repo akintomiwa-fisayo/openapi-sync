@@ -171,7 +171,16 @@ export const Init = async (options?: {
 
       log.log(`\n🔄 Syncing ${apiName}...`);
       try {
-        await OpenapiSync(apiUrl, apiName, config, refetchInterval);
+        const syncResult = await OpenapiSync(apiUrl, apiName, config, refetchInterval);
+        
+        if (syncResult && syncResult.filesWritten) {
+          result.filesWritten.push(...syncResult.filesWritten);
+        }
+        if (syncResult && syncResult.warnings) {
+          result.warnings.push(...syncResult.warnings);
+          syncResult.warnings.forEach(w => log.warn(`⚠️  ${w}`));
+        }
+
         const endpoints = getStoredEndpoints(apiName);
         result.endpointCount += endpoints.length;
         log.log(`✅ ${apiName}: ${endpoints.length} endpoints`);
@@ -277,7 +286,15 @@ export const GenerateClient = async (options: {
     resetState();
     for (const apiName of apiNames) {
       const apiUrl = config.api[apiName];
-      await OpenapiSync(apiUrl, apiName, config);
+      const syncResult = await OpenapiSync(apiUrl, apiName, config);
+      if (syncResult && syncResult.warnings) {
+        result.warnings.push(...syncResult.warnings);
+      }
+      if (syncResult && syncResult.filesWritten) {
+        // Technically these are just the spec-generated files, not the clients,
+        // but it's good to track them.
+        result.filesWritten.push(...syncResult.filesWritten);
+      }
     }
 
     // Generate clients for each API

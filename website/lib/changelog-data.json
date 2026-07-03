@@ -1,0 +1,544 @@
+[
+  {
+    "version": "6.1.0",
+    "date": "2026-07-03",
+    "type": "minor",
+    "changes": [
+      "update Open Collective link to use the correct project handle in README files",
+      "update Patreon link to use the correct project handle in README files",
+      "update video tutorial durations and remove placeholder video IDs for clarity",
+      "add API endpoint definitions and supporting documentation files",
+      "add documentation and sample specification files for OpenAPI Sync project",
+      "add donation options and links to README and footer for project support",
+      "add programmatic API support, machine-readable JSON output for CLI, and agent-safe commands.",
+      "add runtime validation schema generation support with Zod, Yup, and Joi, including configuration options for selective validation and custom naming",
+      "add sample OpenAPI specification, supporting artifacts, and documentation schema files",
+      "Add sample OpenAPI specification, video scripts, and update website contributor display.",
+      "enhance API client generation with support for headers configuration and infinite query hooks",
+      "enhance folder splitting configuration for organized code generation with custom logic and tag-based organization",
+      "enhance OpenAPI sync functionality with auto-sync capability",
+      "generate typescript API endpoint definitions from OpenAPI specification",
+      "implement endpoint filtering and operationId-based naming in OpenAPI sync configuration",
+      "implement folder splitting configuration for generated code based on tags and custom functions",
+      "introduce custom code preservation functionality with configurable markers and instructions in generated files",
+      "Introduce OpenAPI specification for authentication and developer endpoints, including supporting files and tests.",
+      "major release v5.0.0 with enhanced client generation, improved TypeScript support, and comprehensive documentation updates"
+    ]
+  },
+  {
+    "version": "6.0.0",
+    "date": "2024-01-01",
+    "type": "major",
+    "changes": [
+      "Major bump for new architecture and LLM agent integration"
+    ]
+  },
+  {
+    "version": "5.0.7",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Update dependencies and fix minor bugs"
+    ]
+  },
+  {
+    "version": "5.0.6",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Fix runtime validation schemas resolution"
+    ]
+  },
+  {
+    "version": "5.0.5",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Bump version to 5.0.5, update website content, and add sample OpenAPI specification, generated endpoint definitions, and video scripts",
+      "Equate generated classes with return types instead of using 'value: return types'",
+      "Fixed errors with python codegen"
+    ]
+  },
+  {
+    "version": "5.0.4",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: bump version to 5.0.4 in package.json and improve TypeScript type rendering"
+    ]
+  },
+  {
+    "version": "5.0.3",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: bump version to 5.0.3 in package.json and enhance OpenAPI spec handling",
+      "docs: add troubleshooting section for macOS Big Sur esbuild installation error"
+    ]
+  },
+  {
+    "version": "5.0.2",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: bump version to 5.0.2 in package.json"
+    ]
+  },
+  {
+    "version": "5.0.1",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: bump version to 5.0.1 in package.json"
+    ]
+  },
+  {
+    "version": "5.0.0",
+    "date": "2025-10-25",
+    "type": "major",
+    "changes": [
+      "🎉 MAJOR: Complete client generation overhaul with bug fixes and improvements",
+      "✅ Fixed SWR mutation hooks type errors - Correct argument type nesting",
+      "✅ Fixed Fetch client naming conflicts - Auto-aliased endpoint imports with _endpoint suffix",
+      "✅ Fixed Fetch client default exports - Added named apiClient variable for ESLint compliance",
+      "✅ Fixed RTK Query folder split - Generates apis.ts with setupApiStore helper for minimal Redux configuration",
+      "✅ Fixed RTK Query reducer paths - Each API slice now has unique reducerPath based on folder name",
+      "✅ Fixed CLI argument precedence - CLI options now correctly override config file settings",
+      "📚 Enhanced SWR hooks - Added comprehensive inline documentation with 230+ lines of usage examples",
+      "🚀 Improved interactive setup - Automatically enables byTags when folder splitting is selected",
+      "📦 Non-folder-split mode - Now generates single clients.ts and hooks.ts files at root level",
+      "🎨 Better developer experience - All generated files include copy-paste-ready examples",
+      "⚡ Performance improvements - Optimized build and generation processes"
+    ]
+  },
+  {
+    "version": "4.0.2",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: update version to 4.0.2 in package.json and remove optional peer dependencies"
+    ]
+  },
+  {
+    "version": "4.0.1",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Fix minor issues in validation generation"
+    ]
+  },
+  {
+    "version": "4.0.0",
+    "date": "2024-10-20",
+    "type": "major",
+    "changes": [
+      "Added validation schema generation support (Zod, Yup, Joi)",
+      "Enhanced type generation with better nullable handling",
+      "Improved documentation generation",
+      "Breaking: Updated configuration structure for validations"
+    ]
+  },
+  {
+    "version": "3.0.2",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: update version to 3.0.2 in package.json, enhance custom code extraction logic in helpers.ts, and default type to 'any' in index.ts"
+    ]
+  },
+  {
+    "version": "3.0.1",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: update version to 3.0.1 in package.json and modify type handling in index.ts to default to 'any'"
+    ]
+  },
+  {
+    "version": "3.0.0",
+    "date": "2024-01-01",
+    "type": "major",
+    "changes": [
+      "Release v3.0.0 with new type extraction logic"
+    ]
+  },
+  {
+    "version": "2.1.17",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: update version to 2.1.17 in package.json, adjust build scripts, and modify tsup configuration to disable source maps"
+    ]
+  },
+  {
+    "version": "2.1.16",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Update tsup build settings"
+    ]
+  },
+  {
+    "version": "2.1.15",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Fix type exports"
+    ]
+  },
+  {
+    "version": "2.1.14",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "chore: update version to 2.1.14 in package.json"
+    ]
+  },
+  {
+    "version": "2.1.13",
+    "date": "2024-09-15",
+    "type": "patch",
+    "changes": [
+      "Fix dts type fixes",
+      "Clean up tsup build config",
+      "Introduction of unit testing",
+      "Improved build performance"
+    ]
+  },
+  {
+    "version": "2.1.12",
+    "date": "2024-08-30",
+    "type": "patch",
+    "changes": [
+      "Add automatic sync support for function-based config",
+      "Improved handling of missing OpenAPI urls",
+      "Better error messages"
+    ]
+  },
+  {
+    "version": "2.1.11",
+    "date": "2024-08-10",
+    "type": "minor",
+    "changes": [
+      "Folder splitting configuration for organized code generation",
+      "Support for tag-based folder organization",
+      "Custom folder logic support"
+    ]
+  },
+  {
+    "version": "2.1.10",
+    "date": "2024-07-20",
+    "type": "minor",
+    "changes": [
+      "OperationId-based naming for types and endpoints",
+      "Enhanced filtering and tag support",
+      "Better endpoint exclusion/inclusion logic"
+    ]
+  },
+  {
+    "version": "2.1.9",
+    "date": "2025-09-22",
+    "type": "patch",
+    "changes": [
+      "correct file extension for OpenAPI sync configuration path",
+      "enhance JSONStringify function to support array serialization and improve object handling"
+    ]
+  },
+  {
+    "version": "2.1.8",
+    "date": "2025-09-21",
+    "type": "patch",
+    "changes": [
+      "add support for endpoint tags in generated API documentation and update README for clarity"
+    ]
+  },
+  {
+    "version": "2.1.7",
+    "date": "2025-09-21",
+    "type": "patch",
+    "changes": [
+      "add repository metadata and enhance README with comprehensive documentation and usage examples"
+    ]
+  },
+  {
+    "version": "2.1.6",
+    "date": "2025-09-19",
+    "type": "patch",
+    "changes": [
+      "enhance configuration loading by allowing configJS to be a function and update build script to clean dist directory before compilation"
+    ]
+  },
+  {
+    "version": "2.1.5",
+    "date": "2025-09-19",
+    "type": "patch",
+    "changes": [
+      "enhance name formatting functions to include defaultName parameter in OpenAPI sync configuration",
+      "re-export modules and update package exports for improved usability"
+    ]
+  },
+  {
+    "version": "2.1.4",
+    "date": "2025-09-19",
+    "type": "patch",
+    "changes": [
+      "refactor configuration loading and enhance type handling in OpenAPI sync"
+    ]
+  },
+  {
+    "version": "2.1.3",
+    "date": "2025-09-17",
+    "type": "patch",
+    "changes": [
+      "add support for TypeScript configuration loading and improve config file handling"
+    ]
+  },
+  {
+    "version": "2.1.2",
+    "date": "2025-09-17",
+    "type": "patch",
+    "changes": [
+      "extend OpenAPI schema types to include 'null' and improve type handling for arrays and enums"
+    ]
+  },
+  {
+    "version": "2.1.1",
+    "date": "2025-09-16",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "2.1.0",
+    "date": "2025-09-15",
+    "type": "minor",
+    "changes": [
+      "update OpenAPI configuration to support string server URLs and enhance endpoint content formatting"
+    ]
+  },
+  {
+    "version": "2.0.2",
+    "date": "2025-09-07",
+    "type": "patch",
+    "changes": [
+      "enhance endpoint naming configuration to support operationId and improve formatting options"
+    ]
+  },
+  {
+    "version": "2.0.1",
+    "date": "2025-09-05",
+    "type": "patch",
+    "changes": [
+      "add TODO.md to .gitignore and ensure openapi.sync.json is properly ignored",
+      "update API key header handling for improved security schema support",
+      "update publish-package script to use patch versioning",
+      "enhance type resolution and add description support in schema types",
+      "initialize database file if it doesn't exist and enhance OpenAPI configuration"
+    ]
+  },
+  {
+    "version": "2.0.0",
+    "date": "2025-09-01",
+    "type": "major",
+    "changes": [
+      "restructure project and enhance type definitions for OpenAPI integration"
+    ]
+  },
+  {
+    "version": "1.0.25",
+    "date": "2025-06-25",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.24",
+    "date": "2025-05-12",
+    "type": "patch",
+    "changes": [
+      "ensure additionalProperties defaults to 'any' in schema parsing"
+    ]
+  },
+  {
+    "version": "1.0.23",
+    "date": "2025-05-09",
+    "type": "patch",
+    "changes": [
+      "handle database loading with error handling for state initialization"
+    ]
+  },
+  {
+    "version": "1.0.22",
+    "date": "2025-05-08",
+    "type": "patch",
+    "changes": [
+      "add boolean type to IOpenApSchemaSpec",
+      "enhance schema parsing to support additionalProperties and array item types"
+    ]
+  },
+  {
+    "version": "1.0.21",
+    "date": "2024-12-08",
+    "type": "patch",
+    "changes": [
+      "handle more schema type"
+    ]
+  },
+  {
+    "version": "1.0.20",
+    "date": "2024-12-02",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.19",
+    "date": "2024-12-02",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.17",
+    "date": "2024-12-02",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.15",
+    "date": "2024-08-29",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.14",
+    "date": "2024-08-18",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.13",
+    "date": "2024-08-14",
+    "type": "patch",
+    "changes": [
+      "allow endpoint  value treatment",
+      "create IConfigReplaceWord"
+    ]
+  },
+  {
+    "version": "1.0.12",
+    "date": "2024-08-13",
+    "type": "patch",
+    "changes": [
+      "accept options when initialize openapi-sync",
+      "add refreshinterval flag to CLI",
+      "create db.json"
+    ]
+  },
+  {
+    "version": "1.0.11",
+    "date": "2024-08-13",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.10",
+    "date": "2024-08-13",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.9",
+    "date": "2024-08-12",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.8",
+    "date": "2024-08-11",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.7",
+    "date": "2024-08-10",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.6",
+    "date": "2024-08-10",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.5",
+    "date": "2024-08-10",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.4",
+    "date": "2024-08-10",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.3",
+    "date": "2024-08-10",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.2",
+    "date": "2024-08-10",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.1",
+    "date": "2024-01-01",
+    "type": "patch",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2024-01-01",
+    "type": "major",
+    "changes": [
+      "Routine maintenance and dependency updates"
+    ]
+  }
+]

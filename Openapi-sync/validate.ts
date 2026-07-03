@@ -175,11 +175,11 @@ export const validateConfig = async (options?: {
       const { endpointCount, error } = await validateSpec(apiUrl, apiName);
 
       if (error) {
-        result.apis[apiName] = { valid: false, endpointCount: 0, error };
+        result.apis[apiName] = { valid: false, endpointCount: 0, operationCount: 0, error };
         log.error(`  ❌ ${apiName}: ${error}`);
         allValid = false;
       } else {
-        result.apis[apiName] = { valid: true, endpointCount };
+        result.apis[apiName] = { valid: true, endpointCount, operationCount: endpointCount };
         log.log(`  ✅ ${apiName}: ${endpointCount} endpoint(s) found`);
       }
     })
