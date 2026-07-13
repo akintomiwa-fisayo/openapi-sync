@@ -34,6 +34,7 @@
 - 🛡️ **Enterprise Ready** - Error handling, validation, state persistence, and custom code preservation
 - 📦 **Folder Splitting** - Organize code by tags or custom logic with aggregator files for easy imports
 - 📚 **Rich Documentation** - JSDoc comments with cURL examples and inline usage guides
+- 🤖 **Agent-Ready Endpoints** - Browse endpoints with pagination and path filtering, inspect deep endpoint details, and read generated types without reloading the spec
 - 🔄 **Custom Code Injection** - Preserve your custom code between regenerations with protected sections
 
 [View all features →](https://openapi-sync.com/docs#features)
@@ -116,6 +117,14 @@ $ npx openapi-sync list-endpoints --json
 }
 ```
 
+```bash
+$ npx openapi-sync list-endpoints --api petstore --path-contains pet --limit 2 --offset 0 --json
+```
+
+```bash
+$ npx openapi-sync get-endpoint --api petstore --operation-id getPetById --json
+```
+
 ### Dry Run (preview without writing files)
 
 ```bash
@@ -126,15 +135,36 @@ npx openapi-sync generate-client --type fetch --dry-run --json
 ### Programmatic API (TypeScript)
 
 ```typescript
-import { ValidateConfig, Init, GenerateClient, ListEndpoints } from "openapi-sync";
+import {
+  ValidateConfig,
+  Init,
+  GenerateClient,
+  ListEndpoints,
+  GetEndpointDetails,
+  ReadGeneratedType,
+} from "openapi-sync";
 
 // Pre-flight check — no files written
 const validation = await ValidateConfig({ silent: true });
 if (!validation.valid) throw new Error(JSON.stringify(validation));
 
-// Inspect API surface
-const endpoints = await ListEndpoints({ apiName: "petstore", silent: true });
+// Inspect API surface with pagination and filtering
+const endpoints = await ListEndpoints({
+  apiName: "petstore",
+  pathContains: "pet",
+  limit: 5,
+  offset: 0,
+  silent: true,
+});
 console.log(endpoints.petstore.length, "endpoints found");
+
+// Inspect a single endpoint in full detail
+const detail = await GetEndpointDetails({ apiName: "petstore", operationId: "getPetById", silent: true });
+console.log(detail.endpoint.path);
+
+// Read an exact generated type declaration
+const typeDecl = await ReadGeneratedType({ apiName: "petstore", typeName: "Pet", silent: true });
+console.log(typeDecl);
 
 // Sync and get structured result
 const syncResult = await Init({ silent: true });
@@ -517,7 +547,9 @@ Create `.cursor/mcp.json` in your project root:
 |------|-------------|
 | `openapi_sync_read_config` | Read the current config file — start here to understand what's configured |
 | `openapi_sync_validate` | Validate config + specs without writing any files |
-| `openapi_sync_list_endpoints` | List all endpoints from specs — inspect API surface before generating |
+| `openapi_sync_list_endpoints` | List endpoints with tag filtering, pagination, path matching, and optional cache reuse |
+| `openapi_sync_get_endpoint_details` | Return the full stored endpoint definition for one endpoint by operationId or name |
+| `openapi_sync_read_generated_type` | Read the exact generated TypeScript interface/type declaration from the generated types file |
 | `openapi_sync_sync` | Generate types, endpoints, and validation schemas |
 | `openapi_sync_generate_client` | Generate a typed API client (fetch, axios, react-query, swr, rtk-query) |
 | `openapi_sync_init` | Create an openapi.sync config file (non-interactive, no prompts) |
@@ -525,12 +557,14 @@ Create `.cursor/mcp.json` in your project root:
 ### Typical agent workflow via MCP
 
 ```
-1. openapi_sync_read_config    → check if config exists
-2. openapi_sync_init           → create config if needed (non-interactive)
-3. openapi_sync_validate       → confirm specs are reachable and valid
-4. openapi_sync_list_endpoints → inspect endpoints, decide on filters
-5. openapi_sync_sync           → generate types + schemas
-6. openapi_sync_generate_client type=react-query → generate typed client
+1. openapi_sync_read_config               → check if config exists
+2. openapi_sync_init                      → create config if needed (non-interactive)
+3. openapi_sync_validate                  → confirm specs are reachable and valid
+4. openapi_sync_list_endpoints            → inspect a paged subset of endpoints or search by path
+5. openapi_sync_get_endpoint_details      → inspect the full schema for one endpoint
+6. openapi_sync_read_generated_type       → read a specific generated TypeScript declaration
+7. openapi_sync_sync                      → generate types + schemas
+8. openapi_sync_generate_client           → generate a typed client with optional cache reuse
 ```
 
 ### Tool input/output types
@@ -541,6 +575,8 @@ All tools return JSON-serialized versions of the same structured types used by t
 - `openapi_sync_generate_client` → [`SyncResult`](#structured-return-types)
 - `openapi_sync_validate` → [`ValidationResult`](#structured-return-types)
 - `openapi_sync_list_endpoints` → `Record<string, EndpointSummary[]>`
+- `openapi_sync_get_endpoint_details` → `{ apiName, endpoint }`
+- `openapi_sync_read_generated_type` → `string`
 - `openapi_sync_init` → `{ success, configFile, message, errors }`
 - `openapi_sync_read_config` → `{ found, file, path, content }`
 

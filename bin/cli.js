@@ -229,8 +229,8 @@ yargs(hideBin(process.argv))
   .command(
     "validate",
     "Validate the config file and all API specs without writing any files. " +
-      "Safe to run repeatedly — no side effects.",
-    () => {},
+    "Safe to run repeatedly — no side effects.",
+    () => { },
     async (argv) => {
       const silent = argv.silent || argv.json;
 
@@ -259,6 +259,23 @@ yargs(hideBin(process.argv))
           type: "string",
           description: "Comma-separated tags to filter by",
         })
+        .option("limit", {
+          type: "number",
+          description: "Maximum number of endpoints to return",
+        })
+        .option("offset", {
+          type: "number",
+          description: "Number of endpoints to skip before returning results",
+        })
+        .option("path-contains", {
+          type: "string",
+          description: "Only include endpoints whose path contains this substring",
+        })
+        .option("use-cache", {
+          type: "boolean",
+          description: "Reuse previously stored endpoints when available",
+          default: false,
+        })
         .example("$0 list-endpoints --json", "List all endpoints as JSON")
         .example(
           "$0 list-endpoints --api petstore --tags pet --json",
@@ -274,6 +291,10 @@ yargs(hideBin(process.argv))
       const result = await OpenApisync.ListEndpoints({
         apiName: argv.api,
         tags,
+        limit: argv.limit,
+        offset: argv.offset,
+        pathContains: argv["path-contains"],
+        useCache: argv["use-cache"],
         silent,
       });
 
@@ -290,6 +311,43 @@ yargs(hideBin(process.argv))
           if (ep.summary) console.log(`           ${ep.summary}`);
         }
       }
+    }
+  )
+
+  // ── `get-endpoint` command ───────────────────────────────────────────────
+  .command(
+    "get-endpoint",
+    "Fetch the full stored details for a single endpoint by operationId or name",
+    (yargs) => {
+      return yargs
+        .option("operation-id", {
+          type: "string",
+          description: "OperationId of the endpoint to inspect",
+        })
+        .option("name", {
+          type: "string",
+          description: "Endpoint name to inspect",
+        })
+        .option("api", {
+          alias: "a",
+          type: "string",
+          description: "Restrict the lookup to a specific API",
+        })
+        .example("$0 get-endpoint --operation-id getPetById", "Inspect one endpoint by operationId");
+    },
+    async (argv) => {
+      const result = await OpenApisync.GetEndpointDetails({
+        apiName: argv.api,
+        operationId: argv["operation-id"],
+        name: argv.name,
+        silent: argv.silent || argv.json,
+      });
+
+      if (argv.json) {
+        return jsonExit(result, 0);
+      }
+
+      console.log(JSON.stringify(result, null, 2));
     }
   )
 
@@ -395,6 +453,11 @@ yargs(hideBin(process.argv))
           type: "string",
           description: "Base URL for API requests",
         })
+        .option("use-cache", {
+          type: "boolean",
+          description: "Reuse cached endpoints when available instead of reloading specs",
+          default: false,
+        })
         .option("dry-run", {
           type: "boolean",
           description: "Show what files would be written without writing them",
@@ -452,6 +515,7 @@ yargs(hideBin(process.argv))
         endpoints: argv.endpoints,
         outputDir: argv.output,
         baseURL: argv["base-url"],
+        useCache: argv["use-cache"],
         silent,
       });
 

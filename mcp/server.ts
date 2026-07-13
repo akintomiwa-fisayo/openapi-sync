@@ -68,6 +68,8 @@ import {
   GenerateClient,
   ValidateConfig,
   ListEndpoints,
+  GetEndpointDetails,
+  ReadGeneratedType,
 } from "../index.js";
 import { nonInteractiveInit } from "../Openapi-sync/interactive-init.js";
 import path from "path";
@@ -97,8 +99,8 @@ const server = new McpServer({
 server.tool(
   "openapi_sync_validate",
   "Validate the openapi-sync config file and all configured API specs without " +
-    "writing any files to disk. Use this as a pre-flight check before syncing. " +
-    "Returns a structured result with per-API validity and endpoint counts.",
+  "writing any files to disk. Use this as a pre-flight check before syncing. " +
+  "Returns a structured result with per-API validity and endpoint counts.",
   {},
   async () => {
     log("[openapi-sync-mcp] Running validate...");
@@ -137,15 +139,15 @@ server.tool(
 server.tool(
   "openapi_sync_list_endpoints",
   "Fetch and parse all configured OpenAPI specs, then return a structured list " +
-    "of every endpoint (name, HTTP method, path, tags, summary). No files are written. " +
-    "Use this to understand the API surface before deciding on a client type or tag filters.",
+  "of every endpoint (name, HTTP method, path, tags, summary). No files are written. " +
+  "Use this to understand the API surface before deciding on a client type or tag filters.",
   {
     apiName: z
       .string()
       .optional()
       .describe(
         "Limit results to a specific API name from the config. " +
-          "Omit to list endpoints for all configured APIs."
+        "Omit to list endpoints for all configured APIs."
       ),
     tags: z
       .array(z.string())
@@ -153,11 +155,29 @@ server.tool(
       .describe(
         "Filter endpoints to only those with one of these OpenAPI tags."
       ),
+    limit: z
+      .number()
+      .int()
+      .optional()
+      .describe("Return at most this many endpoints."),
+    offset: z
+      .number()
+      .int()
+      .optional()
+      .describe("Skip this many endpoints before returning results."),
+    pathContains: z
+      .string()
+      .optional()
+      .describe("Only include endpoints whose path contains this substring."),
+    useCache: z
+      .boolean()
+      .optional()
+      .describe("Reuse previously stored endpoints instead of reloading the spec."),
   },
-  async ({ apiName, tags }) => {
+  async ({ apiName, tags, limit, offset, pathContains, useCache }) => {
     log("[openapi-sync-mcp] Listing endpoints...");
     try {
-      const result = await ListEndpoints({ apiName, tags, silent: true });
+      const result = await ListEndpoints({ apiName, tags, limit, offset, pathContains, useCache, silent: true });
       return {
         content: [
           {
@@ -182,16 +202,16 @@ server.tool(
 server.tool(
   "openapi_sync_sync",
   "Run a full openapi-sync — fetches all configured OpenAPI specs and writes " +
-    "TypeScript types, endpoint builder functions, and optional validation schemas " +
-    "(Zod/Yup/Joi) to disk. Returns a SyncResult with the list of files written " +
-    "and any errors. Run this after validating your config.",
+  "TypeScript types, endpoint builder functions, and optional validation schemas " +
+  "(Zod/Yup/Joi) to disk. Returns a SyncResult with the list of files written " +
+  "and any errors. Run this after validating your config.",
   {
     refetchInterval: z
       .number()
       .optional()
       .describe(
         "If set, enables continuous auto-sync at this interval (ms). " +
-          "Omit for a single one-time sync."
+        "Omit for a single one-time sync."
       ),
   },
   async ({ refetchInterval }) => {
@@ -229,15 +249,89 @@ server.tool(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tool: openapi_sync_get_endpoint_details
+// ─────────────────────────────────────────────────────────────────────────────
+
+server.tool(
+  "openapi_sync_get_endpoint_details",
+  "Return the full stored endpoint details for one specific endpoint by operationId or name.",
+  {
+    operationId: z
+      .string()
+      .optional()
+      .describe("The operationId of the endpoint to look up."),
+    name: z
+      .string()
+      .optional()
+      .describe("The endpoint name to look up."),
+    apiName: z
+      .string()
+      .optional()
+      .describe("Restrict the lookup to a specific configured API."),
+  },
+  async ({ operationId, name, apiName }) => {
+    log("[openapi-sync-mcp] Fetching endpoint details...");
+    try {
+      const result = await GetEndpointDetails({ apiName, operationId, name, silent: true });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text", text: `Error: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool: openapi_sync_read_generated_type
+// ─────────────────────────────────────────────────────────────────────────────
+
+server.tool(
+  "openapi_sync_read_generated_type",
+  "Read the exact generated TypeScript interface or type declaration from the generated types file.",
+  {
+    apiName: z.string().describe("The configured API name."),
+    typeName: z.string().describe("The exported interface or type name to read."),
+  },
+  async ({ apiName, typeName }) => {
+    log("[openapi-sync-mcp] Reading generated type...");
+    try {
+      const result = await ReadGeneratedType({ apiName, typeName, silent: true });
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text", text: `Error: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tool: openapi_sync_generate_client
 // ─────────────────────────────────────────────────────────────────────────────
 
 server.tool(
   "openapi_sync_generate_client",
   "Generate a fully-typed API client for one or all configured APIs. " +
-    "Supports: fetch, axios, react-query, swr, rtk-query. " +
-    "Syncs the latest spec first, then writes client files to disk. " +
-    "Returns a SyncResult with the list of files written.",
+  "Supports: fetch, axios, react-query, swr, rtk-query. " +
+  "Syncs the latest spec first, then writes client files to disk. " +
+  "Returns a SyncResult with the list of files written.",
   {
     type: z
       .enum(["fetch", "axios", "react-query", "swr", "rtk-query"])
@@ -247,14 +341,14 @@ server.tool(
       .optional()
       .describe(
         "API name from the config to generate a client for. " +
-          "Omit to generate for all configured APIs."
+        "Omit to generate for all configured APIs."
       ),
     baseURL: z
       .string()
       .optional()
       .describe(
         "Base URL to bake into the generated client (e.g. https://api.example.com). " +
-          "Can be overridden at runtime in the generated code."
+        "Can be overridden at runtime in the generated code."
       ),
     tags: z
       .array(z.string())
@@ -271,10 +365,14 @@ server.tool(
       .optional()
       .describe(
         "Custom output directory for the generated client files. " +
-          "Defaults to the path set in your openapi.sync config."
+        "Defaults to the path set in your openapi.sync config."
       ),
+    useCache: z
+      .boolean()
+      .optional()
+      .describe("Reuse cached endpoints when available instead of reloading specs."),
   },
-  async ({ type, apiName, baseURL, tags, endpoints, outputDir }) => {
+  async ({ type, apiName, baseURL, tags, endpoints, outputDir, useCache }) => {
     log(`[openapi-sync-mcp] Generating ${type} client...`);
     try {
       const result = await GenerateClient({
@@ -284,6 +382,7 @@ server.tool(
         tags,
         endpoints,
         outputDir,
+        useCache,
         silent: true,
       });
       return {
@@ -323,20 +422,20 @@ server.tool(
 server.tool(
   "openapi_sync_init",
   "Create an openapi.sync config file in the current working directory without " +
-    "any interactive prompts. Use this to set up a project from scratch. " +
-    "After calling this tool, run openapi_sync_validate and then openapi_sync_sync.",
+  "any interactive prompts. Use this to set up a project from scratch. " +
+  "After calling this tool, run openapi_sync_validate and then openapi_sync_sync.",
   {
     apiName: z
       .string()
       .describe(
         "A short identifier for this API used as a folder name and config key " +
-          "(e.g. 'petstore', 'my-api'). Letters, numbers, hyphens and underscores only."
+        "(e.g. 'petstore', 'my-api'). Letters, numbers, hyphens and underscores only."
       ),
     apiSource: z
       .string()
       .describe(
         "URL to the OpenAPI spec (https://...) or relative path to a local file " +
-          "(e.g. ./api/openapi.yaml)."
+        "(e.g. ./api/openapi.yaml)."
       ),
     outputFolder: z
       .string()
@@ -448,8 +547,8 @@ server.tool(
 server.tool(
   "openapi_sync_read_config",
   "Read the current openapi.sync config file from the working directory and " +
-    "return its contents as a string. Useful to inspect what APIs are configured " +
-    "before running sync or generate-client.",
+  "return its contents as a string. Useful to inspect what APIs are configured " +
+  "before running sync or generate-client.",
   {},
   async () => {
     log("[openapi-sync-mcp] Reading config...");
