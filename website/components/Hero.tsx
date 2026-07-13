@@ -26,7 +26,7 @@ export default function Hero() {
             Automate TypeScript type generation, fully-typed API clients (Fetch,
             Axios, React Query, SWR, RTK Query), runtime validation schemas
             (Zod, Yup, Joi), endpoint definitions, and comprehensive
-            documentation. Now with <strong>built-in MCP Server</strong> for seamless AI Agent integration!
+            documentation. Now with <strong>built-in MCP Server</strong> for paged endpoint browsing, deep endpoint inspection, and generated-type lookup in AI workflows.
           </p>
 
           {/* CTA Buttons */}

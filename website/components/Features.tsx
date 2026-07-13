@@ -16,7 +16,7 @@ const features = [
     icon: FiCpu,
     title: "AI Agent Ready (MCP)",
     description:
-      "Built-in Model Context Protocol server lets Claude, Cursor, Copilot, and other AI agents safely invoke sync operations as structured tool calls — no custom scripts needed.",
+      "Built-in Model Context Protocol server lets Claude, Cursor, Copilot, and other AI agents safely invoke sync operations, browse paged endpoints, inspect deep endpoint schemas, and read generated TypeScript types — no custom scripts needed.",
     color: "text-violet-600",
     bgColor: "bg-violet-100",
   },

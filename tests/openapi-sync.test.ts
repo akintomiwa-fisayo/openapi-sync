@@ -2,6 +2,7 @@ import { IConfig, IOpenApiSpec } from "../types";
 import axios from "axios";
 import SwaggerParser from "@apidevtools/swagger-parser";
 import fs from "fs";
+import path from "path";
 
 // Mock dependencies
 jest.mock("axios");
@@ -124,6 +125,16 @@ describe("OpenapiSync", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    const { clearEndpointStore } = require("../Openapi-sync/endpoint-store");
+    clearEndpointStore();
+
+    const actualFs = jest.requireActual("fs") as typeof import("fs");
+    const configPath = path.join(process.cwd(), "openapi.sync.js");
+    actualFs.writeFileSync(
+      configPath,
+      "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };"
+    );
+
     // Mock axios response - mock the apiClient.get call directly
     const mockGet = jest.fn().mockResolvedValue({
       data: mockOpenApiSpec,
@@ -144,7 +155,7 @@ describe("OpenapiSync", () => {
 
     // Mock fs functions
     mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.writeFileSync.mockImplementation(() => {});
+    mockedFs.writeFileSync.mockImplementation(() => { });
     mockedFs.promises = {
       mkdir: jest.fn().mockResolvedValue(undefined),
       writeFile: jest.fn().mockResolvedValue(undefined),
@@ -240,6 +251,114 @@ describe("OpenapiSync", () => {
       );
 
       expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+  });
+
+  describe("Agent-facing APIs", () => {
+    it("should use cached endpoints for list-endpoints when requested", async () => {
+      mockedFs.existsSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        return pathString.includes("openapi.sync") || pathString.includes("types.ts");
+      });
+      mockedFs.readFileSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        if (pathString.includes("openapi.sync")) {
+          return "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };";
+        }
+        return "";
+      });
+      (mockedFs.promises.readFile as any).mockResolvedValue("export interface Pet { id: string; }");
+
+      const { storeEndpoints } = require("../Openapi-sync/endpoint-store");
+      storeEndpoints("petstore", [
+        {
+          name: "getPet",
+          method: "get",
+          path: "/pet/{petId}",
+          operationId: "getPetById",
+          tags: ["pet"],
+        },
+      ] as any);
+
+      const { ListEndpoints } = require("../index");
+      const result = await ListEndpoints({ apiName: "petstore", useCache: true, silent: true });
+
+      expect(result.petstore).toHaveLength(1);
+      expect(result.petstore[0].operationId).toBe("getPetById");
+      const firstGet = mockedAxios.create.mock.results[0]?.value.get as jest.Mock | undefined;
+      expect(firstGet).not.toHaveBeenCalled();
+    });
+
+    it("should filter and paginate endpoint results", async () => {
+      mockedFs.existsSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        return pathString.includes("openapi.sync") || pathString.includes("types.ts");
+      });
+      mockedFs.readFileSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        if (pathString.includes("openapi.sync")) {
+          return "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };";
+        }
+        return "";
+      });
+
+      const { storeEndpoints } = require("../Openapi-sync/endpoint-store");
+      storeEndpoints("petstore", [
+        { name: "listPets", method: "get", path: "/pets", operationId: "listPets", tags: ["pet"] },
+        { name: "getPet", method: "get", path: "/pet/{petId}", operationId: "getPetById", tags: ["pet"] },
+        { name: "listUsers", method: "get", path: "/users", operationId: "listUsers", tags: ["user"] },
+      ] as any);
+
+      const { ListEndpoints } = require("../index");
+      const result = await ListEndpoints({ apiName: "petstore", pathContains: "pet", limit: 1, offset: 1, useCache: true, silent: true });
+
+      expect(result.petstore).toHaveLength(1);
+      expect(result.petstore[0].path).toBe("/pet/{petId}");
+    });
+
+    it("should return endpoint details for a matching operationId", async () => {
+      mockedFs.existsSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        return pathString.includes("openapi.sync") || pathString.includes("types.ts");
+      });
+      mockedFs.readFileSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        if (pathString.includes("openapi.sync")) {
+          return "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };";
+        }
+        return "";
+      });
+
+      const { storeEndpoints } = require("../Openapi-sync/endpoint-store");
+      storeEndpoints("petstore", [
+        { name: "getPet", method: "get", path: "/pet/{petId}", operationId: "getPetById", tags: ["pet"] },
+      ] as any);
+
+      const { GetEndpointDetails } = require("../index");
+      const result = await GetEndpointDetails({ apiName: "petstore", operationId: "getPetById", silent: true });
+
+      expect(result.endpoint.operationId).toBe("getPetById");
+      expect(result.endpoint.path).toBe("/pet/{petId}");
+    });
+
+    it("should read the requested generated type declaration", async () => {
+      mockedFs.existsSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        return pathString.includes("openapi.sync") || pathString.endsWith("types.ts");
+      });
+      mockedFs.readFileSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        if (pathString.includes("openapi.sync")) {
+          return "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };";
+        }
+        return "";
+      });
+      (mockedFs.promises.readFile as any).mockResolvedValue("export interface Pet { id: string; }\n");
+
+      const { ReadGeneratedType } = require("../index");
+      const result = await ReadGeneratedType({ apiName: "petstore", typeName: "Pet", silent: true });
+
+      expect(result).toContain("export interface Pet");
     });
   });
 

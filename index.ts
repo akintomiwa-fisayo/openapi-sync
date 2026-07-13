@@ -8,6 +8,7 @@ import {
   getAllStoredEndpoints,
 } from "./Openapi-sync/endpoint-store";
 import { generateClients } from "./Openapi-sync/client-generation";
+import { EndpointInfo } from "./client-generators";
 import {
   ConfigNotFoundError,
   ConfigParseError,
@@ -98,6 +99,38 @@ const makeLogger = (silent: boolean) => ({
   error: (...args: any[]) => { if (!silent) console.error(...args); },
 });
 
+const filterAndPaginateEndpoints = (
+  endpoints: EndpointInfo[],
+  options?: {
+    tags?: string[];
+    pathContains?: string;
+    limit?: number;
+    offset?: number;
+  }
+): EndpointInfo[] => {
+  let filtered = [...endpoints];
+
+  if (options?.tags && options.tags.length > 0) {
+    filtered = filtered.filter((ep) =>
+      ep.tags?.some((tag) => options.tags!.includes(tag))
+    );
+  }
+
+  if (options?.pathContains) {
+    const needle = options.pathContains.toLowerCase();
+    filtered = filtered.filter((ep) => ep.path.toLowerCase().includes(needle));
+  }
+
+  const offset = typeof options?.offset === "number" && options.offset >= 0 ? options.offset : 0;
+  const limit = typeof options?.limit === "number" && options.limit >= 0 ? options.limit : undefined;
+
+  if (offset > 0 || limit !== undefined) {
+    return filtered.slice(offset, limit === undefined ? undefined : offset + limit);
+  }
+
+  return filtered;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,8 +191,8 @@ export const Init = async (options?: {
 
     const refetchInterval =
       options &&
-      "refetchInterval" in options &&
-      !isNaN(options?.refetchInterval as number)
+        "refetchInterval" in options &&
+        !isNaN(options?.refetchInterval as number)
         ? options.refetchInterval
         : config.refetchInterval;
 
@@ -172,7 +205,7 @@ export const Init = async (options?: {
       log.log(`\n🔄 Syncing ${apiName}...`);
       try {
         const syncResult = await OpenapiSync(apiUrl, apiName, config, refetchInterval);
-        
+
         if (syncResult && syncResult.filesWritten) {
           result.filesWritten.push(...syncResult.filesWritten);
         }
@@ -252,6 +285,7 @@ export const GenerateClient = async (options: {
   outputDir?: string;
   baseURL?: string;
   silent?: boolean;
+  useCache?: boolean;
 }): Promise<SyncResult> => {
   const silent = options.silent ?? false;
   const log = makeLogger(silent);
@@ -286,6 +320,14 @@ export const GenerateClient = async (options: {
     resetState();
     for (const apiName of apiNames) {
       const apiUrl = config.api[apiName];
+      const cachedEndpoints = getStoredEndpoints(apiName);
+      const shouldUseCache = Boolean(options.useCache && cachedEndpoints.length > 0);
+
+      if (shouldUseCache) {
+        log.log(`♻️ Using cached endpoints for ${apiName}`);
+        continue;
+      }
+
       const syncResult = await OpenapiSync(apiUrl, apiName, config);
       if (syncResult && syncResult.warnings) {
         result.warnings.push(...syncResult.warnings);
@@ -409,6 +451,10 @@ export const ListEndpoints = async (options?: {
   apiName?: string;
   tags?: string[];
   silent?: boolean;
+  useCache?: boolean;
+  limit?: number;
+  offset?: number;
+  pathContains?: string;
 }): Promise<Record<string, EndpointSummary[]>> => {
   const silent = options?.silent ?? false;
   const log = makeLogger(silent);
@@ -426,6 +472,14 @@ export const ListEndpoints = async (options?: {
     resetState();
     for (const apiName of apiNames) {
       const apiUrl = config.api[apiName];
+      const cachedEndpoints = getStoredEndpoints(apiName);
+      const shouldUseCache = Boolean(options?.useCache && cachedEndpoints.length > 0);
+
+      if (shouldUseCache) {
+        log.log(`♻️ Using cached endpoints for ${apiName}...`);
+        continue;
+      }
+
       log.log(`🔍 Fetching spec for ${apiName}...`);
       await OpenapiSync(apiUrl, apiName, config);
     }
@@ -435,12 +489,12 @@ export const ListEndpoints = async (options?: {
     for (const apiName of apiNames) {
       let endpoints = getStoredEndpoints(apiName);
 
-      // Filter by tags if requested
-      if (options?.tags && options.tags.length > 0) {
-        endpoints = endpoints.filter(
-          (ep) => ep.tags?.some((t) => options.tags!.includes(t))
-        );
-      }
+      endpoints = filterAndPaginateEndpoints(endpoints, {
+        tags: options?.tags,
+        pathContains: options?.pathContains,
+        limit: options?.limit,
+        offset: options?.offset,
+      });
 
       result[apiName] = endpoints.map((ep) => ({
         name: ep.name,
@@ -455,6 +509,104 @@ export const ListEndpoints = async (options?: {
     }
 
     return result;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error(`❌ Error: ${msg}`);
+    throw err;
+  }
+};
+
+export const GetEndpointDetails = async (options?: {
+  apiName?: string;
+  operationId?: string;
+  name?: string;
+  silent?: boolean;
+}): Promise<{ apiName: string; endpoint: EndpointInfo }> => {
+  const silent = options?.silent ?? false;
+  const log = makeLogger(silent);
+
+  try {
+    const config = loadConfig();
+    const apiNames = options?.apiName
+      ? [options.apiName]
+      : Object.keys(config.api);
+
+    if (options?.apiName && !config.api[options.apiName]) {
+      throw new UnknownApiError(options.apiName, Object.keys(config.api));
+    }
+
+    for (const apiName of apiNames) {
+      const apiUrl = config.api[apiName];
+      let endpoints = getStoredEndpoints(apiName);
+
+      if (endpoints.length === 0) {
+        log.log(`🔍 Fetching spec for ${apiName} to locate endpoint details...`);
+        await OpenapiSync(apiUrl, apiName, config);
+        endpoints = getStoredEndpoints(apiName);
+      }
+
+      const match = endpoints.find((ep) => {
+        const byOperationId = Boolean(options?.operationId && ep.operationId === options.operationId);
+        const byName = Boolean(options?.name && ep.name === options.name);
+        return byOperationId || byName;
+      });
+
+      if (match) {
+        return {
+          apiName,
+          endpoint: match,
+        };
+      }
+    }
+
+    const target = options?.operationId || options?.name || "requested endpoint";
+    throw new Error(`No endpoint found for ${target}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error(`❌ Error: ${msg}`);
+    throw err;
+  }
+};
+
+export const ReadGeneratedType = async (options: {
+  apiName: string;
+  typeName: string;
+  silent?: boolean;
+}): Promise<string> => {
+  const silent = options.silent ?? false;
+  const log = makeLogger(silent);
+
+  try {
+    const config = loadConfig();
+
+    if (!config.api[options.apiName]) {
+      throw new UnknownApiError(options.apiName, Object.keys(config.api));
+    }
+
+    const candidates = [
+      path.join(rootUsingCwd, config?.folder || "", options.apiName, "types.ts"),
+      path.join(rootUsingCwd, config?.folder || "", options.apiName, "types/index.ts"),
+      path.join(rootUsingCwd, config?.folder || "", options.apiName, "index.ts"),
+    ];
+
+    const filePath = candidates.find((candidate) => fs.existsSync(candidate));
+    if (!filePath) {
+      throw new Error(`Generated types file not found for API: ${options.apiName}`);
+    }
+
+    const content = await fs.promises.readFile(filePath, "utf-8");
+    const escapedName = options.typeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const declarationPattern = new RegExp(
+      `export\\s+(?:type|interface)\\s+${escapedName}\\b[\\s\\S]*?(?=\\n(?:export\\s+(?:type|interface|const|function|class|enum)\\b|$))`,
+      "m"
+    );
+    const match = content.match(declarationPattern);
+
+    if (!match) {
+      throw new Error(`Type declaration not found: ${options.typeName}`);
+    }
+
+    return match[0].trim();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     log.error(`❌ Error: ${msg}`);

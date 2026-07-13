@@ -1558,8 +1558,10 @@ try {
           OpenAPI Sync ships with a built-in{" "}
           <strong>Model Context Protocol (MCP) server</strong>. This lets AI
           assistants like Claude Desktop, Cursor, GitHub Copilot, and other
-          MCP-compatible agents safely call sync operations as structured tool
-          invocations — no shell scripts or custom wrappers needed.
+          MCP-compatible agents safely call sync operations, browse endpoints
+          with pagination and path filters, inspect deep endpoint details, and
+          read generated TypeScript declarations — no shell scripts or custom
+          wrappers needed.
         </p>
 
         <div className="bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-600 dark:border-violet-500 p-4 rounded mb-6">
@@ -1633,11 +1635,13 @@ try {
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {[
-                ["sync", "Run the main sync command — generates types, clients, and endpoints"],
-                ["validate", "Validate your config and OpenAPI specs without writing any files"],
-                ["list-endpoints", "List all discovered endpoints with tags, methods, and paths"],
-                ["generate-client", "Generate a typed API client for Fetch, Axios, React Query, SWR, or RTK Query"],
-                ["init", "Non-interactively initialise a new openapi-sync configuration"],
+                ["openapi_sync_sync", "Run the main sync command — generates types, clients, and endpoints"],
+                ["openapi_sync_validate", "Validate your config and OpenAPI specs without writing any files"],
+                ["openapi_sync_list_endpoints", "List discovered endpoints with tags, pagination, path filtering, and optional cache reuse"],
+                ["openapi_sync_get_endpoint_details", "Return the full stored schema for a single endpoint by operationId or name"],
+                ["openapi_sync_read_generated_type", "Read the exact generated TypeScript interface or type declaration"],
+                ["openapi_sync_generate_client", "Generate a typed API client for Fetch, Axios, React Query, SWR, or RTK Query"],
+                ["openapi_sync_init", "Non-interactively initialise a new openapi-sync configuration"],
               ].map(([tool, desc]) => (
                 <tr key={tool} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <td className="px-4 py-3 text-sm font-mono text-violet-700 dark:text-violet-300">{tool}</td>
@@ -1656,12 +1660,15 @@ try {
         </p>
         <CodeBlock
           code={`# Ask Claude or Cursor:
-"Sync my OpenAPI types and generate a React Query client for my petstore API"
+"Sync my OpenAPI types, list the pet endpoints, inspect getPetById, and generate a React Query client"
 
 # The agent will:
-# 1. Call the 'sync' MCP tool to pull the latest spec
-# 2. Call 'generate-client' with --type react-query
-# 3. Report back the result as structured JSON`}
+# 1. Call 'openapi_sync_sync' to pull the latest spec
+# 2. Call 'openapi_sync_list_endpoints' with pagination/path filters
+# 3. Call 'openapi_sync_get_endpoint_details' for the selected endpoint
+# 4. Call 'openapi_sync_read_generated_type' for the related type
+# 5. Call 'openapi_sync_generate_client' with --type react-query
+# 6. Report back the result as structured JSON`}
           language="bash"
         />
       </section>
@@ -1829,21 +1836,19 @@ await Init({
             const isLatest = index === 0;
             const containerClass = isLatest
               ? "border-l-4 border-green-600 dark:border-green-500 pl-4 bg-green-50 dark:bg-green-900/10 p-4 rounded-r"
-              : `border-l-4 ${
-                  release.type === "major"
-                    ? "border-red-600 dark:border-red-500"
-                    : release.type === "minor"
-                    ? "border-blue-600 dark:border-blue-500"
-                    : "border-gray-300 dark:border-gray-700"
-                } pl-4`;
+              : `border-l-4 ${release.type === "major"
+                ? "border-red-600 dark:border-red-500"
+                : release.type === "minor"
+                  ? "border-blue-600 dark:border-blue-500"
+                  : "border-gray-300 dark:border-gray-700"
+              } pl-4`;
 
             return (
               <div key={release.version} className={containerClass}>
                 <div className="flex items-center gap-2 mb-2">
                   <h4
-                    className={`${
-                      isLatest ? "font-bold text-lg" : "font-semibold"
-                    } text-gray-900 dark:text-white`}
+                    className={`${isLatest ? "font-bold text-lg" : "font-semibold"
+                      } text-gray-900 dark:text-white`}
                   >
                     v{release.version}
                   </h4>
