@@ -47,11 +47,10 @@ export default function Installation() {
               <button
                 key={index}
                 onClick={() => setActiveTab(index)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  activeTab === index
+                className={`px-6 py-3 rounded-lg font-medium transition-all ${activeTab === index
                     ? "bg-red-600 text-white shadow-lg"
                     : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                }`}
+                  }`}
               >
                 {cmd.label}
               </button>
