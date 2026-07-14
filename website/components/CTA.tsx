@@ -13,7 +13,7 @@ export default function CTA() {
           Join thousands of developers who have streamlined their API workflow
           with OpenAPI Sync. Generate types, fully-typed API clients, validation
           schemas, and comprehensive documentation in less than 5 minutes—now
-          with v5.0.5 improvements!
+          with v6.2.0 MCP and agent workflow improvements.
         </p>
 
         {/* CTA Buttons */}

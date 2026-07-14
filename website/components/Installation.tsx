@@ -34,7 +34,8 @@ export default function Installation() {
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Get started in seconds with your favorite package manager. Generate
-            types, validation schemas, and endpoints automatically.
+            types, validation schemas, endpoint definitions, and inspect generated
+            declarations with the CLI or MCP server.
           </p>
         </div>
 
@@ -101,11 +102,11 @@ export default function Installation() {
               </h3>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <li>
-                  • Latest version:{" "}
-                  <span className="font-mono text-red-600">4.0.0</span>
+                  • Latest version: {" "}
+                  <span className="font-mono text-red-600">6.2.0</span>
                 </li>
-                <li>• Bundle size: Optimized for production</li>
-                <li>• Dependencies: Minimal and well-maintained</li>
+                <li>• Includes: CLI workflows, MCP tooling, and cache-aware sync</li>
+                <li>• Dependencies: lightweight core runtime with optional validation peers</li>
               </ul>
             </div>
 
