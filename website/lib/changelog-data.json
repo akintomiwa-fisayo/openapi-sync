@@ -1,5 +1,27 @@
 [
   {
+    "version": "6.2.0",
+    "date": "2026-07-14",
+    "type": "minor",
+    "changes": [
+      "ship the latest agent-friendly release with CLI, MCP, and cache-aware endpoint workflows",
+      "add richer endpoint discovery, pagination, filtering, and deeper endpoint inspection for AI agents",
+      "expand generated-type inspection and MCP tooling for faster local debugging and automation"
+    ]
+  },
+  {
+    "version": "6.1.1",
+    "date": "2026-07-14",
+    "type": "minor",
+    "changes": [
+      "add cache-aware endpoint reuse for list-endpoints and generate-client workflows",
+      "add paged endpoint listing with path filtering and offset/limit support",
+      "add deep endpoint detail lookup for AI agents and CLI inspection flows",
+      "add generated type declaration inspection for agent-friendly code exploration",
+      "expand the built-in MCP server with list-endpoints, endpoint-detail, and generated-type tools"
+    ]
+  },
+  {
     "version": "6.1.0",
     "date": "2026-07-03",
     "type": "minor",
