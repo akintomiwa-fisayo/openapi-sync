@@ -336,18 +336,86 @@ yargs(hideBin(process.argv))
         .example("$0 get-endpoint --operation-id getPetById", "Inspect one endpoint by operationId");
     },
     async (argv) => {
-      const result = await OpenApisync.GetEndpointDetails({
-        apiName: argv.api,
-        operationId: argv["operation-id"],
-        name: argv.name,
-        silent: argv.silent || argv.json,
-      });
+      try {
+        const result = await OpenApisync.GetEndpointDetails({
+          apiName: argv.api,
+          operationId: argv["operation-id"],
+          name: argv.name,
+          silent: argv.silent || argv.json,
+        });
 
-      if (argv.json) {
-        return jsonExit(result, 0);
+        if (argv.json) {
+          return jsonExit(result, 0);
+        }
+
+        console.log(JSON.stringify(result, null, 2));
+      } catch (err) {
+        const result = {
+          success: false,
+          error: {
+            code: "ENDPOINT_NOT_FOUND",
+            message: err.message,
+          },
+        };
+        if (argv.json) return jsonExit(result, 1);
+        console.error(`❌ ${err.message}`);
+        process.exit(1);
       }
+    }
+  )
 
-      console.log(JSON.stringify(result, null, 2));
+  // ── `read-type` command ──────────────────────────────────────────────────
+  .command(
+    "read-type",
+    "Read one generated TypeScript interface or type declaration by name",
+    (yargs) => {
+      return yargs
+        .option("api", {
+          alias: "a",
+          type: "string",
+          description: "API name from your config",
+          demandOption: true,
+        })
+        .option("type-name", {
+          alias: "t",
+          type: "string",
+          description: "Exported interface or type name to read",
+          demandOption: true,
+        })
+        .example("$0 read-type --api petstore --type-name Pet --json", "Read the generated Pet type");
+    },
+    async (argv) => {
+      try {
+        const declaration = await OpenApisync.ReadGeneratedType({
+          apiName: argv.api,
+          typeName: argv["type-name"],
+          silent: argv.silent || argv.json,
+        });
+
+        if (argv.json) {
+          return jsonExit(
+            {
+              apiName: argv.api,
+              typeName: argv["type-name"],
+              declaration,
+            },
+            0
+          );
+        }
+
+        console.log(declaration);
+      } catch (err) {
+        const result = {
+          success: false,
+          error: {
+            code: "TYPE_NOT_FOUND",
+            message: err.message,
+          },
+        };
+        if (argv.json) return jsonExit(result, 1);
+        console.error(`❌ ${err.message}`);
+        process.exit(1);
+      }
     }
   )
 

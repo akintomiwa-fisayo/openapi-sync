@@ -526,6 +526,10 @@ export const GetEndpointDetails = async (options?: {
   const log = makeLogger(silent);
 
   try {
+    if (!options?.operationId && !options?.name) {
+      throw new Error("Provide either operationId or name to look up endpoint details.");
+    }
+
     const config = loadConfig();
     const apiNames = options?.apiName
       ? [options.apiName]
@@ -584,8 +588,8 @@ export const ReadGeneratedType = async (options: {
     }
 
     const candidates = [
-      path.join(rootUsingCwd, config?.folder || "", options.apiName, "types.ts"),
       path.join(rootUsingCwd, config?.folder || "", options.apiName, "types/index.ts"),
+      path.join(rootUsingCwd, config?.folder || "", options.apiName, "types.ts"),
       path.join(rootUsingCwd, config?.folder || "", options.apiName, "index.ts"),
     ];
 

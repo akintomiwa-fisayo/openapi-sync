@@ -125,6 +125,10 @@ $ npx openapi-sync list-endpoints --api petstore --path-contains pet --limit 2 -
 $ npx openapi-sync get-endpoint --api petstore --operation-id getPetById --json
 ```
 
+```bash
+$ npx openapi-sync read-type --api petstore --type-name Pet --json
+```
+
 ### Dry Run (preview without writing files)
 
 ```bash
@@ -560,7 +564,7 @@ Create `.cursor/mcp.json` in your project root:
 1. openapi_sync_read_config               → check if config exists
 2. openapi_sync_init                      → create config if needed (non-interactive)
 3. openapi_sync_validate                  → confirm specs are reachable and valid
-4. openapi_sync_list_endpoints            → inspect a paged subset of endpoints or search by path
+4. openapi_sync_list_endpoints            → inspect a paged subset of endpoints or search by path; reuses cached endpoints by default
 5. openapi_sync_get_endpoint_details      → inspect the full schema for one endpoint
 6. openapi_sync_read_generated_type       → read a specific generated TypeScript declaration
 7. openapi_sync_sync                      → generate types + schemas

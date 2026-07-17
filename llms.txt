@@ -45,6 +45,7 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 | `npx openapi-sync validate` | Validate config + specs; no files written |
 | `npx openapi-sync list-endpoints` | List endpoints from a spec with optional filters/pagination; no files written |
 | `npx openapi-sync get-endpoint` | Inspect one endpoint in full detail by operationId or name |
+| `npx openapi-sync read-type` | Read one generated TypeScript interface/type declaration |
 | `npx openapi-sync generate-client --type <TYPE>` | Generate typed API client |
 | `npx openapi-sync init --no-interactive [FLAGS]` | Create config file without prompts |
 
@@ -119,10 +120,17 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 | `--operation-id` | Find the endpoint by operationId |
 | `--name` | Find the endpoint by endpoint name |
 
+### `read-type` flags
+
+| Flag | Description |
+|------|-------------|
+| `--api` | API name from the config |
+| `--type-name` | Exported interface/type name to read |
+
 
 ## MCP TOOLS
 
-OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent workflows.
+OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent workflows. Long-running MCP calls reuse cached endpoints by default when available.
 
 - `openapi_sync_sync`
 - `openapi_sync_validate`
