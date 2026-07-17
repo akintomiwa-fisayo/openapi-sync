@@ -1490,6 +1490,15 @@ npx openapi-sync validate --json
 # List all endpoints as JSON
 npx openapi-sync list-endpoints --json
 
+# Page/search endpoint discovery for large specs
+npx openapi-sync list-endpoints --api petstore --path-contains pet --limit 10 --offset 0 --json
+
+# Inspect one endpoint in full detail
+npx openapi-sync get-endpoint --api petstore --operation-id getPetById --json
+
+# Read one generated TypeScript declaration
+npx openapi-sync read-type --api petstore --type-name Pet --json
+
 # Generate client with JSON output (great for agents)
 npx openapi-sync generate-client --type react-query --json
 
