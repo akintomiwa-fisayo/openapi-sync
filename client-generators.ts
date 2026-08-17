@@ -94,17 +94,67 @@ export const filterEndpoints = (
 
   // Filter by tags if specified
   if (config.tags && config.tags.length > 0) {
-    filtered = filtered.filter((endpoint) => {
-      if (!endpoint.tags || endpoint.tags.length === 0) return false;
-      return endpoint.tags.some((tag) => config.tags!.includes(tag));
-    });
+    const rawTags = Array.isArray(config.tags) ? config.tags : [config.tags];
+    const targetTags = rawTags
+      .flatMap((t) => (typeof t === "string" ? t.split(",") : []))
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0);
+
+    if (targetTags.length > 0) {
+      filtered = filtered.filter((endpoint) => {
+        if (!endpoint.tags || endpoint.tags.length === 0) return false;
+        const epTags = endpoint.tags.map((t) => (t || "").trim().toLowerCase());
+        return epTags.some((tag) => targetTags.includes(tag));
+      });
+    }
   }
 
-  // Filter by endpoint names if specified
+  // Filter by endpoint names/operationIds/paths if specified
   if (config.endpoints && config.endpoints.length > 0) {
-    filtered = filtered.filter((endpoint) =>
-      config.endpoints!.includes(endpoint.name)
-    );
+    const rawEndpoints = Array.isArray(config.endpoints) ? config.endpoints : [config.endpoints];
+    const targetEndpoints = rawEndpoints
+      .flatMap((e) => (typeof e === "string" ? e.split(",") : []))
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
+
+    if (targetEndpoints.length > 0) {
+      const normalize = (s?: string) => (s || "").toLowerCase().replace(/[-_/\s]/g, "");
+
+      filtered = filtered.filter((endpoint) => {
+        const epName = endpoint.name || "";
+        const epOpId = endpoint.operationId || "";
+        const epPath = endpoint.path || "";
+
+        return targetEndpoints.some((target) => {
+          // 1. Exact match
+          if (epName === target || epOpId === target || epPath === target) return true;
+
+          // 2. Case-insensitive match
+          const lowerTarget = target.toLowerCase();
+          if (
+            epName.toLowerCase() === lowerTarget ||
+            epOpId.toLowerCase() === lowerTarget ||
+            epPath.toLowerCase() === lowerTarget
+          ) {
+            return true;
+          }
+
+          // 3. Normalized match
+          const normTarget = normalize(target);
+          if (normTarget.length > 0) {
+            if (
+              normalize(epName) === normTarget ||
+              normalize(epOpId) === normTarget ||
+              normalize(epPath) === normTarget
+            ) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+      });
+    }
   }
 
   return filtered;

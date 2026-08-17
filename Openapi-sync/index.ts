@@ -30,7 +30,7 @@ import SwaggerParser from "@apidevtools/swagger-parser";
 import { getState, setState } from "./state";
 import { CurlGenerator } from "curl-generator";
 import { EndpointInfo } from "../client-generators";
-import { storeEndpoints } from "./endpoint-store";
+import { storeEndpoints, getStoredEndpoints } from "./endpoint-store";
 import { makeLogger } from "../logger";
 
 const rootUsingCwd = process.cwd();
@@ -1018,9 +1018,11 @@ const processOpenapiSync = async (
 		return type;
 	};
 
-	// compare new spec with old spec, continuing only if spec it different
+	// compare new spec with old spec, continuing only if spec is different
 	const prevSpec = getState(apiName);
-	if (isEqual(prevSpec, spec)) return;
+	if (isEqual(prevSpec, spec)) {
+		return { success: true, filesWritten: [], warnings: [] };
+	}
 
 	setState(apiName, spec);
 
@@ -2556,6 +2558,12 @@ const processOpenapiSync = async (
 	// that were never declared.  Mismatches are returned as warnings so the
 	// caller can surface them without aborting the sync.
 	const integrityWarnings: string[] = [];
+
+	if (isPython && config?.validations && config.validations.disable !== true) {
+		integrityWarnings.push(
+			`[${apiName}] NOTE: Runtime validation schemas (Zod/Yup/Joi) are TypeScript-only and skipped for Python targets.`
+		);
+	}
 	if (!isPython) {
 		// Gather declared names: everything after "export type " or "export interface "
 		const declaredNames = new Set<string>();

@@ -55,7 +55,7 @@ describe.skip("Init Function", () => {
     });
 
     // Mock OpenapiSync
-    mockedOpenapiSync.mockResolvedValue(undefined);
+    mockedOpenapiSync.mockResolvedValue({ success: true, filesWritten: [], warnings: [] });
 
     // Import Init with isolated modules to apply mocks
     jest.isolateModules(() => {

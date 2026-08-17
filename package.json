@@ -1,8 +1,9 @@
 {
 	"name": "openapi-sync",
-	"version": "6.3.0",
+	"version": "6.3.1",
 	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
 	"main": "dist/index.js",
+	"module": "dist/index.mjs",
 	"types": "dist/index.d.ts",
 	"bin": {
 		"openapi-sync": "./bin/cli.js",
@@ -68,8 +69,24 @@
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.js"
 		},
+		"./interactive-init": {
+			"types": "./dist/Openapi-sync/interactive-init.d.ts",
+			"import": "./dist/Openapi-sync/interactive-init.mjs",
+			"require": "./dist/Openapi-sync/interactive-init.js"
+		},
+		"./mcp": {
+			"types": "./dist/mcp/server.d.ts",
+			"import": "./dist/mcp/server.mjs",
+			"require": "./dist/mcp/server.js"
+		},
 		"./schema": "./openapi.sync.schema.json",
-		"./llms": "./llms.txt"
+		"./openapi.sync.schema.json": "./openapi.sync.schema.json",
+		"./llms": "./llms.txt",
+		"./llms.txt": "./llms.txt",
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"repository": {
 		"type": "git",
@@ -80,8 +97,8 @@
 		"url": "https://github.com/akintomiwa-fisayo/openapi-sync/issues"
 	},
 	"scripts": {
-		"build": "rm -rf dist db.json && tsup && echo '{}' > db.json",
-		"publish-package": "npm run build && npm publish",
+		"build": "rm -rf dist && tsup",
+		"publish-package": "npm test && npm run build && npm publish",
 		"test": "jest",
 		"test:coverage": "jest --coverage"
 	},

@@ -82,6 +82,48 @@ function jsonErrorExit(code, message, extra = {}) {
 }
 
 /**
+ * Safely load openapi.sync configuration without writing files.
+ */
+function getLoadedConfig() {
+  const path = require("path");
+  const fs = require("fs");
+  const cwd = process.cwd();
+  const candidates = [
+    path.join(cwd, "openapi.sync.js"),
+    path.join(cwd, "openapi.sync.ts"),
+    path.join(cwd, "openapi.sync.json"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      try {
+        if (c.endsWith(".json")) {
+          return JSON.parse(fs.readFileSync(c, "utf-8"));
+        }
+        try {
+          require("esbuild-register");
+        } catch (_) {}
+        const loaded = require(c);
+        return loaded?.default || loaded;
+      } catch (_) {}
+    }
+  }
+  return null;
+}
+
+/**
+ * Normalize array arguments that might be comma-separated or space-separated.
+ */
+function normalizeArrayArg(arg) {
+  if (!arg) return undefined;
+  const items = Array.isArray(arg) ? arg : [arg];
+  const flattened = items
+    .flatMap((item) => (typeof item === "string" ? item.split(",") : []))
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  return flattened.length > 0 ? flattened : undefined;
+}
+
+/**
  * Compute the canonical list of client output files for a given client type
  * and API folder path. Used as a fallback in --dry-run when dryRunClientFiles
  * cannot be loaded (e.g. dist not built yet).
@@ -525,20 +567,24 @@ const cli = yargs(hideBin(process.argv))
     },
     async (argv) => {
       if (argv["dry-run"]) {
-        // Dry-run: validate + list endpoints so we can estimate what would be written
+        // Dry-run: validate + estimate planned files based on actual config
         const silent = argv.silent || argv.json;
         const validation = await OpenApisync.ValidateConfig({ silent });
-
-        // Build a rough list of planned file categories per API
+        const config = getLoadedConfig();
+        const configuredFolder = config?.folder || "api";
         const path = require("path");
         const plannedFilesByApi = {};
+
         for (const [apiName, apiResult] of Object.entries(validation.apis)) {
-          const apiFolderPath = path.join(process.cwd(), "api", apiName);
-          // Spec-generated files (types, endpoints, validations)
-          plannedFilesByApi[apiName] = [
+          const apiFolderPath = path.join(process.cwd(), configuredFolder, apiName);
+          const planned = [
             path.join(apiFolderPath, "types.ts"),
             path.join(apiFolderPath, "endpoints.ts"),
           ];
+          if (config?.validations && config.validations.disable !== true) {
+            planned.push(path.join(apiFolderPath, "validations.ts"));
+          }
+          plannedFilesByApi[apiName] = planned;
         }
 
         const allPlannedFiles = Object.values(plannedFilesByApi).flat();
@@ -605,12 +651,13 @@ const cli = yargs(hideBin(process.argv))
         })
         .option("tags", {
           type: "array",
-          description: "Filter endpoints by tags",
+          description: "Filter endpoints by tags (e.g. --tags pet,user)",
         })
         .option("endpoints", {
           alias: "e",
           type: "array",
-          description: "Filter by specific endpoint names",
+          description:
+            "Filter endpoints by operationId, generated name, or path (e.g. --endpoints getPetById,PostPet or /pet/{petId})",
         })
         .option("output", {
           alias: "o",
@@ -655,14 +702,17 @@ const cli = yargs(hideBin(process.argv))
         );
     },
     async (argv) => {
+      const tags = normalizeArrayArg(argv.tags);
+      const endpoints = normalizeArrayArg(argv.endpoints);
+
       if (argv["dry-run"]) {
         // —— Compact dry-run: show planned file paths without writing ——
-        // Use ValidateConfig (read-only, no file writes) to count endpoints,
-        // then compute canonical planned paths via computePlannedFiles.
         const silent = argv.silent || argv.json;
         const path = require("path");
 
         const validation = await OpenApisync.ValidateConfig({ silent });
+        const config = getLoadedConfig();
+        const configuredFolder = config?.folder || "api";
 
         // Build the planned file list per API
         const perApi = {};
@@ -673,8 +723,15 @@ const cli = yargs(hideBin(process.argv))
           const endpointCount = apiResult.endpointCount || apiResult.operationCount || 0;
           totalEndpointCount += endpointCount;
 
-          const basePath = path.join(process.cwd(), "api");
-          const apiFolderPath = path.join(basePath, apiName);
+          const basePath = path.join(process.cwd(), configuredFolder);
+          const apiFolderPath = argv.output
+            ? (path.isAbsolute(argv.output) ? argv.output : path.join(process.cwd(), argv.output))
+            : (config?.clientGeneration?.outputDir
+              ? (path.isAbsolute(config.clientGeneration.outputDir)
+                  ? config.clientGeneration.outputDir
+                  : path.join(process.cwd(), config.clientGeneration.outputDir))
+              : path.join(basePath, apiName));
+
           const plannedFiles = computePlannedFiles(argv.type, apiFolderPath);
 
           perApi[apiName] = { endpointCount, plannedFiles };
@@ -685,9 +742,45 @@ const cli = yargs(hideBin(process.argv))
         if (argv.verbose) {
           endpointsByApi = await OpenApisync.ListEndpoints({
             apiName: argv.api,
-            tags: argv.tags,
+            tags,
             silent,
           });
+        }
+
+        let filteredEndpointCount = totalEndpointCount;
+        if (tags?.length || endpoints?.length) {
+          try {
+            const allEndpointsMap = await OpenApisync.ListEndpoints({
+              apiName: argv.api,
+              tags,
+              silent: true,
+            });
+            let matched = 0;
+            for (const epList of Object.values(allEndpointsMap)) {
+              if (endpoints && endpoints.length > 0) {
+                const norm = (s) => (s || "").toLowerCase().replace(/[-_/\s]/g, "");
+                const targetNorms = endpoints.map(norm);
+                const targetLowers = endpoints.map((e) => e.toLowerCase());
+                const matchingEps = epList.filter((e) => {
+                  return (
+                    endpoints.includes(e.name) ||
+                    endpoints.includes(e.operationId) ||
+                    endpoints.includes(e.path) ||
+                    targetLowers.includes(e.name.toLowerCase()) ||
+                    targetLowers.includes((e.operationId || "").toLowerCase()) ||
+                    targetLowers.includes(e.path.toLowerCase()) ||
+                    targetNorms.includes(norm(e.name)) ||
+                    targetNorms.includes(norm(e.operationId)) ||
+                    targetNorms.includes(norm(e.path))
+                  );
+                });
+                matched += matchingEps.length;
+              } else {
+                matched += epList.length;
+              }
+            }
+            filteredEndpointCount = matched;
+          } catch (_) {}
         }
 
         const dryRunResult = {
@@ -695,7 +788,9 @@ const cli = yargs(hideBin(process.argv))
           type: argv.type,
           plannedFiles: Object.values(perApi).flatMap((a) => a.plannedFiles),
           fileCount: totalFileCount,
-          endpointCount: totalEndpointCount,
+          endpointCount: (tags?.length || endpoints?.length) ? filteredEndpointCount : totalEndpointCount,
+          totalEndpointCount,
+          filteredEndpointCount,
           warnings: [],
           message: validation.valid
             ? `Would generate a ${argv.type} client. Run without --dry-run to write files.`
@@ -724,8 +819,8 @@ const cli = yargs(hideBin(process.argv))
       const result = await OpenApisync.GenerateClient({
         type: argv.type,
         apiName: argv.api,
-        tags: argv.tags,
-        endpoints: argv.endpoints,
+        tags,
+        endpoints,
         outputDir: argv.output,
         baseURL: argv["base-url"],
         useCache: argv["use-cache"],
@@ -740,12 +835,30 @@ const cli = yargs(hideBin(process.argv))
     }
   )
 
+  // ── `doctor` command ───────────────────────────────────────────────────────
+  .command(
+    "doctor",
+    "Run diagnostic health check on config, specs, peer dependencies, cache, and directory permissions",
+    () => {},
+    async (argv) => {
+      const silent = argv.silent || argv.json;
+      const result = await OpenApisync.Doctor({ silent });
+
+      if (argv.json) {
+        return jsonExit(result, result.healthy ? 0 : 1);
+      }
+
+      process.exit(result.healthy ? 0 : 1);
+    }
+  )
+
   .example("$0 init", "Interactive setup wizard (human)")
   .example(
     "$0 init -y --api-name petstore --api-url https://petstore3.swagger.io/api/v3/openapi.json",
     "Non-interactive init (agent)"
   )
   .example("$0 validate --json", "Validate config + specs (no file writes)")
+  .example("$0 doctor --json", "Run diagnostic health checks")
   .example("$0 list-endpoints --json", "List all endpoints as JSON")
   .example("$0 --json", "Sync and get JSON result")
   .example(

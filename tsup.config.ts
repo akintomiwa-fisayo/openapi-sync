@@ -5,6 +5,7 @@ export default defineConfig({
   format: ["cjs", "esm"],
   dts: true,
   clean: true,
+  shims: true,
   external: [
     "axios",
     "axios-retry",

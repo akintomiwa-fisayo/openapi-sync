@@ -2,14 +2,14 @@ import OpenapiSync from "./Openapi-sync";
 import path from "path";
 import fs from "fs";
 import { resetState } from "./Openapi-sync/state";
-import { IConfig, IConfigClientGeneration, SyncResult, ValidationResult, EndpointSummary } from "./types";
+import { IConfig, IConfigClientGeneration, SyncResult, ValidationResult, EndpointSummary, DoctorResult, DoctorCheckItem } from "./types";
 import {
   getStoredEndpoints,
   getAllStoredEndpoints,
 } from "./Openapi-sync/endpoint-store";
-import { generateClients, dryRunClientFiles } from "./Openapi-sync/client-generation";
+import { generateClients, dryRunClientFiles, checkPeerDependencies } from "./Openapi-sync/client-generation";
 
-import { EndpointInfo } from "./client-generators";
+import { EndpointInfo, filterEndpoints } from "./client-generators";
 import {
   ConfigNotFoundError,
   ConfigParseError,
@@ -66,13 +66,19 @@ const loadConfig = (): IConfig => {
           configJS = JSON.parse(fs.readFileSync(configPath, "utf-8"));
         } else {
           try {
-            configJS = require(configPath);
-          } catch (requireErr) {
             const raw = fs.readFileSync(configPath, "utf-8");
             const evaluated = new Function("module", "exports", raw);
             const m = { exports: {} as any };
             evaluated(m, m.exports);
             configJS = m.exports;
+          } catch (_) {
+            try {
+              delete require.cache[configPath];
+              try { delete require.cache[require.resolve(configPath)]; } catch (_) {}
+              configJS = require(configPath);
+            } catch (requireErr) {
+              throw requireErr;
+            }
           }
         }
         if (configJS && typeof configJS === "object" && Object.keys(configJS).length === 1 && configJS.default) {
@@ -322,9 +328,18 @@ export const GenerateClient = async (options: {
       }
     }
 
+    // Validate peer dependencies
+    const peerWarnings = checkPeerDependencies(options.type, config?.validations?.library);
+    if (peerWarnings.length > 0) {
+      result.warnings.push(...peerWarnings);
+      peerWarnings.forEach((w) => log.warn(`⚠️  ${w}`));
+    }
+
     // Sync APIs to collect endpoints
     log.log("🔄 Syncing OpenAPI specifications...");
-    resetState();
+    if (!options.useCache) {
+      resetState();
+    }
     for (const apiName of apiNames) {
       const apiUrl = config.api[apiName];
       const cachedEndpoints = getStoredEndpoints(apiName);
@@ -349,6 +364,8 @@ export const GenerateClient = async (options: {
 
     // Generate clients for each API
     const folderPath = config?.folder || "api";
+    let totalEndpointsAcrossApis = 0;
+    let totalFilteredEndpointsAcrossApis = 0;
 
     for (const apiName of apiNames) {
       const endpoints = getStoredEndpoints(apiName);
@@ -360,8 +377,7 @@ export const GenerateClient = async (options: {
         continue;
       }
 
-      result.endpointCount += endpoints.length;
-      log.log(`\n📋 Found ${endpoints.length} endpoint(s) for ${apiName}`);
+      totalEndpointsAcrossApis += endpoints.length;
 
       const clientConfig: IConfigClientGeneration = {
         enabled: true,
@@ -372,6 +388,11 @@ export const GenerateClient = async (options: {
         ...(options.tags && { tags: options.tags }),
         ...(options.endpoints && { endpoints: options.endpoints }),
       };
+
+      const filtered = filterEndpoints(endpoints, clientConfig);
+      totalFilteredEndpointsAcrossApis += filtered.length;
+
+      log.log(`\n📋 Found ${endpoints.length} endpoint(s) (${filtered.length} matching filter) for ${apiName}`);
 
       const clientPaths = await generateClients(
         endpoints,
@@ -388,15 +409,23 @@ export const GenerateClient = async (options: {
     log.log("\n✨ All clients generated successfully!\n");
     result.success = result.errors.length === 0;
 
+    const hasFilter = Boolean(options.tags?.length || options.endpoints?.length);
+    result.endpointCount = hasFilter ? totalFilteredEndpointsAcrossApis : totalEndpointsAcrossApis;
+    result.totalEndpointCount = totalEndpointsAcrossApis;
+    result.filteredEndpointCount = totalFilteredEndpointsAcrossApis;
+
     // Populate phases breakdown
     result.phases = {
       sync: {
         filesWritten: syncFilesWritten,
-        endpointCount: result.endpointCount,
+        endpointCount: totalEndpointsAcrossApis,
+        totalEndpointCount: totalEndpointsAcrossApis,
       },
       client: {
         filesWritten: clientFilesWritten,
-        endpointCount: result.endpointCount,
+        endpointCount: hasFilter ? totalFilteredEndpointsAcrossApis : totalEndpointsAcrossApis,
+        totalEndpointCount: totalEndpointsAcrossApis,
+        filteredEndpointCount: totalFilteredEndpointsAcrossApis,
       },
     };
 
@@ -525,6 +554,7 @@ export const ListEndpoints = async (options?: {
         method: ep.method.toUpperCase(),
         path: ep.path,
         operationId: ep.operationId,
+        filterKey: ep.operationId || ep.name,
         tags: ep.tags,
         summary: ep.summary,
       }));
@@ -775,3 +805,28 @@ export const InteractiveInit = async (): Promise<void> => {
   const { interactiveInit } = await import("./Openapi-sync/interactive-init");
   await interactiveInit();
 };
+
+/**
+ * Run diagnostic checks on openapi.sync configuration, API specs, peer dependencies, and environment.
+ *
+ * **Agent-safe** — fully non-interactive. Returns a structured {@link DoctorResult}.
+ *
+ * @param {Object} [options]
+ * @param {boolean} [options.silent=false] - Suppress console output
+ * @returns {Promise<DoctorResult>} Diagnostic report with health status and recommendations
+ *
+ * @example
+ * const report = await Doctor();
+ * if (!report.healthy) {
+ *   console.log("Recommendations:", report.recommendations);
+ * }
+ *
+ * @public
+ */
+export const Doctor = async (options?: {
+  silent?: boolean;
+}): Promise<DoctorResult> => {
+  const { runDoctor } = await import("./Openapi-sync/doctor");
+  return runDoctor(options);
+};
+

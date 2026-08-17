@@ -10,6 +10,15 @@
 
 ## Features
 
+### 🎉 v6.3.1 - Robust ESM Support, Diagnostics & Performance
+
+- ⚡ **Native ESM Programmatic Import** - Full compatibility with native ES module imports (`import { ValidateConfig, Init, Doctor, ... } from 'openapi-sync'`) in modern Node.js and bundlers.
+- 🩺 **Diagnostic Health Check (`openapi-sync doctor`)** - New diagnostic command and programmatic `Doctor()` API verifying configuration, remote OpenAPI spec accessibility, peer dependencies, and directory permissions.
+- 📦 **Root Cache Architecture** - State persistence relocated from `node_modules` to `.openapi-sync/cache.json` and `.openapi-sync/endpoints.json` with instant `--use-cache` rehydration.
+- 🎯 **Flexible CLI Filtering** - Filter endpoints with `--endpoints` and `--tags` supporting comma-separated lists, `operationId`, generated method names, or route paths.
+- 🛡️ **Peer Dependency Validation** - Proactive warnings when generating clients (React Query, SWR, Axios, RTK Query) or validation schemas (Zod, Yup, Joi) if peer packages are missing.
+- 📍 **Accurate Dry-Run Paths** - `sync --dry-run` and `generate-client --dry-run` compute exact target paths respecting `folder` and `clientGeneration.outputDir`.
+
 ### 🎉 v6.3.0 - AI Agent Ecosystem & End-to-End Type Safety
 
 - 🤖 **First-Class AI Agent & MCP Integration** - Built-in Model Context Protocol server (`npx openapi-sync-mcp`) and inspection commands (`list-endpoints`, `get-endpoint`, `read-type`, `validate`) allow AI agents and developer tools to safely explore APIs without reloading specs.

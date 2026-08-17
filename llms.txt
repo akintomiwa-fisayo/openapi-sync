@@ -43,6 +43,7 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 |---------|-------------|
 | `npx openapi-sync` | Sync specs, generate types + endpoints + schemas |
 | `npx openapi-sync validate` | Validate config + specs; no files written |
+| `npx openapi-sync doctor` | Run diagnostic health check on config, network, peer deps, cache |
 | `npx openapi-sync list-endpoints` | List endpoints from a spec with optional filters/pagination; no files written |
 | `npx openapi-sync get-endpoint` | Inspect one endpoint in full detail by operationId or name |
 | `npx openapi-sync read-type` | Read one generated TypeScript interface/type declaration |
@@ -144,19 +145,29 @@ OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent
 
 ## PROGRAMMATIC API
 
-All functions are exported from the `openapi-sync` package.
+All functions are exported from the `openapi-sync` package for both ESM and CJS:
 
 ```typescript
 import {
   Init,                // Sync specs → types, endpoints, schemas
   GenerateClient,      // Generate typed API client
   ValidateConfig,      // Pre-flight check (no file writes)
+  Doctor,              // Diagnostic health checks
   ListEndpoints,       // Inspect API surface (no file writes)
   GetEndpointDetails,  // Read one endpoint in full detail
   ReadGeneratedType,   // Read one generated TypeScript declaration
   InteractiveInit,     // NOT agent-safe — requires stdin
 } from "openapi-sync";
 ```
+
+### Doctor(options?) → Promise<DoctorResult>
+Agent-safe. Checks configuration, network access, peer dependencies, and cache.
+
+```typescript
+const report = await Doctor({ silent: true });
+// report: { healthy: boolean, checks: DoctorCheckItem[], recommendations: string[] }
+```
+
 
 ### Init(options?) → Promise<SyncResult>
 Agent-safe. Returns SyncResult.

@@ -322,10 +322,15 @@ export async function interactiveInit(): Promise<void> {
 
     if (answers.configFormat === "json") {
       configFileName = "openapi.sync.json";
-      configContent = JSON.stringify(config, null, 2);
+      const jsonConfig = {
+        $schema: "./node_modules/openapi-sync/openapi.sync.schema.json",
+        ...config,
+      };
+      configContent = JSON.stringify(jsonConfig, null, 2);
     } else if (answers.configFormat === "typescript") {
       configFileName = "openapi.sync.ts";
-      configContent = `import { IConfig } from "openapi-sync";
+      configContent = `// @see node_modules/openapi-sync/openapi.sync.schema.json
+import { IConfig } from "openapi-sync";
 
 const config: IConfig = ${JSON.stringify(config, null, 2)};
 
@@ -334,7 +339,9 @@ export default config;
     } else {
       // javascript
       configFileName = "openapi.sync.js";
-      configContent = `module.exports = ${JSON.stringify(config, null, 2)};
+      configContent = `// @see node_modules/openapi-sync/openapi.sync.schema.json
+/** @type {import('openapi-sync').IConfig} */
+module.exports = ${JSON.stringify(config, null, 2)};
 `;
     }
 
@@ -579,6 +586,7 @@ export async function nonInteractiveInit(
   configFile: string;
   message: string;
   errors: string[];
+  nextSteps?: string[];
 }> {
   const {
     apiName,
@@ -653,16 +661,24 @@ export async function nonInteractiveInit(
 
   if (configFormat === "json") {
     configFileName = "openapi.sync.json";
-    configContent = JSON.stringify(config, null, 2);
+    const jsonConfig = {
+      $schema: "./node_modules/openapi-sync/openapi.sync.schema.json",
+      ...config,
+    };
+    configContent = JSON.stringify(jsonConfig, null, 2);
   } else if (configFormat === "typescript") {
     configFileName = "openapi.sync.ts";
     configContent =
+      `// @see node_modules/openapi-sync/openapi.sync.schema.json\n` +
       `import { IConfig } from "openapi-sync";\n\n` +
       `const config: IConfig = ${JSON.stringify(config, null, 2)};\n\n` +
       `export default config;\n`;
   } else {
     configFileName = "openapi.sync.js";
-    configContent = `module.exports = ${JSON.stringify(config, null, 2)};\n`;
+    configContent =
+      `// @see node_modules/openapi-sync/openapi.sync.schema.json\n` +
+      `/** @type {import('openapi-sync').IConfig} */\n` +
+      `module.exports = ${JSON.stringify(config, null, 2)};\n`;
   }
 
   const configPath = path.join(process.cwd(), configFileName);
@@ -704,6 +720,19 @@ export async function nonInteractiveInit(
     }
   }
 
+  const checklist = [
+    "1. Validate:       npx openapi-sync validate",
+    "2. Sync:           npx openapi-sync",
+    clientType ? `3. Client:         npx openapi-sync generate-client --type ${clientType}` : undefined,
+    "4. Health Check:   npx openapi-sync doctor",
+  ].filter(Boolean) as string[];
+
+  if (!silent && !isTestEnvironment) {
+    log.log("📋 First-run checklist:");
+    checklist.forEach((step) => log.log(`   ${step}`));
+    log.log("");
+  }
+
   const message =
     errors.length === 0
       ? `Config created: ${configFileName}. Run \`npx openapi-sync\` to generate types.`
@@ -711,5 +740,5 @@ export async function nonInteractiveInit(
 
   log.log(`\n${message}\n`);
 
-  return { success: errors.length === 0, configFile: configFileName, message, errors };
+  return { success: errors.length === 0, configFile: configFileName, message, errors, nextSteps: checklist };
 }

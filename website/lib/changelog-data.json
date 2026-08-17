@@ -1,5 +1,20 @@
 [
   {
+    "version": "6.3.1",
+    "date": "2026-08-17",
+    "type": "patch",
+    "changes": [
+      "resolve ESM programmatic import and module syntax issues with tsup shims and __dirname elimination",
+      "relocate persistent cache to .openapi-sync/cache.json in project root and optimize --use-cache latency",
+      "fix dry-run path calculations to accurately reflect configured folder and client output directory",
+      "support flexible endpoint filtering by operationId, generated name, or path with comma-separated token support",
+      "validate peer dependencies at generation time for react-query, swr, axios, rtk-query, zod, yup, and joi",
+      "add openapi-sync doctor diagnostic command and programmatic API",
+      "add $schema references to generated config scaffolds and expose filterKey in list-endpoints --json",
+      "include ISC license and declare complete package exports map in package.json"
+    ]
+  },
+  {
     "version": "6.3.0",
     "date": "2026-08-16",
     "type": "minor",

@@ -3,18 +3,51 @@ import { IOpenApiSpec } from "../types";
 import fs from "fs";
 
 /**
- * Path to the persistent state database file (db.json)
- * @internal
+ * Get directory path for persistent state cache
+ * @public
  */
-const dbPath = path.join(__dirname, "../", "../db.json");
-if (!fs.existsSync(dbPath)) {
-  fs.writeFileSync(dbPath, "{}");
-}
-let db: Record<string, IOpenApiSpec> = {};
+export const getCacheDir = (): string => {
+  return path.join(process.cwd(), ".openapi-sync");
+};
+
+/**
+ * Path to the persistent state database file (.openapi-sync/cache.json)
+ * @public
+ */
+export const getCachePath = (): string => {
+  return path.join(getCacheDir(), "cache.json");
+};
+
+const initCacheFile = (): string => {
+  const cachePath = getCachePath();
+  try {
+    const dir = path.dirname(cachePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(cachePath)) {
+      fs.writeFileSync(cachePath, "{}");
+    }
+  } catch (_) {
+    // Gracefully ignore directory creation errors in sandboxed or mock environments
+  }
+  return cachePath;
+};
+
+const dbPath = initCacheFile();
+
+let db: Record<string, any> = {};
 try {
-  db = require(dbPath);
+  if (fs.existsSync(dbPath)) {
+    const content = fs.readFileSync(dbPath, "utf-8");
+    db = JSON.parse(content);
+  }
 } catch (error) {
-  db = {};
+  try {
+    db = require(dbPath);
+  } catch (_) {
+    db = {};
+  }
 }
 
 /**
@@ -22,17 +55,25 @@ try {
  * Maps API names to their parsed OpenAPI specs.
  * @internal
  */
-let state: Record<string, IOpenApiSpec> = db || {};
+let state: Record<string, any> = db || {};
 
 /**
  * Update the persistent database file with current state
  *
- * @param {Record<string, IOpenApiSpec>} data - State data to persist
+ * @param {Record<string, any>} data - State data to persist
  * @returns {void}
  * @internal
  */
 const updateDB = (data: typeof state) => {
-  fs.writeFileSync(dbPath, JSON.stringify(data));
+  try {
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(dbPath, JSON.stringify(data));
+  } catch (_) {
+    // Best-effort write
+  }
 };
 
 /**

@@ -5,6 +5,8 @@ experiments
 inputed
 .qodo
 db.json
+.openapi-sync
+.openapi-sync-eval
 openapi.sync.json
 TODO.md
 var
