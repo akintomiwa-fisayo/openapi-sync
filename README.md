@@ -10,6 +10,15 @@
 
 ## Features
 
+### 🎉 v6.3.2 - Schema Deduplication, Untruncated Types & Full ESM
+
+- 🛡️ **Schema & Type Deduplication** - Resolves duplicate type declarations across OpenAPI components (`schemas`, `requestBodies`, `responses`), guaranteeing clean TypeScript compilation (`tsc`) for specs like Petstore.
+- 📖 **Full Untruncated `read-type`** - Balanced-bracket type extraction accurately returns complete type declarations, even with complex nested schemas and internal JSDoc comments.
+- 📑 **Pagination for Large Types** - Support for `--offset` and `--max-lines` / `--limit` across programmatic API, CLI, and MCP for safely inspecting mega-types.
+- ⚡ **In-Memory TypeScript Config Loading** - Transpiles `openapi.sync.ts` in memory via `esbuild`, enabling seamless programmatic ESM imports in `"type": "module"` projects without Node require hooks.
+- 🩺 **MCP `openapi_sync_doctor` Tool** - Expanded MCP server to 9 tools, enabling AI agents (Cursor, Claude Desktop) to run diagnostic health checks directly.
+- 📍 **Exact Dry-Run Output Alignment** - `--dry-run` planned file paths precisely match actual sync generation in both flat (`types/index.ts`, `types/shared.ts`) and tag-split layouts.
+
 ### 🎉 v6.3.1 - Robust ESM Support, Diagnostics & Performance
 
 - ⚡ **Native ESM Programmatic Import** - Full compatibility with native ES module imports (`import { ValidateConfig, Init, Doctor, ... } from 'openapi-sync'`) in modern Node.js and bundlers.

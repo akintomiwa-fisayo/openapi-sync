@@ -7,6 +7,8 @@ import { isJson, yamlStringToJson } from "../helpers";
 
 const rootUsingCwd = process.cwd();
 
+import { tryLoadConfig } from "./config-loader";
+
 /**
  * Load and return the raw config object from disk.
  * Shared with index.ts's loadConfig but kept internal here to avoid circular deps.
@@ -16,56 +18,14 @@ const loadConfigForValidation = (): {
   config: IConfig | null;
   errors: string[];
 } => {
-  const jsConfigPath = path.join(rootUsingCwd, "openapi.sync.js");
-  const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
-  const jsonConfigPath = path.join(rootUsingCwd, "openapi.sync.json");
-  const configPaths = [jsConfigPath, tsConfigPath, jsonConfigPath];
-
-  try {
-    require("esbuild-register");
-  } catch {
-    // esbuild-register not available; JSON-only configs will still work
+  const result = tryLoadConfig();
+  if (!result.foundPath || !result.config) {
+    return {
+      config: null,
+      errors: [result.error || "No openapi.sync configuration file found."],
+    };
   }
-
-  for (const configPath of configPaths) {
-    if (!fs.existsSync(configPath)) continue;
-
-    try {
-      let configJS: any;
-      if (configPath.endsWith(".json")) {
-        configJS = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-      } else {
-        try {
-          configJS = require(configPath);
-        } catch (requireErr) {
-          const raw = fs.readFileSync(configPath, "utf-8");
-          const evaluated = new Function("module", "exports", raw);
-          const m = { exports: {} as any };
-          evaluated(m, m.exports);
-          configJS = m.exports;
-        }
-      }
-      if (configJS && typeof configJS === "object" && Object.keys(configJS).length === 1 && configJS.default) {
-        configJS = configJS.default;
-      }
-      if (typeof configJS === "function") configJS = configJS();
-      return { config: configJS as IConfig, errors: [] };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return {
-        config: null,
-        errors: [`Failed to parse ${configPath}: ${msg}`],
-      };
-    }
-  }
-
-  return {
-    config: null,
-    errors: [
-      `No config file found. Searched: ${configPaths.join(", ")}. ` +
-        `Run \`npx openapi-sync init --no-interactive\` to create one.`,
-    ],
-  };
+  return { config: result.config, errors: [] };
 };
 
 /**

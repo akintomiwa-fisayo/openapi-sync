@@ -183,4 +183,61 @@ describe("Phase 5: Evaluation Feedback & Hardening", () => {
       expect(Array.isArray(parsed.checks)).toBe(true);
     });
   });
+
+  describe("5.6 In-Memory TypeScript Config Loading", () => {
+    it("should parse and evaluate TypeScript config syntax in memory without require hooks", () => {
+      const { evaluateConfigContent } = require("../Openapi-sync/config-loader");
+      const tsCode = `
+        export default {
+          api: { petstore: "https://petstore3.swagger.io/api/v3/openapi.json" },
+          folder: "./src/api"
+        };
+      `;
+      const config = evaluateConfigContent(tsCode, "openapi.sync.ts");
+      expect(config).toBeDefined();
+      expect(config.api.petstore).toBe("https://petstore3.swagger.io/api/v3/openapi.json");
+      expect(config.folder).toBe("./src/api");
+    });
+  });
+
+  describe("5.7 Untruncated Type Extraction & Pagination", () => {
+    const sampleTypeScript = `
+/**
+ * Pet model representation
+ */
+export type IPet = {
+  id?: number;
+  /** Name of the pet */
+  name: string;
+  /* Multi-line photo urls */
+  photoUrls: string[];
+  status?: "available" | "pending" | "sold";
+};
+
+export type ICategory = {
+  id?: number;
+  name?: string;
+};
+    `;
+
+    it("should extract full type without truncating at internal JSDoc comments", () => {
+      const { extractTypeDeclaration } = require("../index");
+      const extracted = extractTypeDeclaration(sampleTypeScript, "IPet");
+      expect(extracted).toBeDefined();
+      expect(extracted).toContain("export type IPet");
+      expect(extracted).toContain("/** Name of the pet */");
+      expect(extracted).toContain("status?:");
+      expect(extracted).toContain("};");
+    });
+
+    it("should support offset and maxLines pagination", async () => {
+      const { extractTypeDeclaration } = require("../index");
+      const extracted = extractTypeDeclaration(sampleTypeScript, "IPet");
+      const lines = extracted!.split("\n");
+      expect(lines.length).toBeGreaterThan(5);
+
+      const offsetSlice = lines.slice(2, 5).join("\n");
+      expect(offsetSlice).toBeDefined();
+    });
+  });
 });

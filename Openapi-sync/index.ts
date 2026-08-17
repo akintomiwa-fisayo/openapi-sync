@@ -1118,21 +1118,27 @@ const processOpenapiSync = async (
 			docPy = buildPythonClassDoc(sourceSchema);
 
 			if (isPython) {
-				sharedTypesFileContent[key] =
-					(sharedTypesFileContent[key] ?? "") +
-					`@dataclass\nclass ${name}:\n` +
-					(docPy || "") +
-					toPythonDataclassBody(typeof cnt === "string" ? cnt : "") +
-					"\n";
+				if (!sharedTypesFileContent[name]) {
+					sharedTypesFileContent[name] =
+						`@dataclass\nclass ${name}:\n` +
+						(docPy || "") +
+						toPythonDataclassBody(typeof cnt === "string" ? cnt : "") +
+						"\n";
+				}
 			} else {
-				sharedTypesFileContent[key] =
-					(sharedTypesFileContent[key] ?? "") +
-					(docTs ? `/**\n${docTs}\n */\n` : "") +
-					"export type " +
-					name +
-					" = " +
-					(typeof cnt === "string" ? cnt : JSONStringify(cnt)) +
-					";\n";
+				const isBetterDefinition =
+					typeof cnt === "string" &&
+					cnt !== "any" &&
+					(!sharedTypesFileContent[name] || sharedTypesFileContent[name].includes("= any;"));
+				if (!sharedTypesFileContent[name] || isBetterDefinition) {
+					sharedTypesFileContent[name] =
+						(docTs ? `/**\n${docTs}\n */\n` : "") +
+						"export type " +
+						name +
+						" = " +
+						(typeof cnt === "string" ? cnt : JSONStringify(cnt)) +
+						";\n";
+				}
 			}
 		});
 	};
@@ -1145,26 +1151,22 @@ const processOpenapiSync = async (
 		);
 	}
 
-	// Process OpenAPI 3.x components (if present)
+	// Process OpenAPI 3.x components (if present, schemas first then others)
 	if (spec.components) {
-		Object.keys(spec.components).forEach((key) => {
-			if (
-				[
-					"schemas",
-					"responses",
-					"parameters",
-					"examples",
-					"requestBodies",
-					"headers",
-					"links",
-					"callbacks",
-				].includes(key)
-			) {
-				// Create components (shared) types
+		const componentSections = [
+			"schemas",
+			"responses",
+			"parameters",
+			"examples",
+			"requestBodies",
+			"headers",
+			"links",
+			"callbacks",
+		];
+		componentSections.forEach((key) => {
+			if (spec.components && spec.components[key]) {
 				const components: Record<string, IOpenApiMediaTypeSpec> =
 					spec.components[key];
-
-				// Process using the shared function
 				processSchemas(components, "components");
 			}
 		});

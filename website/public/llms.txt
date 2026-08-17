@@ -43,11 +43,25 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 |---------|-------------|
 | `npx openapi-sync` | Sync specs, generate types + endpoints + schemas |
 | `npx openapi-sync validate` | Validate config + specs; no files written |
+| `npx openapi-sync doctor` | Run diagnostic health check on config, network, peer deps, cache |
 | `npx openapi-sync list-endpoints` | List endpoints from a spec with optional filters/pagination; no files written |
 | `npx openapi-sync get-endpoint` | Inspect one endpoint in full detail by operationId or name |
 | `npx openapi-sync read-type` | Read one generated TypeScript interface/type declaration |
 | `npx openapi-sync generate-client --type <TYPE>` | Generate typed API client |
 | `npx openapi-sync init --no-interactive [FLAGS]` | Create config file without prompts |
+
+### Model Context Protocol (MCP) Server
+
+Run via `npx openapi-sync-mcp` or `openapi-sync-mcp`. Exposes 9 tools for AI agents:
+1. `openapi_sync_validate`: Validate config & specs without writing files.
+2. `openapi_sync_doctor`: Run full diagnostic health checks and return structured reports.
+3. `openapi_sync_list_endpoints`: List all endpoints with optional tag/path filters and pagination.
+4. `openapi_sync_get_endpoint_details`: Retrieve full parameter and response schemas for a specific endpoint.
+5. `openapi_sync_read_generated_type`: Read exact TypeScript declarations with optional `offset`/`maxLines` pagination.
+6. `openapi_sync_sync`: Run full sync generation.
+7. `openapi_sync_generate_client`: Generate typed Fetch/Axios/React Query/SWR/RTK Query clients.
+8. `openapi_sync_init`: Create typed openapi.sync configuration without user prompts.
+9. `openapi_sync_read_config`: Inspect active configuration file content.
 
 ### Interactive-only (requires human stdin — NOT safe for agents)
 
@@ -132,6 +146,7 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 
 OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent workflows. Long-running MCP calls reuse cached endpoints by default when available.
 
+- `openapi_sync_read_config`
 - `openapi_sync_sync`
 - `openapi_sync_validate`
 - `openapi_sync_list_endpoints` (supports pagination, path filters, and `useCache`)
@@ -143,19 +158,29 @@ OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent
 
 ## PROGRAMMATIC API
 
-All functions are exported from the `openapi-sync` package.
+All functions are exported from the `openapi-sync` package for both ESM and CJS:
 
 ```typescript
 import {
   Init,                // Sync specs → types, endpoints, schemas
   GenerateClient,      // Generate typed API client
   ValidateConfig,      // Pre-flight check (no file writes)
+  Doctor,              // Diagnostic health checks
   ListEndpoints,       // Inspect API surface (no file writes)
   GetEndpointDetails,  // Read one endpoint in full detail
   ReadGeneratedType,   // Read one generated TypeScript declaration
   InteractiveInit,     // NOT agent-safe — requires stdin
 } from "openapi-sync";
 ```
+
+### Doctor(options?) → Promise<DoctorResult>
+Agent-safe. Checks configuration, network access, peer dependencies, and cache.
+
+```typescript
+const report = await Doctor({ silent: true });
+// report: { healthy: boolean, checks: DoctorCheckItem[], recommendations: string[] }
+```
+
 
 ### Init(options?) → Promise<SyncResult>
 Agent-safe. Returns SyncResult.
@@ -333,7 +358,9 @@ type EndpointSummary = {
 ```
 
 When `folderSplit.byTags` is true, types/endpoints/validations are split into
-tag-named subdirectories with aggregator index files for easy imports.
+tag-named subdirectories (`{tag}/endpoints.ts`, `{tag}/types.ts`, `shared.ts`).
+When `folderSplit` is omitted or empty (`{}`), generation defaults to flat mode (`endpoints.ts`, `types/index.ts`, `types/shared.ts`).
+Custom `clientGeneration.outputDir` is fully supported with folder splitting, generating tag client subdirectories with relative imports back to types.
 
 
 ## ERROR CODES (typed errors)

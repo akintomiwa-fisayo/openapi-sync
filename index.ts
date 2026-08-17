@@ -17,11 +17,14 @@ import {
 } from "./errors";
 import { makeLogger } from "./logger";
 
+import { loadConfig } from "./Openapi-sync/config-loader";
+
 // Re-export modules for user consumption
 export * from "./types";
 export * from "./helpers";
 export * from "./regex";
 export * from "./errors";
+export { loadConfig } from "./Openapi-sync/config-loader";
 
 const rootUsingCwd = process.cwd();
 
@@ -29,94 +32,7 @@ const rootUsingCwd = process.cwd();
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Load configuration from openapi.sync file.
- *
- * Searches for configuration files in the following order:
- * - openapi.sync.js
- * - openapi.sync.ts
- * - openapi.sync.json
- *
- * @returns {IConfig} The loaded configuration object
- * @throws {ConfigNotFoundError} When no configuration file is found
- * @throws {ConfigParseError} When the configuration file cannot be parsed
- * @internal
- */
-const loadConfig = (): IConfig => {
-  const jsConfigPath = path.join(rootUsingCwd, "openapi.sync.js");
-  const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
-  const jsonConfigPath = path.join(rootUsingCwd, "openapi.sync.json");
-  const configPaths = [jsConfigPath, tsConfigPath, jsonConfigPath];
 
-  // Register TypeScript loader before requiring the file
-  try {
-    require("esbuild-register");
-  } catch (registerError) {
-    throw registerError;
-  }
-
-  let configJS: any;
-  let foundPath: string | undefined;
-
-  for (const configPath of configPaths) {
-    if (fs.existsSync(configPath)) {
-      foundPath = configPath;
-      try {
-        if (configPath.endsWith(".json")) {
-          configJS = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        } else {
-          const raw = fs.readFileSync(configPath, "utf-8");
-          if (typeof raw === "string" && raw.trim().length > 0) {
-            try {
-              const evaluated = new Function("module", "exports", raw);
-              const m = { exports: {} as any };
-              evaluated(m, m.exports);
-              configJS = m.exports;
-            } catch (_) {
-              try {
-                delete require.cache[configPath];
-                try { delete require.cache[require.resolve(configPath)]; } catch (_) {}
-                configJS = require(configPath);
-              } catch (requireErr) {
-                throw requireErr;
-              }
-            }
-          } else {
-            try {
-              delete require.cache[configPath];
-              try { delete require.cache[require.resolve(configPath)]; } catch (_) {}
-              configJS = require(configPath);
-            } catch (requireErr) {
-              throw requireErr;
-            }
-          }
-        }
-        if (configJS && typeof configJS === "object" && Object.keys(configJS).length === 1 && configJS.default) {
-          configJS = configJS.default;
-        }
-      } catch (e) {
-        throw new ConfigParseError(configPath, e);
-      }
-      break; // Stop at first found config
-    }
-  }
-
-  if (!foundPath) {
-    throw new ConfigNotFoundError(configPaths);
-  }
-
-  if (typeof configJS === "function") {
-    configJS = configJS();
-  }
-
-  const config: IConfig = configJS;
-
-  if (!config) {
-    throw new ConfigNotFoundError(configPaths);
-  }
-
-  return config;
-};
 
 const filterAndPaginateEndpoints = (
   endpoints: EndpointInfo[],
@@ -668,9 +584,125 @@ export const GetEndpointDetails = async (options?: {
   }
 };
 
+export const extractTypeDeclaration = (
+  content: string,
+  targetName: string,
+  isPython: boolean = false
+): string | null => {
+  if (!content || !targetName) return null;
+
+  if (isPython) {
+    const lines = content.split("\n");
+    let startIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (
+        new RegExp(`^class\\s+${targetName}\\b`).test(line) ||
+        (line.startsWith("@dataclass") &&
+          i + 1 < lines.length &&
+          new RegExp(`^class\\s+${targetName}\\b`).test(lines[i + 1]))
+      ) {
+        startIndex = line.startsWith("@dataclass") ? i : i;
+        break;
+      }
+    }
+    if (startIndex === -1) return null;
+
+    const resultLines: string[] = [];
+    resultLines.push(lines[startIndex]);
+    for (let i = startIndex + 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^(?:class|def|@dataclass|[A-Z0-9_]+\s*=\s*Endpoint)\b/.test(line)) {
+        break;
+      }
+      resultLines.push(line);
+    }
+    return resultLines.join("\n").trim();
+  }
+
+  // TypeScript / JavaScript
+  const escapedName = targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const declStartRegex = new RegExp(
+    `(?:\\/\\*\\*[\\s\\S]*?\\*\\/\\s*)?export\\s+(?:type|interface|class|enum)\\s+${escapedName}\\b`,
+    "g"
+  );
+
+  const match = declStartRegex.exec(content);
+  if (!match) return null;
+
+  const startIndex = match.index;
+  const rest = content.slice(startIndex);
+
+  let depth = 0;
+  let inString: string | null = null;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let hasEncounteredBrace = false;
+  let endIndex = -1;
+
+  for (let i = 0; i < rest.length; i++) {
+    const char = rest[i];
+    const nextChar = rest[i + 1];
+
+    if (inLineComment) {
+      if (char === "\n") inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === "*" && nextChar === "/") {
+        inBlockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (inString) {
+      if (char === "\\" && nextChar) {
+        i++;
+      } else if (char === inString) {
+        inString = null;
+      }
+      continue;
+    }
+
+    if (char === "/" && nextChar === "/") {
+      inLineComment = true;
+      i++;
+      continue;
+    }
+    if (char === "/" && nextChar === "*") {
+      inBlockComment = true;
+      i++;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") {
+      inString = char;
+      continue;
+    }
+
+    if (char === "{" || char === "(" || char === "[") {
+      depth++;
+      hasEncounteredBrace = true;
+    } else if (char === "}" || char === ")" || char === "]") {
+      depth--;
+      if (hasEncounteredBrace && depth === 0) {
+        endIndex = nextChar === ";" ? i + 2 : i + 1;
+        break;
+      }
+    } else if (char === ";" && depth <= 0) {
+      endIndex = i + 1;
+      break;
+    }
+  }
+
+  const rawDeclaration = (endIndex !== -1 ? rest.slice(0, endIndex) : rest).trim();
+  return rawDeclaration;
+};
+
 export const ReadGeneratedType = async (options: {
   apiName: string;
   typeName: string;
+  maxLines?: number;
+  offset?: number;
   silent?: boolean;
 }): Promise<string> => {
   const silent = options.silent ?? false;
@@ -757,23 +789,16 @@ export const ReadGeneratedType = async (options: {
     }
 
     for (const name of targetNames) {
-      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const tsPattern = new RegExp(
-        `export\\s+(?:type|interface|class|enum)\\s+${escapedName}\\b[\\s\\S]*?(?=\\n(?:export\\s+(?:type|interface|const|function|class|enum)\\b|/\\*|//\\s*={3,}|$))`,
-        "m"
-      );
-      const pyPattern = new RegExp(
-        `class\\s+${escapedName}\\b[\\s\\S]*?(?=\\n(?:class\\s+|def\\s+|[A-Z0-9_]+\\s*=\\s*Endpoint|$))`,
-        "m"
-      );
-
       for (const filePath of candidateFiles) {
         try {
           const content = await fs.promises.readFile(filePath, "utf-8");
-          const pattern = filePath.endsWith(".py") ? pyPattern : tsPattern;
-          const match = content.match(pattern);
-          if (match) {
-            return match[0].trim();
+          const isPython = filePath.endsWith(".py");
+          const extracted = extractTypeDeclaration(content, name, isPython);
+          if (extracted) {
+            const lines = extracted.split("\n");
+            const offset = Math.max(0, options.offset ?? 0);
+            const limit = options.maxLines ?? lines.length;
+            return lines.slice(offset, offset + limit).join("\n");
           }
         } catch (_) {
           // Skip unreadable files
