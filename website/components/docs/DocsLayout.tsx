@@ -34,6 +34,7 @@ const sections: NavSection[] = [
       { id: "validation-schemas", label: "Validation Schemas" },
       { id: "custom-code", label: "Custom Code Preservation" },
       { id: "endpoint-filtering", label: "Endpoint Filtering" },
+      { id: "python-generation", label: "Python Codegen", icon: "🐍" },
     ],
   },
   {

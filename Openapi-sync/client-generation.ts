@@ -11,6 +11,7 @@ import {
   generateRTKQuery,
 } from "../client-generators";
 import { mergeCustomCode } from "../helpers";
+import { makeLogger, ProgressLogger } from "../logger";
 
 /**
  * Get folder name for an endpoint based on config
@@ -66,14 +67,17 @@ export const generateClients = async (
   config: IConfig,
   clientConfig: IConfigClientGeneration,
   apiName: string,
-  outputFolder: string
-): Promise<void> => {
+  outputFolder: string,
+  silent = false
+): Promise<string[]> => {
+  const log = makeLogger(silent);
+  const writtenFiles: string[] = [];
   // Filter endpoints based on config
   const filteredEndpoints = filterEndpoints(endpoints, clientConfig);
 
   if (filteredEndpoints.length === 0) {
-    console.log("⚠️  No endpoints match the filter criteria");
-    return;
+    log.log("⚠️  No endpoints match the filter criteria");
+    return writtenFiles;
   }
 
   const clientType = clientConfig.type || "fetch";
@@ -86,7 +90,7 @@ export const generateClients = async (
     (config.folderSplit.byTags || config.folderSplit.customFolder)
   );
 
-  console.log(
+  log.log(
     `\n🚀 Generating ${clientType} client for ${filteredEndpoints.length} endpoint(s)...`
   );
 
@@ -101,16 +105,19 @@ export const generateClients = async (
       endpointsByFolder[folderName].push(endpoint);
     });
 
-    // Generate clients for each folder (directly in tag folders, not in subfolders)
+    const clientBaseDir = clientConfig.outputDir || path.join(outputFolder, apiName);
+    const syncBaseDir = path.join(outputFolder, apiName);
+
+    // Generate clients for each folder
     const folderNames = Object.keys(endpointsByFolder);
     for (const [folderName, folderEndpoints] of Object.entries(
       endpointsByFolder
     )) {
-      // Generate client.ts and hooks.ts directly in the tag folder
-      const tagFolderPath = path.join(outputFolder, apiName, folderName);
+      const tagFolderPath = path.join(clientBaseDir, folderName);
+      const syncTagFolderPath = path.join(syncBaseDir, folderName);
       await fs.promises.mkdir(tagFolderPath, { recursive: true });
 
-      console.log(
+      log.log(
         `\n📁 Generating ${clientType} client for folder "${folderName}" (${folderEndpoints.length} endpoints)...`
       );
 
@@ -121,34 +128,35 @@ export const generateClients = async (
         tagFolderPath,
         clientType,
         folderName,
-        true // isFolderSplit
+        true, // isFolderSplit
+        log,
+        writtenFiles,
+        syncTagFolderPath
       );
     }
 
-    // Generate root clients.ts file at API folder level (not in subfolder)
-    const apiFolderPath = path.join(outputFolder, apiName);
+    // Generate root clients.ts file at client base folder level
     await generateRootAggregatorClient(
-      apiFolderPath,
+      clientBaseDir,
       folderNames,
       clientType,
-      config
+      config,
+      writtenFiles
     );
 
     if (clientType === "rtk-query") {
-      console.log(`\n✅ Generated RTK Query APIs: ${apiFolderPath}/apis.ts`);
+      log.log(`\n✅ Generated RTK Query APIs: ${clientBaseDir}/apis.ts`);
     } else {
-      console.log(
-        `\n✅ Generated centralized clients: ${apiFolderPath}/clients.ts`
+      log.log(
+        `\n✅ Generated centralized clients: ${clientBaseDir}/clients.ts`
       );
       if (clientType === "react-query" || clientType === "swr") {
-        console.log(
-          `✅ Generated root hooks aggregator: ${apiFolderPath}/hooks.ts`
-        );
+        log.log(`✅ Generated centralized hooks: ${clientBaseDir}/hooks.ts`);
       }
     }
 
-    console.log(`\n✨ Client generation complete!\n`);
-    return;
+    log.log(`\n✨ Client generation complete!\n`);
+    return writtenFiles;
   }
 
   // Non-folder-split mode: Generate single clients.ts and hooks.ts at API folder level
@@ -166,9 +174,10 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "clients.ts"),
         fetchContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated fetch client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated fetch client: ${apiFolderPath}/clients.ts`);
       break;
 
     case "axios":
@@ -184,9 +193,10 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "clients.ts"),
         axiosContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
       break;
 
     case "react-query":
@@ -203,9 +213,10 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "clients.ts"),
         rqClientContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
 
       // Then generate React Query hooks
       let rqHooksContent = generateReactQueryHooks(
@@ -223,9 +234,10 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "hooks.ts"),
         rqHooksContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated React Query hooks: ${apiFolderPath}/hooks.ts`);
+      log.log(`✅ Generated React Query hooks: ${apiFolderPath}/hooks.ts`);
       break;
 
     case "swr":
@@ -242,9 +254,10 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "clients.ts"),
         swrClientContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
 
       // Then generate SWR hooks
       let swrHooksContent = generateSWRHooks(filteredEndpoints, clientConfig);
@@ -259,9 +272,10 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "hooks.ts"),
         swrHooksContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated SWR hooks: ${apiFolderPath}/hooks.ts`);
+      log.log(`✅ Generated SWR hooks: ${apiFolderPath}/hooks.ts`);
       break;
 
     case "rtk-query":
@@ -273,16 +287,18 @@ export const generateClients = async (
       await writeClientFile(
         path.join(apiFolderPath, "api.ts"),
         rtkContent,
-        config
+        config,
+        writtenFiles
       );
-      console.log(`✅ Generated RTK Query API: ${apiFolderPath}/api.ts`);
+      log.log(`✅ Generated RTK Query API: ${apiFolderPath}/api.ts`);
       break;
 
     default:
       throw new Error(`Unknown client type: ${clientType}`);
   }
 
-  console.log(`\n✨ Client generation complete!\n`);
+  log.log(`\n✨ Client generation complete!\n`);
+  return writtenFiles;
 };
 
 /**
@@ -302,12 +318,14 @@ export const generateClients = async (
 const writeClientFile = async (
   filePath: string,
   content: string,
-  config: IConfig
+  config: IConfig,
+  sink?: string[]
 ): Promise<void> => {
   const customCodeEnabled = config?.customCode?.enabled !== false;
 
   if (!customCodeEnabled) {
     await fs.promises.writeFile(filePath, content);
+    sink?.push(filePath);
     return;
   }
 
@@ -327,6 +345,7 @@ const writeClientFile = async (
   });
 
   await fs.promises.writeFile(filePath, finalContent);
+  sink?.push(filePath);
 };
 
 /**
@@ -346,7 +365,8 @@ const writeClientFile = async (
 const generateIndexFile = async (
   outputDir: string,
   clientType: string,
-  config: IConfig
+  config: IConfig,
+  sink?: string[]
 ): Promise<void> => {
   let content = `// Generated API Client Exports\n`;
   content += `// This file was auto-generated.\n\n`;
@@ -369,7 +389,7 @@ const generateIndexFile = async (
       break;
   }
 
-  await writeClientFile(path.join(outputDir, "index.ts"), content, config);
+  await writeClientFile(path.join(outputDir, "index.ts"), content, config, sink);
 };
 
 /**
@@ -589,16 +609,26 @@ const generateClientForFolder = async (
   outputDir: string,
   clientType: string,
   folderName: string,
-  isFolderSplit: boolean = false
+  isFolderSplit: boolean = false,
+  log: ProgressLogger = makeLogger(false),
+  sink: string[] = [],
+  syncTagDir?: string
 ): Promise<void> => {
   let clientContent = "";
   let hooksContent = "";
 
   // Determine the correct import path for types and endpoints
-  // If folder split: files are in the same folder, so use './types'
+  // If folder split: files are in the same folder, so use './types' unless outputDir is relocated
   // If not folder split: use '../types'
-  const typesImportPath = isFolderSplit ? "./types" : "../types";
-  const endpointsImportPath = isFolderSplit ? "./endpoints" : "../endpoints";
+  let typesImportPath = isFolderSplit ? "./types" : "../types";
+  let endpointsImportPath = isFolderSplit ? "./endpoints" : "../endpoints";
+
+  if (isFolderSplit && syncTagDir && path.resolve(outputDir) !== path.resolve(syncTagDir)) {
+    let rel = path.relative(outputDir, syncTagDir).replace(/\\/g, "/");
+    if (!rel.startsWith(".")) rel = "./" + rel;
+    typesImportPath = `${rel}/types`;
+    endpointsImportPath = `${rel}/endpoints`;
+  }
 
   // Generate based on type
   switch (clientType) {
@@ -615,9 +645,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "client.ts"),
         clientContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ client.ts`);
+      log.log(`  ✅ client.ts`);
       break;
 
     case "axios":
@@ -633,9 +664,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "client.ts"),
         clientContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ client.ts`);
+      log.log(`  ✅ client.ts`);
       break;
 
     case "react-query":
@@ -652,9 +684,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "client.ts"),
         clientContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ client.ts`);
+      log.log(`  ✅ client.ts`);
 
       // Then generate React Query hooks
       hooksContent = generateReactQueryHooks(endpoints, clientConfig);
@@ -675,9 +708,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "hooks.ts"),
         hooksContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ hooks.ts`);
+      log.log(`  ✅ hooks.ts`);
       break;
 
     case "swr":
@@ -694,9 +728,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "client.ts"),
         clientContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ client.ts`);
+      log.log(`  ✅ client.ts`);
 
       // Then generate SWR hooks
       hooksContent = generateSWRHooks(endpoints, clientConfig);
@@ -717,9 +752,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "hooks.ts"),
         hooksContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ hooks.ts`);
+      log.log(`  ✅ hooks.ts`);
       break;
 
     case "rtk-query":
@@ -742,9 +778,10 @@ const generateClientForFolder = async (
       await writeClientFile(
         path.join(outputDir, "api.ts"),
         hooksContent,
-        config
+        config,
+        sink
       );
-      console.log(`  ✅ api.ts`);
+      log.log(`  ✅ api.ts`);
       break;
 
     default:
@@ -773,7 +810,8 @@ const generateRootAggregatorClient = async (
   outputDir: string,
   folderNames: string[],
   clientType: string,
-  config: IConfig
+  config: IConfig,
+  sink: string[] = []
 ): Promise<void> => {
   // Special handling for RTK Query - generate apis.ts
   if (clientType === "rtk-query") {
@@ -822,7 +860,8 @@ const generateRootAggregatorClient = async (
     apisContent += `  ],\n`;
     apisContent += `};\n`;
 
-    await writeClientFile(path.join(outputDir, "apis.ts"), apisContent, config);
+    await writeClientFile(path.join(outputDir, "apis.ts"), apisContent, config, sink);
+
     return;
   }
 
@@ -931,7 +970,8 @@ const generateRootAggregatorClient = async (
   await writeClientFile(
     path.join(outputDir, "clients.ts"),
     clientContent,
-    config
+    config,
+    sink
   );
 
   // Generate hooks.ts aggregator if using React Query or SWR
@@ -950,9 +990,109 @@ const generateRootAggregatorClient = async (
     await writeClientFile(
       path.join(outputDir, "hooks.ts"),
       hooksContent,
-      config
+      config,
+      sink
     );
   }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dry-run helper — compute planned file paths without writing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Compute the list of client file paths that *would* be written by
+ * {@link generateClients} without actually writing any files to disk.
+ *
+ * Useful for dry-run output and size estimation.
+ *
+ * @param endpoints - Filtered endpoint list
+ * @param config - Full OpenAPI sync configuration
+ * @param clientConfig - Client generation configuration
+ * @param apiName - Name of the API being generated
+ * @param outputFolder - Base output folder path
+ * @returns Array of absolute file paths that would be created
+ *
+ * @public
+ */
+export const dryRunClientFiles = (
+  endpoints: EndpointInfo[],
+  config: IConfig,
+  clientConfig: IConfigClientGeneration,
+  apiName: string,
+  outputFolder: string
+): string[] => {
+  const filteredEndpoints = filterEndpoints(endpoints, clientConfig);
+  if (filteredEndpoints.length === 0) return [];
+
+  const clientType = clientConfig.type || "fetch";
+  const apiFolderPath = path.join(outputFolder, apiName);
+
+  const isFolderSplitEnabled = !!(
+    config?.folderSplit &&
+    (config.folderSplit.byTags || config.folderSplit.customFolder)
+  );
+
+  const files: string[] = [];
+
+  if (isFolderSplitEnabled) {
+    // Collect unique folder names
+    const folderNames: string[] = [];
+    const seen = new Set<string>();
+    for (const ep of filteredEndpoints) {
+      const folder = (() => {
+        if (config?.folderSplit?.customFolder) {
+          const cf = config.folderSplit.customFolder({
+            method: ep.method,
+            path: ep.path,
+            tags: ep.tags,
+            operationId: ep.operationId,
+            summary: ep.summary,
+          });
+          if (cf) return cf;
+        }
+        if (config?.folderSplit?.byTags && ep.tags && ep.tags.length > 0) {
+          return ep.tags[0].toLowerCase().replace(/\s+/g, "-");
+        }
+        return "default";
+      })();
+      if (!seen.has(folder)) { seen.add(folder); folderNames.push(folder); }
+    }
+
+    for (const folderName of folderNames) {
+      const tagDir = path.join(apiFolderPath, folderName);
+      if (clientType === "rtk-query") {
+        files.push(path.join(tagDir, "api.ts"));
+      } else if (clientType === "react-query" || clientType === "swr") {
+        files.push(path.join(tagDir, "client.ts"));
+        files.push(path.join(tagDir, "hooks.ts"));
+      } else {
+        files.push(path.join(tagDir, "client.ts"));
+      }
+    }
+
+    // Root aggregator
+    if (clientType === "rtk-query") {
+      files.push(path.join(apiFolderPath, "apis.ts"));
+    } else {
+      files.push(path.join(apiFolderPath, "clients.ts"));
+      if (clientType === "react-query" || clientType === "swr") {
+        files.push(path.join(apiFolderPath, "hooks.ts"));
+      }
+    }
+  } else {
+    // Non-split mode
+    if (clientType === "rtk-query") {
+      files.push(path.join(apiFolderPath, "api.ts"));
+    } else if (clientType === "react-query" || clientType === "swr") {
+      files.push(path.join(apiFolderPath, "clients.ts"));
+      files.push(path.join(apiFolderPath, "hooks.ts"));
+    } else {
+      files.push(path.join(apiFolderPath, "clients.ts"));
+    }
+  }
+
+  return files;
 };
 
 /**

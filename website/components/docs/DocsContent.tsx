@@ -549,6 +549,95 @@ export const updatePet = (petId: string) => \`/pet/\${petId}\`;`}
         />
       </section>
 
+      {/* Python Codegen */}
+      <section id="python-generation" className="mb-16">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+          Python Code Generation 🐍
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          In addition to TypeScript, OpenAPI Sync supports generating type-safe Python data structures and endpoint definitions directly from your OpenAPI specifications using native <code>@dataclass</code> models.
+        </p>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+          Configuration
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Set <code>language: &quot;python&quot;</code> in your API configuration block:
+        </p>
+        <CodeBlock
+          code={`// openapi.sync.json or openapi.sync.ts
+export default {
+  apis: [
+    {
+      name: "petstore_py",
+      url: "https://petstore.swagger.io/v2/swagger.json",
+      destination: "./src/api/petstore_py",
+      language: "python", // 🐍 Generates types.py and endpoints.py
+      folderSplit: {
+        byTags: true
+      }
+    }
+  ]
+};`}
+          language="typescript"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Generated Python Models (<code>types.py</code>)
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Generated types use standard Python typing (<code>Optional</code>, <code>List</code>, <code>Union</code>, <code>Dict</code>) and <code>@dataclass</code> decorators, with automatic keyword and character sanitization:
+        </p>
+        <CodeBlock
+          code={`from dataclasses import dataclass
+from typing import Optional, List, Union, Dict, Any
+
+@dataclass
+class Pet:
+    """Pet model schema
+    
+    Attributes:
+        id: Unique identifier for the pet
+        name: Name of the pet
+        category: Pet category
+        status: Pet status in the store
+    """
+    id: Optional[int] = None
+    name: Optional[str] = None
+    category: Optional["Category"] = None
+    status: Optional[str] = None
+
+@dataclass
+class GetPetByIdQuery:
+    include_deleted: Optional[bool] = None`}
+          language="python"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Generated Python Endpoints (<code>endpoints.py</code>)
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Python endpoints include typed URL builder methods, method constants, and docstrings with cURL examples:
+        </p>
+        <CodeBlock
+          code={`class Endpoint:
+    def __init__(self, name: str, path: str, method: str, url):
+        self.name = name
+        self.path = path
+        self.method = method
+        self.url = url
+
+class Endpoints:
+    GET_PET_BY_ID = Endpoint(
+        name="getPetById",
+        path="/pet/{petId}",
+        method="GET",
+        url=lambda petId: f"/pet/{petId}"
+    )`}
+          language="python"
+        />
+      </section>
+
       {/* API Client Generation */}
       <section id="client-generation" className="mb-16">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
@@ -1490,6 +1579,15 @@ npx openapi-sync validate --json
 # List all endpoints as JSON
 npx openapi-sync list-endpoints --json
 
+# Page/search endpoint discovery for large specs
+npx openapi-sync list-endpoints --api petstore --path-contains pet --limit 10 --offset 0 --json
+
+# Inspect one endpoint in full detail
+npx openapi-sync get-endpoint --api petstore --operation-id getPetById --json
+
+# Read one generated TypeScript declaration
+npx openapi-sync read-type --api petstore --type-name Pet --json
+
 # Generate client with JSON output (great for agents)
 npx openapi-sync generate-client --type react-query --json
 
@@ -1525,26 +1623,73 @@ npx openapi-sync --silent && echo "Sync OK!"`}
           duration={getVideoTutorial("programmaticUsage")?.duration}
         />
 
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          <code>openapi-sync</code> exports a complete suite of programmatic TypeScript functions for full automation in Node.js, scripts, build tools, and AI agents.
+        </p>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Synchronize &amp; Generate Clients
+        </h3>
         <CodeBlock
-          code={`import { Init } from "openapi-sync";
+          code={`import { Init, GenerateClient } from "openapi-sync";
 
-// Initialize with default config
-await Init();
+// 1. Sync types, endpoints, and validation schemas
+const syncResult = await Init({ silent: true });
+if (syncResult.success) {
+  console.log("Files written:", syncResult.filesWritten);
+  console.log("Endpoints synchronized:", syncResult.endpointCount);
+}
 
-// Initialize with custom options
-await Init({
-  refetchInterval: 30000
+// 2. Generate a typed API client programmatically
+const clientResult = await GenerateClient({
+  type: "react-query", // "fetch" | "axios" | "react-query" | "swr" | "rtk-query"
+  silent: true,
 });
+console.log("Client files written:", clientResult.filesWritten);`}
+          language="typescript"
+        />
 
-// With error handling
-try {
-  await Init({
-    refetchInterval: process.env.NODE_ENV === "development" ? 5000 : 0
-  });
-  console.log("API types synchronized successfully");
-} catch (error) {
-  console.error("Failed to sync API types:", error);
-}`}
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Inspect, Query &amp; Validate Without Regenerating
+        </h3>
+        <CodeBlock
+          code={`import {
+  ValidateConfig,
+  ListEndpoints,
+  GetEndpointDetails,
+  ReadGeneratedType,
+} from "openapi-sync";
+
+// Pre-flight validation (no files written)
+const validation = await ValidateConfig({ silent: true });
+console.log("Config valid?", validation.valid);
+
+// Search & paginate endpoints
+const endpoints = await ListEndpoints({
+  apiName: "petstore",
+  pathContains: "pet",
+  limit: 10,
+  offset: 0,
+  silent: true,
+});
+console.log("Found endpoints:", endpoints.petstore);
+
+// Deep inspection of a single endpoint
+const detail = await GetEndpointDetails({
+  apiName: "petstore",
+  operationId: "getPetById",
+  silent: true,
+});
+console.log("Method:", detail.endpoint.method);
+console.log("Parameters:", detail.endpoint.parameters);
+
+// Read exact generated TypeScript interface
+const typeDecl = await ReadGeneratedType({
+  apiName: "petstore",
+  typeName: "Pet",
+  silent: true,
+});
+console.log(typeDecl);`}
           language="typescript"
         />
       </section>
@@ -1635,6 +1780,7 @@ try {
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {[
+                ["openapi_sync_read_config", "Read and parse the project's openapi-sync configuration file without executing sync"],
                 ["openapi_sync_sync", "Run the main sync command — generates types, clients, and endpoints"],
                 ["openapi_sync_validate", "Validate your config and OpenAPI specs without writing any files"],
                 ["openapi_sync_list_endpoints", "List discovered endpoints with tags, pagination, path filtering, and optional cache reuse"],

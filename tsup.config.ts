@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["index.ts", "mcp/server.ts"],
+  entry: ["index.ts", "mcp/server.ts", "Openapi-sync/interactive-init.ts"],
   format: ["cjs", "esm"],
   dts: true,
   clean: true,

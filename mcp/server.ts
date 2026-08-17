@@ -177,7 +177,15 @@ server.tool(
   async ({ apiName, tags, limit, offset, pathContains, useCache }) => {
     log("[openapi-sync-mcp] Listing endpoints...");
     try {
-      const result = await ListEndpoints({ apiName, tags, limit, offset, pathContains, useCache, silent: true });
+      const result = await ListEndpoints({
+        apiName,
+        tags,
+        limit,
+        offset,
+        pathContains,
+        useCache: useCache ?? true,
+        silent: true,
+      });
       return {
         content: [
           {
@@ -382,7 +390,7 @@ server.tool(
         tags,
         endpoints,
         outputDir,
-        useCache,
+        useCache: useCache ?? true,
         silent: true,
       });
       return {

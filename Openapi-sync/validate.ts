@@ -31,8 +31,21 @@ const loadConfigForValidation = (): {
     if (!fs.existsSync(configPath)) continue;
 
     try {
-      let configJS = require(configPath);
-      if (Object.keys(configJS).length === 1 && configJS.default) {
+      let configJS: any;
+      if (configPath.endsWith(".json")) {
+        configJS = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      } else {
+        try {
+          configJS = require(configPath);
+        } catch (requireErr) {
+          const raw = fs.readFileSync(configPath, "utf-8");
+          const evaluated = new Function("module", "exports", raw);
+          const m = { exports: {} as any };
+          evaluated(m, m.exports);
+          configJS = m.exports;
+        }
+      }
+      if (configJS && typeof configJS === "object" && Object.keys(configJS).length === 1 && configJS.default) {
         configJS = configJS.default;
       }
       if (typeof configJS === "function") configJS = configJS();

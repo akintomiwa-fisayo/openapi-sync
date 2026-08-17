@@ -8,6 +8,8 @@ import {
 	renderTypeRefMD,
 	yamlStringToJson,
 	mergeCustomCode,
+	sanitizePythonIdentifier,
+	resolveOpenApiParamType,
 } from "../helpers";
 import {
 	IConfig,
@@ -29,9 +31,42 @@ import { getState, setState } from "./state";
 import { CurlGenerator } from "curl-generator";
 import { EndpointInfo } from "../client-generators";
 import { storeEndpoints } from "./endpoint-store";
+import { makeLogger } from "../logger";
 
 const rootUsingCwd = process.cwd();
 let fetchTimeout: Record<string, null | NodeJS.Timeout> = {};
+
+const resolveParameterSpec = (spec: IOpenApiSpec, param: any): any => {
+	if (!param) return param;
+	if (param.$ref && typeof param.$ref === "string") {
+		if (param.$ref.startsWith("#/")) {
+			const refParts = param.$ref.split("/");
+			refParts.shift();
+			const refPath = refParts.join(".");
+			const resolved = lodashget(spec, refPath);
+			if (resolved) {
+				return resolveParameterSpec(spec, resolved);
+			}
+		}
+	}
+	return param;
+};
+
+const resolveSchemaSpec = (spec: IOpenApiSpec, schema: any): any => {
+	if (!schema) return schema;
+	if (schema.$ref && typeof schema.$ref === "string") {
+		if (schema.$ref.startsWith("#/")) {
+			const refParts = schema.$ref.split("/");
+			refParts.shift();
+			const refPath = refParts.join(".");
+			const resolved = lodashget(spec, refPath);
+			if (resolved) {
+				return resolveSchemaSpec(spec, resolved);
+			}
+		}
+	}
+	return schema;
+};
 
 // Create an Axios instance
 const apiClient = axios.create({
@@ -124,13 +159,9 @@ const OpenapiSync = async (
 	apiName: string,
 	config: IConfig,
 	refetchInterval?: number,
+	silent = false,
 ) => {
-	const res = await processOpenapiSync(
-		apiUrl,
-		apiName,
-		config,
-		refetchInterval,
-	);
+	const res = await processOpenapiSync(apiUrl, apiName, config, silent);
 
 	// auto sync if refetchInterval is provided
 	if (refetchInterval && !isNaN(refetchInterval) && refetchInterval > 0) {
@@ -144,9 +175,10 @@ const OpenapiSync = async (
 			if (fetchTimeout[apiName]) clearTimeout(fetchTimeout[apiName]);
 
 			// set next request timeout
+			const log = makeLogger(silent);
 			fetchTimeout[apiName] = setTimeout(() => {
-				console.info(`🔄 Auto syncing ${apiName}`);
-				OpenapiSync(apiUrl, apiName, config, refetchInterval);
+				log.info(`🔄 Auto syncing ${apiName}`);
+				OpenapiSync(apiUrl, apiName, config, refetchInterval, silent);
 			}, refetchInterval);
 		}
 	}
@@ -154,8 +186,13 @@ const OpenapiSync = async (
 	return res;
 };
 
-const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
-	const [apiUrl, apiName, config] = args;
+const processOpenapiSync = async (
+	apiUrl: string,
+	apiName: string,
+	config: IConfig,
+	silent = false,
+) => {
+	const log = makeLogger(silent);
 
 	// Helper function to check if path is a URL or local file
 	const isUrl = (str: string): boolean => {
@@ -175,7 +212,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				? apiUrl
 				: path.join(rootUsingCwd, apiUrl);
 
-			console.log(`📂 Reading local OpenAPI spec from: ${filePath}`);
+			log.log(`📂 Reading local OpenAPI spec from: ${filePath}`);
 
 			const fileContent = await fs.promises.readFile(filePath, "utf-8");
 			specData = fileContent;
@@ -187,7 +224,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				["production", "prod", "test", "staging"].includes(process.env.NODE_ENV)
 			)
 		) {
-			console.error(`Failed to load OpenAPI spec for ${apiName}:`, error);
+			log.error(`Failed to load OpenAPI spec for ${apiName}:`, error);
 		}
 		throw error;
 	}
@@ -217,6 +254,10 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	const folderPath = path.join(config?.folder || "", apiName);
 	const isPython = config?.language === "python";
 	const ext = isPython ? "py" : "ts";
+	const isFolderSplit = Boolean(
+		config?.folderSplit?.byTags ||
+		typeof config?.folderSplit?.customFolder === "function",
+	);
 
 	// Initialize folder splitting data structures
 	const folderGroups: Record<
@@ -612,9 +653,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 								pathToComponentParts[pathToComponentParts.length - 1];
 
 							let cname = getSharedComponentName(componentName);
-							if (cname.includes(".")) {
-								cname = cname.split(".").join("_");
-							}
+							cname = sanitizePythonIdentifier(cname);
 
 							type += `${options?.noSharedImport ? "" : "Shared."}${cname}`;
 						}
@@ -1045,7 +1084,10 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 
 		// Generate TypeScript interfaces for each component
 		Object.keys(componentInterfaces).forEach((key) => {
-			const name = getSharedComponentName(key);
+			let name = getSharedComponentName(key);
+			if (isPython) {
+				name = sanitizePythonIdentifier(name);
+			}
 			const cnt = componentInterfaces[key];
 			const schemaEntry = (schemas as Record<string, any>)[key];
 			const sourceSchema = (schemaEntry?.schema
@@ -1338,7 +1380,6 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 			});
 
 			const enumValues = allEnumValues.map((v) => JSON.stringify(v)).join(", ");
-			console.log("zod enum 3 here", { schema, enumValues });
 
 			if (library === "zod") {
 				let result = `z.enum([${enumValues}])`;
@@ -1579,11 +1620,14 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		return false;
 	};
 
+	const HTTP_METHODS = ["get", "post", "put", "delete", "patch", "options", "head", "trace"];
+
 	Object.keys(spec.paths || {}).forEach((endpointPath) => {
 		const endpointSpec = spec.paths[endpointPath];
 
 		const endpointMethods = Object.keys(endpointSpec);
 		endpointMethods.forEach((_method) => {
+			if (!HTTP_METHODS.includes(_method.toLowerCase())) return;
 			const method = _method as Method;
 			const endpoint = getEndpointDetails(endpointPath, method);
 
@@ -1617,6 +1661,41 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				};
 			}
 
+			const eSpec = endpointSpec[method];
+
+			// Extract and resolve all parameters (path-item level + operation level)
+			const rawParameters: any[] = [
+				...(endpointSpec.parameters || []),
+				...(eSpec?.parameters || []),
+			];
+
+			const paramMap = new Map<string, any>();
+			for (const rawParam of rawParameters) {
+				const resolved = resolveParameterSpec(spec, rawParam);
+				if (resolved && resolved.name && resolved.in) {
+					const key = `${resolved.in}:${resolved.name}`;
+					paramMap.set(key, resolved);
+				}
+			}
+
+			// Infer missing path parameters from endpoint.variables
+			endpoint.variables.forEach((v) => {
+				const key = `path:${v}`;
+				if (!paramMap.has(key)) {
+					paramMap.set(key, {
+						name: v,
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+					});
+				}
+			});
+
+			const allResolvedParams = Array.from(paramMap.values());
+			const pathParams = allResolvedParams.filter((p) => p.in === "path");
+			const queryParams = allResolvedParams.filter((p) => p.in === "query");
+			const headerParams = allResolvedParams.filter((p) => p.in === "header");
+
 			const endpointUrlTxt =
 				(config?.endpoints?.value?.includeServer ? serverUrl : "") +
 				endpoint.pathParts
@@ -1644,27 +1723,43 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 
 			let endpointUrl = `"${endpointUrlTxt}"`;
 			if (endpoint.variables.length > 0) {
-				const params = endpoint.variables.map((v) => `${v}:string`).join(",");
+				const params = endpoint.variables
+					.map((v) => {
+						const param = pathParams.find((p) => p.name === v);
+						const schema = resolveSchemaSpec(spec, param?.schema || param);
+						const { tsType } = resolveOpenApiParamType(schema);
+						return `${v}:${tsType}`;
+					})
+					.join(",");
 				endpointUrl = `(${params})=> \`${endpointUrlTxt}\``;
 			}
 
 			//treat endpoint url
 			endpointUrl = treatEndpointUrl(endpointUrl);
 
-			const eSpec = endpointSpec[method];
+			let pathTypeCnt = "";
+			if (pathParams.length > 0) {
+				pathParams.forEach((param) => {
+					const paramSchema = resolveSchemaSpec(spec, param.schema || param);
+					pathTypeCnt += isPython
+						? `${parseSchemaToPythonType(spec, paramSchema, param.name, param.required)}`
+						: `${parseSchemaToType(spec, paramSchema, param.name, param.required)}`;
+				});
+				if (pathTypeCnt) {
+					const pathTypeBody = pathTypeCnt;
+					pathTypeCnt = isPython ? pathTypeBody : `{\n${pathTypeCnt}}`;
+				}
+			}
 
 			let queryTypeCnt = "";
 			let queryTypeNameForClient: string | undefined;
 
-			if (eSpec?.parameters) {
-				// create query parameters types
-				const parameters: IOpenApiParameterSpec[] = eSpec?.parameters;
-				parameters.forEach((param, i) => {
-					if (param.$ref || (param.in === "query" && param.name)) {
-						queryTypeCnt += isPython
-							? `${parseSchemaToPythonType(spec, param.$ref ? (param as any) : (param.schema as any), param.name || "", param.required)}`
-							: `${parseSchemaToType(spec, param.$ref ? (param as any) : (param.schema as any), param.name || "", param.required)}`;
-					}
+			if (queryParams.length > 0) {
+				queryParams.forEach((param) => {
+					const paramSchema = resolveSchemaSpec(spec, param.schema || param);
+					queryTypeCnt += isPython
+						? `${parseSchemaToPythonType(spec, paramSchema, param.name, param.required)}`
+						: `${parseSchemaToType(spec, paramSchema, param.name, param.required)}`;
 				});
 
 				if (queryTypeCnt) {
@@ -1677,6 +1772,9 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 						name = `${eSpec.operationId}Query`;
 					}
 					name = capitalize(`${typePrefix}${name}`);
+					if (isPython) {
+						name = sanitizePythonIdentifier(name);
+					}
 
 					if (config?.types?.name?.format) {
 						const formattedName = config?.types.name.format(
@@ -1697,7 +1795,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					const typeContent = isPython
 						? `${toPythonDataclass(name, queryTypeCnt)}\n`
 						: `export type ${name} = ${queryTypeCnt};\n`;
-					if (config?.folderSplit) {
+					if (isFolderSplit) {
 						folderGroups[folderName].types += typeContent;
 					} else {
 						typesFileContent += typeContent;
@@ -1709,99 +1807,93 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 			if (
 				config?.validations?.disable !== true &&
 				config?.validations?.generate?.query !== false &&
-				eSpec?.parameters
+				queryParams.length > 0
 			) {
 				const validationLibrary = config.validations?.library || "zod";
-				const parameters: IOpenApiParameterSpec[] = eSpec.parameters;
-				const queryParams = parameters.filter(
-					(p) => !p.$ref && p.in === "query" && p.name,
+				const validationNameConfig =
+					config?.validations?.name || config?.types?.name;
+				const validationPrefix =
+					typeof validationNameConfig?.prefix === "string"
+						? validationNameConfig.prefix
+						: "I";
+				const validationSuffix =
+					typeof config?.validations?.name?.suffix === "string"
+						? config.validations.name.suffix
+						: "Schema";
+
+				let validationName = `${endpoint.name}Query`;
+				if (validationNameConfig?.useOperationId && eSpec?.operationId) {
+					validationName = `${eSpec.operationId}Query`;
+				}
+				validationName = capitalize(
+					`${validationPrefix}${validationName}${validationSuffix}`,
 				);
 
-				if (queryParams.length > 0) {
-					const validationNameConfig =
-						config?.validations?.name || config?.types?.name;
-					const validationPrefix =
-						typeof validationNameConfig?.prefix === "string"
-							? validationNameConfig.prefix
-							: "I";
-					const validationSuffix =
-						typeof config?.validations?.name?.suffix === "string"
-							? config.validations.name.suffix
-							: "Schema";
-
-					let validationName = `${endpoint.name}Query`;
-					if (validationNameConfig?.useOperationId && eSpec?.operationId) {
-						validationName = `${eSpec.operationId}Query`;
-					}
-					validationName = capitalize(
-						`${validationPrefix}${validationName}${validationSuffix}`,
+				if (config?.validations?.name?.format) {
+					const formattedName = config.validations.name.format(
+						{
+							code: "",
+							type: "query",
+							method,
+							path: endpointPath,
+							summary: eSpec?.summary,
+							operationId: eSpec?.operationId,
+						},
+						validationName,
 					);
+					if (formattedName)
+						validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+				} else if (config?.types?.name?.format) {
+					const formattedName = config.types.name.format(
+						"endpoint",
+						{
+							code: "",
+							type: "query",
+							method,
+							path: endpointPath,
+							summary: eSpec?.summary,
+							operationId: eSpec?.operationId,
+						},
+						validationName,
+					);
+					if (formattedName)
+						validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+				}
 
-					if (config?.validations?.name?.format) {
-						const formattedName = config.validations.name.format(
-							{
-								code: "",
-								type: "query",
-								method,
-								path: endpointPath,
-								summary: eSpec?.summary,
-								operationId: eSpec?.operationId,
-							},
-							validationName,
-						);
-						if (formattedName)
-							validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
-					} else if (config?.types?.name?.format) {
-						const formattedName = config.types.name.format(
-							"endpoint",
-							{
-								code: "",
-								type: "query",
-								method,
-								path: endpointPath,
-								summary: eSpec?.summary,
-								operationId: eSpec?.operationId,
-							},
-							validationName,
-						);
-						if (formattedName)
-							validationName = `${validationPrefix}${formattedName}${validationSuffix}`;
+				const properties = queryParams
+					.map((param) => {
+						const paramSchema = resolveSchemaSpec(spec, param?.schema || param);
+						const schema = paramSchema
+							? convertToValidationSchema(paramSchema, validationLibrary)
+							: validationLibrary === "joi"
+								? "Joi.string()"
+								: validationLibrary === "yup"
+									? "yup.string()"
+									: "z.string()";
+						const optional = param.required ? "" : ".optional()";
+						return `  ${param.name}: ${schema}${optional}`;
+					})
+					.join(",\n");
+
+				const objMethod =
+					validationLibrary === "joi"
+						? "Joi.object"
+						: validationLibrary === "yup"
+							? "yup.object"
+							: "z.object";
+				const validationContent = `export const ${validationName} = ${objMethod}({\n${properties}\n});\n\n`;
+
+				if (isFolderSplit) {
+					folderGroups[folderName].validation += validationContent;
+				} else {
+					if (!folderGroups[folderName]) {
+						folderGroups[folderName] = {
+							endpoints: "",
+							types: "",
+							validation: "",
+						};
 					}
-
-					const properties = queryParams
-						.map((param) => {
-							const schema = param?.schema
-								? convertToValidationSchema(param.schema, validationLibrary)
-								: validationLibrary === "joi"
-									? "Joi.string()"
-									: validationLibrary === "yup"
-										? "yup.string()"
-										: "z.string()";
-							const optional = param.required ? "" : ".optional()";
-							return `  ${param.name}: ${schema}${optional}`;
-						})
-						.join(",\n");
-
-					const objMethod =
-						validationLibrary === "joi"
-							? "Joi.object"
-							: validationLibrary === "yup"
-								? "yup.object"
-								: "z.object";
-					const validationContent = `export const ${validationName} = ${objMethod}({\n${properties}\n});\n\n`;
-
-					if (config?.folderSplit) {
-						folderGroups[folderName].validation += validationContent;
-					} else {
-						if (!folderGroups[folderName]) {
-							folderGroups[folderName] = {
-								endpoints: "",
-								types: "",
-								validation: "",
-							};
-						}
-						folderGroups[folderName].validation += validationContent;
-					}
+					folderGroups[folderName].validation += validationContent;
 				}
 			}
 
@@ -1821,6 +1913,9 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					}
 
 					name = capitalize(`${typePrefix}${name}`);
+					if (isPython) {
+						name = sanitizePythonIdentifier(name);
+					}
 
 					if (config?.types?.name?.format) {
 						const formattedName = config?.types.name.format(
@@ -1843,7 +1938,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 								inheritSingleTypeExpression: true,
 						  })}\n`
 						: `export type ${name} = ${dtoTypeCnt};\n`;
-					if (config?.folderSplit) {
+					if (isFolderSplit) {
 						folderGroups[folderName].types += typeContent;
 					} else {
 						typesFileContent += typeContent;
@@ -1921,7 +2016,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 						);
 						const validationContent = `export const ${validationName} = ${dtoSchema};\n\n`;
 
-						if (config?.folderSplit) {
+						if (isFolderSplit) {
 							folderGroups[folderName].validation += validationContent;
 						} else {
 							if (!folderGroups[folderName]) {
@@ -1957,6 +2052,9 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 						}
 
 						name = capitalize(`${typePrefix}${name}`);
+						if (isPython) {
+							name = sanitizePythonIdentifier(name);
+						}
 
 						if (config?.types?.name?.format) {
 							const formattedName = config?.types.name.format(
@@ -1973,12 +2071,16 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 							);
 							if (formattedName) name = `${typePrefix}${formattedName}`;
 						}
+						// Use 200/201 response as the main response type for client generation
+						if (code === "200" || code === "201" || !responseTypeNameForClient) {
+							responseTypeNameForClient = name;
+						}
 						const typeContent = isPython
 							? `${toPythonDataclass(name, responseTypeCnt, {
 									inheritSingleTypeExpression: true,
 							  })}\n`
 							: `export type ${name} = ${responseTypeCnt};\n`;
-						if (config?.folderSplit) {
+						if (isFolderSplit) {
 							folderGroups[folderName].types += typeContent;
 						} else {
 							typesFileContent += typeContent;
@@ -1986,34 +2088,24 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 
 						// Update responseTypeObject with the generated type name
 						responseTypeObject[code] = name;
-
-						// Store success response (2xx) for client generation
-						const codeNum = parseInt(code);
-						if (codeNum >= 200 && codeNum < 300) {
-							responseTypeNameForClient = name;
-						}
 					}
 				});
 			}
 
-			// Function to format security requirements
+			// Format security requirements for markdown documentation
 			const formatSecuritySpec = (
-				security: Array<Record<string, string[]>>,
-			) => {
-				if (!security || !security.length) return "";
-
+				security: Record<string, string[]>[],
+			): string => {
 				return security
-					.map((securityRequirement) => {
-						const requirements = Object.entries(securityRequirement)
-							.map(([scheme, scopes]) => {
-								let sch = scheme;
-								let scopeText = "";
-								if (Array.isArray(scopes) && scopes.length) {
-									scopeText = `\n      - Scopes: [\`${scopes.join("`, `")}\`]`;
-									sch = `**${sch}**`;
+					.map((item) => {
+						const schemes = Object.keys(item);
+						const requirements = schemes
+							.map((scheme) => {
+								const scopes = item[scheme];
+								if (scopes.length === 0) {
+									return `\n    - **${scheme}**  `;
 								}
-
-								return `\n    - ${sch}${scopeText}`;
+								return `\n    - **${scheme}**: [${scopes.join(", ")}]  `;
 							})
 							.join("");
 						return requirements;
@@ -2041,7 +2133,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					let body = "";
 					let extras = "";
 
-					if (eSpec.requestBody?.content) {
+					if (eSpec?.requestBody?.content) {
 						const contentTypes = Object.keys(eSpec.requestBody.content);
 						contentTypes.forEach((contentType) => {
 							// console.log("requestBody content", {
@@ -2122,6 +2214,16 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 					pyDocLines.push(`* **Tags**: [${eSpec?.tags?.join(", ") || ""}]`);
 					pyDocLines.push(`* **OperationId**: ${eSpec?.operationId || ""}`);
 
+					if (pathTypeCnt) {
+						pyDocLines.push("* **Path**:");
+						pyDocLines.push("```python");
+						pathTypeCnt
+							.split("\n")
+							.filter((line) => line.trim().length > 0)
+							.forEach((line) => pyDocLines.push(line));
+						pyDocLines.push("```");
+					}
+
 					if (queryTypeCnt) {
 						pyDocLines.push("* **Query**:");
 						pyDocLines.push("```python");
@@ -2166,6 +2268,8 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
  * **Summary**: ${eSpec?.summary || ""}  
  * **Tags**: [${eSpec?.tags?.join(", ") || ""}]  
  * **OperationId**: ${eSpec?.operationId || ""}  ${
+		pathTypeCnt ? `\n * **Path**: ${renderTypeRefMD(pathTypeCnt)}  ` : ""
+ }${
 		queryTypeCnt ? `\n * **Query**: ${renderTypeRefMD(queryTypeCnt)}  ` : ""
  }${dtoTypeCnt ? `\n * **DTO**: ${renderTypeRefMD(dtoTypeCnt)}  ` : ""}${
 		responseTypeCnt
@@ -2200,6 +2304,10 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				if (formattedName) name = formattedName;
 			}
 
+			if (isPython) {
+				name = sanitizePythonIdentifier(name);
+			}
+
 			const content = {
 				method: `"${method}"`,
 				operationId: `"${eSpec?.operationId}"`,
@@ -2207,13 +2315,14 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				tags: eSpec?.tags || [],
 			};
 
-			const pythonEndpointObjectValue = `Endpoint(\n    method="${method}",\n    operationId="${eSpec?.operationId || ""}",\n    url=${endpointUrl},\n    tags=[${(eSpec?.tags || []).map((tag: string) => `"${tag}"`).join(", ")}]\n)`;
+			const pythonEndpointUrl = `"${(config?.endpoints?.value?.includeServer ? serverUrl : "") + endpointPath}"`;
+			const pythonEndpointObjectValue = `Endpoint(\n    method="${method}",\n    operationId="${eSpec?.operationId || ""}",\n    url=${pythonEndpointUrl},\n    tags=[${(eSpec?.tags || []).map((tag: string) => `"${tag}"`).join(", ")}]\n)`;
 
 			const endpointContent = isPython
 				? `${endpointPrefix}${name} = ${pythonEndpointObjectValue}\n${doc ? `${doc}` : ""}\n\n`
 				: `${doc}export const ${endpointPrefix}${name} = ${config?.endpoints?.value?.type === "object" ? JSONStringify(content) : endpointUrl};\n`;
 
-			if (config?.folderSplit) {
+			if (isFolderSplit) {
 				folderGroups[folderName].endpoints += endpointContent;
 			} else {
 				endpointsFileContent += endpointContent;
@@ -2227,14 +2336,16 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				summary: eSpec?.summary,
 				operationId: eSpec?.operationId,
 				tags: endpointTags,
-				parameters: eSpec?.parameters
-					?.filter((p: any) => !p.$ref && p.in && p.name)
-					.map((p: any) => ({
+				parameters: allResolvedParams.map((p: any) => {
+					const schema = resolveSchemaSpec(spec, p.schema || p);
+					const { rawType } = resolveOpenApiParamType(schema);
+					return {
 						name: p.name,
 						in: p.in,
 						required: p.required,
-						type: p.schema?.type || "string",
-					})),
+						type: rawType,
+					};
+				}),
 				requestBody: requestBody
 					? {
 							type: dtoTypeCnt,
@@ -2259,7 +2370,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	});
 
 	// Write files based on folder splitting configuration
-	if (config?.folderSplit) {
+	if (isFolderSplit) {
 		const pythonEndpointsHeader =
 			"from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass Endpoint:\n    method: str\n    operationId: str\n    url: str\n    tags: List[str]\n\n\n\n";
 		// Write files for each folder group
@@ -2269,7 +2380,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 
 				// Write endpoints file
 				if (group.endpoints) {
-					const endpointsFilePath = path.join(
+					const endpointsFilePath = path.resolve(
 						rootUsingCwd,
 						folderPathForGroup,
 						`endpoints.${ext}`,
@@ -2285,8 +2396,8 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 				}
 
 				// Write types file
-				if (group.types) {
-					const typesFilePath = path.join(
+				if (group.types || group.endpoints) {
+					const typesFilePath = path.resolve(
 						rootUsingCwd,
 						folderPathForGroup,
 						`types.${ext}`,
@@ -2295,12 +2406,15 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 						recursive: true,
 					});
 
-					const typesContent =
-						Object.values(sharedTypesFileContent).length > 0
+					const typesContent = group.types
+						? (Object.values(sharedTypesFileContent).length > 0
 							? isPython
 								? `from __future__ import annotations\nfrom dataclasses import dataclass\nfrom . import shared as Shared\n${getPythonTypingImportLine(group.types)}\n${group.types}`
 								: `import * as Shared from "../shared";\n\n${group.types}`
-							: group.types;
+							: group.types)
+						: (isPython
+							? `from __future__ import annotations\n`
+							: `export {};\n`);
 
 					writtenFiles.push(await writeFileWithCustomCode(typesFilePath, typesContent, config));
 				}
@@ -2320,7 +2434,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 								? 'import * as yup from "yup";'
 								: 'import { z } from "zod";';
 
-					const validationFilePath = path.join(
+					const validationFilePath = path.resolve(
 						rootUsingCwd,
 						folderPathForGroup,
 						"validations.ts",
@@ -2343,7 +2457,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 		const pythonEndpointsHeader =
 			"from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass Endpoint:\n    method: str\n    operationId: str\n    url: str\n    tags: List[str]\n\n\n\n";
 		// Original behavior - write to single files
-		const endpointsFilePath = path.join(
+		const endpointsFilePath = path.resolve(
 			rootUsingCwd,
 			folderPath,
 			`endpoints.${ext}`,
@@ -2359,10 +2473,10 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	}
 	if (Object.values(sharedTypesFileContent).length > 0) {
 		const sharedTypesBody = Object.values(sharedTypesFileContent).join("\n");
-		const sharedTypesFilePath = path.join(
+		const sharedTypesFilePath = path.resolve(
 			rootUsingCwd,
 			folderPath,
-			!config?.folderSplit ? "types" : "",
+			!isFolderSplit ? "types" : "",
 			`shared.${ext}`,
 		);
 		await fs.promises.mkdir(path.dirname(sharedTypesFilePath), {
@@ -2378,7 +2492,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	}
 
 	if (typesFileContent.length > 0) {
-		const typesFilePath = path.join(
+		const typesFilePath = path.resolve(
 			rootUsingCwd,
 			folderPath,
 			"types",
@@ -2402,7 +2516,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	if (
 		config?.validations &&
 		config.validations.disable !== true &&
-		!config?.folderSplit &&
+		!isFolderSplit &&
 		!isPython
 	) {
 		const validationLibrary = config.validations?.library || "zod";
@@ -2419,7 +2533,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 			.join("");
 
 		if (allValidation) {
-			const validationFilePath = path.join(
+			const validationFilePath = path.resolve(
 				rootUsingCwd,
 				folderPath,
 				"validations.ts",
@@ -2480,7 +2594,7 @@ const processOpenapiSync = async (...args: Parameters<typeof OpenapiSync>) => {
 	// Store collected endpoints for client generation
 	storeEndpoints(apiName, collectedEndpoints);
 
-	console.info(`✅ Successfully synced ${apiName}`);
+	log.info(`✅ Successfully synced ${apiName}`);
 	return { success: true, filesWritten: writtenFiles, warnings: integrityWarnings };
 };
 

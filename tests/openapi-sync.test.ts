@@ -341,6 +341,39 @@ describe("OpenapiSync", () => {
       expect(result.endpoint.path).toBe("/pet/{petId}");
     });
 
+    it("should return endpoint details for a matching endpoint name", async () => {
+      mockedFs.existsSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        return pathString.includes("openapi.sync") || pathString.includes("types.ts");
+      });
+      mockedFs.readFileSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        if (pathString.includes("openapi.sync")) {
+          return "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };";
+        }
+        return "";
+      });
+
+      const { storeEndpoints } = require("../Openapi-sync/endpoint-store");
+      storeEndpoints("petstore", [
+        { name: "getPet", method: "get", path: "/pet/{petId}", operationId: "getPetById", tags: ["pet"] },
+      ] as any);
+
+      const { GetEndpointDetails } = require("../index");
+      const result = await GetEndpointDetails({ apiName: "petstore", name: "getPet", silent: true });
+
+      expect(result.endpoint.name).toBe("getPet");
+      expect(result.endpoint.operationId).toBe("getPetById");
+    });
+
+    it("should require an endpoint operationId or name for details", async () => {
+      const { GetEndpointDetails } = require("../index");
+
+      await expect(GetEndpointDetails({ apiName: "petstore", silent: true })).rejects.toThrow(
+        "Provide either operationId or name"
+      );
+    });
+
     it("should read the requested generated type declaration", async () => {
       mockedFs.existsSync.mockImplementation((filePath: any) => {
         const pathString = filePath.toString();
@@ -359,6 +392,27 @@ describe("OpenapiSync", () => {
       const result = await ReadGeneratedType({ apiName: "petstore", typeName: "Pet", silent: true });
 
       expect(result).toContain("export interface Pet");
+    });
+
+    it("should error when a generated type declaration is missing", async () => {
+      mockedFs.existsSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        return pathString.includes("openapi.sync") || pathString.endsWith("types.ts");
+      });
+      mockedFs.readFileSync.mockImplementation((filePath: any) => {
+        const pathString = filePath.toString();
+        if (pathString.includes("openapi.sync")) {
+          return "module.exports = { api: { petstore: 'https://petstore3.swagger.io/api/v3/openapi.json' }, folder: './src/api' };";
+        }
+        return "";
+      });
+      (mockedFs.promises.readFile as any).mockResolvedValue("export interface Pet { id: string; }\n");
+
+      const { ReadGeneratedType } = require("../index");
+
+      await expect(ReadGeneratedType({ apiName: "petstore", typeName: "Missing", silent: true })).rejects.toThrow(
+        "Type declaration not found: Missing"
+      );
     });
   });
 

@@ -22,6 +22,7 @@ jest.mock("fs", () => {
     promises: {
       mkdir: jest.fn(),
       writeFile: jest.fn(),
+      readFile: jest.fn(),
     },
   };
 });

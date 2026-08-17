@@ -1,5 +1,24 @@
 [
   {
+    "version": "6.3.0",
+    "date": "2026-08-16",
+    "type": "minor",
+    "changes": [
+      "declare esbuild direct dependency to fix packaging in CI and fresh installs",
+      "enforce pure JSON stdout when --json is passed across all commands",
+      "bundle interactive-init entry module and improve non-interactive init -y flow",
+      "track all client files in filesWritten and separate sync vs client phases in JSON results",
+      "support compact dry-run output previewing planned file paths without verbosity",
+      "implement full path parameter pipeline: $ref resolution, schema-derived URL builder parameter types, doc separation, and typed client method calls",
+      "safely handle schema-less tags by emitting empty types.ts fallbacks and omitting unused type imports in client generators",
+      "sanitize Python identifiers for class names, DTOs, query types, and endpoint constants",
+      "enhance get-endpoint lookup with exact, cross-match, normalized, and case-insensitive resolution",
+      "expand read-type to resolve types across tag folders and shared.ts",
+      "clarify folderSplit to preserve clean flat layouts when omitted or empty ({})",
+      "support clientGeneration.outputDir in folder-split mode with automatic relative import resolution"
+    ]
+  },
+  {
     "version": "6.2.0",
     "date": "2026-07-14",
     "type": "minor",

@@ -507,7 +507,12 @@ export type SyncResult = {
 	success: boolean;
 	/** API name(s) that were processed */
 	apis: string[];
-	/** Absolute paths of all files written to disk */
+	/**
+	 * Absolute paths of all files written to disk.
+	 * When called via {@link GenerateClient}, this includes both the spec-generated
+	 * files (types, endpoints, schemas) **and** the client files (clients.ts, hooks.ts,
+	 * api.ts, etc.).
+	 */
 	filesWritten: string[];
 	/**
 	 * Total number of generated endpoints across all processed APIs.
@@ -518,6 +523,22 @@ export type SyncResult = {
 	warnings: string[];
 	/** Fatal or per-file error messages; non-empty when `success` is false */
 	errors: string[];
+	/**
+	 * Breakdown of files written per operation phase.
+	 * Only present when {@link GenerateClient} is called — not set by {@link Init}.
+	 *
+	 * @example
+	 * if (result.phases) {
+	 *   console.log('Spec files:', result.phases.sync.filesWritten);
+	 *   console.log('Client files:', result.phases.client.filesWritten);
+	 * }
+	 */
+	phases?: {
+		/** Files written during the OpenAPI spec sync step */
+		sync: { filesWritten: string[]; endpointCount: number };
+		/** Files written during the client code generation step */
+		client: { filesWritten: string[]; endpointCount: number };
+	};
 };
 
 /**

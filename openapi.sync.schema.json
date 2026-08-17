@@ -49,7 +49,7 @@
     },
     "folderSplit": {
       "type": "object",
-      "description": "Controls how generated files are organized into sub-folders",
+      "description": "Controls how generated files are organized into sub-folders. When omitted or empty ({}), files are placed directly in the API folder. When byTags is true, endpoints are organized into tag subfolders (untagged endpoints default to default/).",
       "additionalProperties": false,
       "properties": {
         "byTags": {
@@ -146,7 +146,7 @@
         },
         "outputDir": {
           "type": "string",
-          "description": "Output directory for generated client files"
+          "description": "Output directory for generated client files. In folder-split mode, tag clients are written to {outputDir}/{tag}/client.ts and aggregated at {outputDir}/clients.ts with relative imports pointing to generated types and endpoints."
         },
         "baseURL": {
           "type": "string",

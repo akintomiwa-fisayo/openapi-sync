@@ -43,7 +43,9 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 |---------|-------------|
 | `npx openapi-sync` | Sync specs, generate types + endpoints + schemas |
 | `npx openapi-sync validate` | Validate config + specs; no files written |
-| `npx openapi-sync list-endpoints` | List all endpoints from spec; no files written |
+| `npx openapi-sync list-endpoints` | List endpoints from a spec with optional filters/pagination; no files written |
+| `npx openapi-sync get-endpoint` | Inspect one endpoint in full detail by operationId or name |
+| `npx openapi-sync read-type` | Read one generated TypeScript interface/type declaration |
 | `npx openapi-sync generate-client --type <TYPE>` | Generate typed API client |
 | `npx openapi-sync init --no-interactive [FLAGS]` | Create config file without prompts |
 
@@ -99,6 +101,44 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 |------|-------------|
 | `--api` | Limit to a specific API |
 | `--tags` | Comma-separated tag filter |
+| `--limit` | Maximum number of endpoints to return |
+| `--offset` | Pagination offset |
+| `--path-contains` | Filter endpoints by path substring |
+| `--use-cache` | Reuse cached endpoints when available |
+
+### `generate-client` flags
+
+| Flag | Description |
+|------|-------------|
+| `--use-cache` | Reuse cached endpoints instead of reloading the spec |
+
+### `get-endpoint` flags
+
+| Flag | Description |
+|------|-------------|
+| `--api` | Limit to a specific API |
+| `--operation-id` | Find the endpoint by operationId |
+| `--name` | Find the endpoint by endpoint name |
+
+### `read-type` flags
+
+| Flag | Description |
+|------|-------------|
+| `--api` | API name from the config |
+| `--type-name` | Exported interface/type name to read |
+
+
+## MCP TOOLS
+
+OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent workflows. Long-running MCP calls reuse cached endpoints by default when available.
+
+- `openapi_sync_sync`
+- `openapi_sync_validate`
+- `openapi_sync_list_endpoints` (supports pagination, path filters, and `useCache`)
+- `openapi_sync_get_endpoint_details`
+- `openapi_sync_read_generated_type`
+- `openapi_sync_generate_client`
+- `openapi_sync_init`
 
 
 ## PROGRAMMATIC API
@@ -107,11 +147,13 @@ All functions are exported from the `openapi-sync` package.
 
 ```typescript
 import {
-  Init,            // Sync specs → types, endpoints, schemas
-  GenerateClient,  // Generate typed API client
-  ValidateConfig,  // Pre-flight check (no file writes)
-  ListEndpoints,   // Inspect API surface (no file writes)
-  InteractiveInit, // NOT agent-safe — requires stdin
+  Init,                // Sync specs → types, endpoints, schemas
+  GenerateClient,      // Generate typed API client
+  ValidateConfig,      // Pre-flight check (no file writes)
+  ListEndpoints,       // Inspect API surface (no file writes)
+  GetEndpointDetails,  // Read one endpoint in full detail
+  ReadGeneratedType,   // Read one generated TypeScript declaration
+  InteractiveInit,     // NOT agent-safe — requires stdin
 } from "openapi-sync";
 ```
 
@@ -149,8 +191,29 @@ if (!validation.valid) process.exit(1);
 Agent-safe. No files written.
 
 ```typescript
-const map = await ListEndpoints({ apiName: "petstore", tags: ["pet"] });
+const map = await ListEndpoints({
+  apiName: "petstore",
+  tags: ["pet"],
+  limit: 10,
+  offset: 0,
+  pathContains: "pet",
+  useCache: true,
+});
 // map: { petstore: [{ name, method, path, operationId, tags, summary }] }
+```
+
+### GetEndpointDetails(options?) → Promise<{ apiName: string; endpoint: EndpointSummary & Record<string, unknown> }>
+Agent-safe. No files written.
+
+```typescript
+const detail = await GetEndpointDetails({ apiName: "petstore", operationId: "getPetById" });
+```
+
+### ReadGeneratedType(options) → Promise<string>
+Agent-safe. Returns the matched generated declaration block.
+
+```typescript
+const declaration = await ReadGeneratedType({ apiName: "petstore", typeName: "Pet" });
 ```
 
 ### InteractiveInit() → Promise<void>

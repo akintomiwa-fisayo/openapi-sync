@@ -10,11 +10,14 @@
 
 ## Features
 
-### 🎉 v5.0.5 - Python Support, Auto-Sync & Infinite Queries
+### 🎉 v6.3.0 - AI Agent Ecosystem & End-to-End Type Safety
 
-- 🐍 **Python Type Generation** - Generate Python `dataclass` definitions alongside TypeScript types.
-- 🔄 **Auto-Sync Capability** - Enhanced OpenAPI sync functionality with real-time auto-sync capability.
-- ⚡ **Infinite Queries & Headers** - Added support for headers configuration and infinite query hooks in API clients.
+- 🤖 **First-Class AI Agent & MCP Integration** - Built-in Model Context Protocol server (`npx openapi-sync-mcp`) and inspection commands (`list-endpoints`, `get-endpoint`, `read-type`, `validate`) allow AI agents and developer tools to safely explore APIs without reloading specs.
+- 🛡️ **Pure JSON stdout Contract** - All commands support `--json` emitting pure, machine-parsable JSON to stdout with explicit `sync` and `client` phase stats, while sending progress logs to stderr.
+- 🚀 **Full Path Parameter Pipeline** - Recursive `$ref` resolution, schema-derived parameter typing (`(projectId: number) => ...`), distinct Path vs. Query JSDoc and validation separation, and typed client parameter passing.
+- 🐍 **Python Type & Endpoint Generation** - Generate Python `dataclass` definitions and type-safe `Endpoint` constants alongside TypeScript types with automated token sanitization.
+- 📦 **Tag-Split & Flat Mode Flexibility** - Clean flat output by default (`folderSplit: {}`), tag subdirectories with `byTags: true`, and custom client output directories (`clientGeneration.outputDir`) with automatic relative import resolution.
+- ⚡ **Non-Interactive Initialization** - Scriptable `npx openapi-sync init --no-interactive` / `init -y` setup wizard with full flag support for CI/CD and automation.
 
 ### 🎉 v5.0.0 - Enhanced Client Generation & Developer Experience
 
@@ -84,7 +87,7 @@ npx openapi-sync generate-client --type react-query --json
 
 ### Machine-Readable Output (`--json`)
 
-Every command emits a single JSON object when `--json` is passed:
+Every command emits a single, pure JSON object to `stdout` when `--json` is passed, making it safe to pipe directly into `jq` or consume from automated agents. All human-readable progress logs are suppressed or directed to `stderr`.
 
 ```bash
 $ npx openapi-sync --json
@@ -94,7 +97,11 @@ $ npx openapi-sync --json
   "filesWritten": ["src/api/petstore/types.ts", "src/api/petstore/endpoints.ts"],
   "endpointCount": 20,
   "warnings": [],
-  "errors": []
+  "errors": [],
+  "phases": {
+    "sync": { "filesWritten": ["src/api/petstore/types.ts", "src/api/petstore/endpoints.ts"], "endpointCount": 20 },
+    "client": { "filesWritten": [], "endpointCount": 20 }
+  }
 }
 ```
 
@@ -125,12 +132,24 @@ $ npx openapi-sync list-endpoints --api petstore --path-contains pet --limit 2 -
 $ npx openapi-sync get-endpoint --api petstore --operation-id getPetById --json
 ```
 
+```bash
+$ npx openapi-sync read-type --api petstore --type-name Pet --json
+```
+
 ### Dry Run (preview without writing files)
+
+Compact, fast previews of planned files:
 
 ```bash
 npx openapi-sync --dry-run --json
 npx openapi-sync generate-client --type fetch --dry-run --json
 ```
+
+### Layouts & Output Directories
+
+- **Flat Mode (Default):** When `folderSplit` is omitted or empty (`{}`), files are placed directly in the API folder (`endpoints.ts`, `types/index.ts`, `types/shared.ts`).
+- **Tag-Split Mode:** Setting `folderSplit: { byTags: true }` organizes endpoints into tag subfolders (e.g. `{tag}/endpoints.ts`, `{tag}/types.ts`, `shared.ts`).
+- **Custom Client Directory:** `clientGeneration.outputDir` is fully supported with folder splitting. Clients are placed in `{outputDir}/{tag}/client.ts` and aggregated at `{outputDir}/clients.ts` with relative imports resolving back to your generated types.
 
 ### Programmatic API (TypeScript)
 
@@ -560,7 +579,7 @@ Create `.cursor/mcp.json` in your project root:
 1. openapi_sync_read_config               → check if config exists
 2. openapi_sync_init                      → create config if needed (non-interactive)
 3. openapi_sync_validate                  → confirm specs are reachable and valid
-4. openapi_sync_list_endpoints            → inspect a paged subset of endpoints or search by path
+4. openapi_sync_list_endpoints            → inspect a paged subset of endpoints or search by path; reuses cached endpoints by default
 5. openapi_sync_get_endpoint_details      → inspect the full schema for one endpoint
 6. openapi_sync_read_generated_type       → read a specific generated TypeScript declaration
 7. openapi_sync_sync                      → generate types + schemas

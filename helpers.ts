@@ -533,3 +533,87 @@ export const mergeCustomCode = (
 
   return parts.join("\n");
 };
+
+/**
+ * Sanitize a string to be a valid Python identifier
+ *
+ * Replaces template variables like {projectId}, <id>, $var with PascalCase identifiers,
+ * converts separators (-, ., /, etc.) into valid characters, and ensures the result starts with
+ * a valid letter or underscore.
+ *
+ * @param {string} name - String to sanitize
+ * @returns {string} Valid Python identifier
+ *
+ * @example
+ * sanitizePythonIdentifier("GetProjects$projectId") // "GetProjectsProjectId"
+ * sanitizePythonIdentifier("IGetProjects$projectId200Response") // "IGetProjectsProjectId200Response"
+ *
+ * @public
+ */
+export const sanitizePythonIdentifier = (name: string): string => {
+  if (!name) return "_";
+
+  // Replace ${var}, {var}, <var> with Capitalized var
+  let result = name
+    .replace(/\$\{([^}]+)\}/g, (_, v) => capitalize(v))
+    .replace(/\{([^}]+)\}/g, (_, v) => capitalize(v))
+    .replace(/<([^>]+)>/g, (_, v) => capitalize(v))
+    // Replace $var with Capitalized var (e.g. $projectId -> ProjectId)
+    .replace(/\$([a-zA-Z0-9_]+)/g, (_, v) => capitalize(v));
+
+  // Convert separators (-, ., /, :, space) by capitalizing the next alphanumeric char
+  result = result.replace(/[-.:/\\ ]+([a-zA-Z0-9])/g, (_, char) =>
+    char.toUpperCase()
+  );
+
+  result = capitalize(result);
+
+  // Remove any remaining invalid characters
+  result = result.replace(/[^a-zA-Z0-9_]/g, "");
+
+  // Python identifier cannot start with a digit
+  if (/^[0-9]/.test(result)) {
+    result = `_${result}`;
+  }
+
+  return result || "_";
+};
+
+/**
+ * Resolve parameter schema type to TypeScript and Python type names
+ *
+ * @param {any} schema - OpenAPI parameter schema
+ * @returns {{ tsType: string; pyType: string; rawType: string }} Mapped types
+ *
+ * @public
+ */
+export const resolveOpenApiParamType = (
+  schema?: any
+): { tsType: string; pyType: string; rawType: string } => {
+  if (!schema) {
+    return { tsType: "string", pyType: "str", rawType: "string" };
+  }
+
+  const rawType =
+    schema.type || (typeof schema === "string" ? schema : "string");
+
+  switch (rawType) {
+    case "integer":
+      return { tsType: "number", pyType: "int", rawType: "integer" };
+    case "number":
+      return { tsType: "number", pyType: "float", rawType: "number" };
+    case "boolean":
+      return { tsType: "boolean", pyType: "bool", rawType: "boolean" };
+    case "array":
+      return { tsType: "any[]", pyType: "List[Any]", rawType: "array" };
+    case "object":
+      return {
+        tsType: "Record<string, any>",
+        pyType: "Dict[str, Any]",
+        rawType: "object",
+      };
+    case "string":
+    default:
+      return { tsType: "string", pyType: "str", rawType: rawType || "string" };
+  }
+};
