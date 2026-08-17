@@ -7,13 +7,15 @@ import {
   getStoredEndpoints,
   getAllStoredEndpoints,
 } from "./Openapi-sync/endpoint-store";
-import { generateClients } from "./Openapi-sync/client-generation";
+import { generateClients, dryRunClientFiles } from "./Openapi-sync/client-generation";
+
 import { EndpointInfo } from "./client-generators";
 import {
   ConfigNotFoundError,
   ConfigParseError,
   UnknownApiError,
 } from "./errors";
+import { makeLogger } from "./logger";
 
 // Re-export modules for user consumption
 export * from "./types";
@@ -60,8 +62,12 @@ const loadConfig = (): IConfig => {
     if (fs.existsSync(configPath)) {
       foundPath = configPath;
       try {
-        configJS = require(configPath);
-        if (Object.keys(configJS).length === 1 && configJS.default) {
+        if (configPath.endsWith(".json")) {
+          configJS = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        } else {
+          configJS = require(configPath);
+        }
+        if (configJS && typeof configJS === "object" && Object.keys(configJS).length === 1 && configJS.default) {
           configJS = configJS.default;
         }
       } catch (e) {
@@ -87,17 +93,6 @@ const loadConfig = (): IConfig => {
 
   return config;
 };
-
-/**
- * Lightweight logger that respects the `--silent` / `silent` option.
- * @internal
- */
-const makeLogger = (silent: boolean) => ({
-  log: (...args: any[]) => { if (!silent) console.log(...args); },
-  info: (...args: any[]) => { if (!silent) console.info(...args); },
-  warn: (...args: any[]) => { if (!silent) console.warn(...args); },
-  error: (...args: any[]) => { if (!silent) console.error(...args); },
-});
 
 const filterAndPaginateEndpoints = (
   endpoints: EndpointInfo[],
@@ -204,7 +199,7 @@ export const Init = async (options?: {
 
       log.log(`\n🔄 Syncing ${apiName}...`);
       try {
-        const syncResult = await OpenapiSync(apiUrl, apiName, config, refetchInterval);
+        const syncResult = await OpenapiSync(apiUrl, apiName, config, refetchInterval, silent);
 
         if (syncResult && syncResult.filesWritten) {
           result.filesWritten.push(...syncResult.filesWritten);
@@ -299,6 +294,10 @@ export const GenerateClient = async (options: {
     errors: [],
   };
 
+  // Separately track files from each phase for the `phases` breakdown
+  const syncFilesWritten: string[] = [];
+  const clientFilesWritten: string[] = [];
+
   try {
     log.log("\n🔄 Loading configuration...");
     const config = loadConfig();
@@ -328,15 +327,16 @@ export const GenerateClient = async (options: {
         continue;
       }
 
-      const syncResult = await OpenapiSync(apiUrl, apiName, config);
+      const syncResult = await OpenapiSync(apiUrl, apiName, config, undefined, silent);
       if (syncResult && syncResult.warnings) {
         result.warnings.push(...syncResult.warnings);
       }
       if (syncResult && syncResult.filesWritten) {
-        // Technically these are just the spec-generated files, not the clients,
-        // but it's good to track them.
+        // Track which files came from the sync step
+        syncFilesWritten.push(...syncResult.filesWritten);
         result.filesWritten.push(...syncResult.filesWritten);
       }
+
     }
 
     // Generate clients for each API
@@ -365,17 +365,33 @@ export const GenerateClient = async (options: {
         ...(options.endpoints && { endpoints: options.endpoints }),
       };
 
-      await generateClients(
+      const clientPaths = await generateClients(
         endpoints,
         config,
         clientConfig,
         apiName,
-        path.join(rootUsingCwd, folderPath)
+        path.join(rootUsingCwd, folderPath),
+        silent
       );
+      clientFilesWritten.push(...clientPaths);
+      result.filesWritten.push(...clientPaths);
     }
 
     log.log("\n✨ All clients generated successfully!\n");
     result.success = result.errors.length === 0;
+
+    // Populate phases breakdown
+    result.phases = {
+      sync: {
+        filesWritten: syncFilesWritten,
+        endpointCount: result.endpointCount,
+      },
+      client: {
+        filesWritten: clientFilesWritten,
+        endpointCount: result.endpointCount,
+      },
+    };
+
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -481,7 +497,7 @@ export const ListEndpoints = async (options?: {
       }
 
       log.log(`🔍 Fetching spec for ${apiName}...`);
-      await OpenapiSync(apiUrl, apiName, config);
+      await OpenapiSync(apiUrl, apiName, config, undefined, silent);
     }
 
     const result: Record<string, EndpointSummary[]> = {};
@@ -539,21 +555,53 @@ export const GetEndpointDetails = async (options?: {
       throw new UnknownApiError(options.apiName, Object.keys(config.api));
     }
 
+    const queryOpId = options?.operationId?.trim();
+    const queryName = options?.name?.trim();
+    const queryTarget = (queryOpId || queryName || "").toLowerCase();
+    const normalize = (s?: string) => (s || "").toLowerCase().replace(/[-_/\s]/g, "");
+    const normTarget = normalize(queryOpId || queryName);
+
     for (const apiName of apiNames) {
       const apiUrl = config.api[apiName];
       let endpoints = getStoredEndpoints(apiName);
 
       if (endpoints.length === 0) {
         log.log(`🔍 Fetching spec for ${apiName} to locate endpoint details...`);
-        await OpenapiSync(apiUrl, apiName, config);
+        await OpenapiSync(apiUrl, apiName, config, undefined, silent);
         endpoints = getStoredEndpoints(apiName);
       }
 
-      const match = endpoints.find((ep) => {
-        const byOperationId = Boolean(options?.operationId && ep.operationId === options.operationId);
-        const byName = Boolean(options?.name && ep.name === options.name);
-        return byOperationId || byName;
+      // 1. Exact match on operationId or name
+      let match = endpoints.find((ep) => {
+        if (queryOpId && ep.operationId === queryOpId) return true;
+        if (queryName && ep.name === queryName) return true;
+        return false;
       });
+
+      // 2. Cross-match: queryOpId against ep.name, or queryName against ep.operationId
+      if (!match) {
+        match = endpoints.find((ep) => {
+          if (queryOpId && ep.name === queryOpId) return true;
+          if (queryName && ep.operationId === queryName) return true;
+          return false;
+        });
+      }
+
+      // 3. Case-insensitive match
+      if (!match) {
+        match = endpoints.find((ep) => {
+          const epOpIdLower = ep.operationId?.toLowerCase();
+          const epNameLower = ep.name.toLowerCase();
+          return epOpIdLower === queryTarget || epNameLower === queryTarget;
+        });
+      }
+
+      // 4. Normalized match (ignoring hyphens, underscores, slashes)
+      if (!match) {
+        match = endpoints.find((ep) => {
+          return normalize(ep.operationId) === normTarget || normalize(ep.name) === normTarget;
+        });
+      }
 
       if (match) {
         return {
@@ -587,30 +635,105 @@ export const ReadGeneratedType = async (options: {
       throw new UnknownApiError(options.apiName, Object.keys(config.api));
     }
 
-    const candidates = [
-      path.join(rootUsingCwd, config?.folder || "", options.apiName, "types/index.ts"),
-      path.join(rootUsingCwd, config?.folder || "", options.apiName, "types.ts"),
-      path.join(rootUsingCwd, config?.folder || "", options.apiName, "index.ts"),
+    const apiFolder = path.join(rootUsingCwd, config?.folder || "", options.apiName);
+    const candidateFiles: string[] = [];
+
+    // 1. Check direct candidate paths
+    const directCandidates = [
+      path.join(apiFolder, "shared.ts"),
+      path.join(apiFolder, "types/shared.ts"),
+      path.join(apiFolder, "types/index.ts"),
+      path.join(apiFolder, "types.ts"),
+      path.join(apiFolder, "index.ts"),
     ];
 
-    const filePath = candidates.find((candidate) => fs.existsSync(candidate));
-    if (!filePath) {
+    for (const c of directCandidates) {
+      if (fs.existsSync(c) && !candidateFiles.includes(c)) {
+        candidateFiles.push(c);
+      }
+    }
+
+    // 2. Recursively collect all candidate type files under the API folder if available
+    try {
+      if (fs.existsSync(apiFolder) || candidateFiles.length === 0) {
+        const collectCandidateFiles = (dir: string): string[] => {
+          const results: string[] = [];
+          const entries: any[] = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const entryName: string = typeof entry === "string" ? entry : (entry?.name || "");
+            const fullPath = path.join(dir, entryName);
+            const isDir = typeof entry?.isDirectory === "function" ? entry.isDirectory() : false;
+            if (isDir) {
+              results.push(...collectCandidateFiles(fullPath));
+            } else if (
+              entryName.endsWith(".ts") ||
+              entryName.endsWith(".py")
+            ) {
+              results.push(fullPath);
+            }
+          }
+          return results;
+        };
+
+        const scanned = collectCandidateFiles(apiFolder);
+        for (const s of scanned) {
+          if (!candidateFiles.includes(s)) {
+            candidateFiles.push(s);
+          }
+        }
+      }
+    } catch (_) {
+      // Readdir may fail in non-directory mocks
+    }
+
+    if (candidateFiles.length === 0) {
       throw new Error(`Generated types file not found for API: ${options.apiName}`);
     }
 
-    const content = await fs.promises.readFile(filePath, "utf-8");
-    const escapedName = options.typeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const declarationPattern = new RegExp(
-      `export\\s+(?:type|interface)\\s+${escapedName}\\b[\\s\\S]*?(?=\\n(?:export\\s+(?:type|interface|const|function|class|enum)\\b|$))`,
-      "m"
-    );
-    const match = content.match(declarationPattern);
+    // Sort candidate files: shared types first, then types files, then index, then others
+    candidateFiles.sort((a, b) => {
+      const aScore = a.includes("shared") ? 3 : a.includes("types") ? 2 : a.includes("index") ? 1 : 0;
+      const bScore = b.includes("shared") ? 3 : b.includes("types") ? 2 : b.includes("index") ? 1 : 0;
+      return bScore - aScore;
+    });
 
-    if (!match) {
-      throw new Error(`Type declaration not found: ${options.typeName}`);
+    const targetNames = [options.typeName];
+    if (
+      options.typeName.startsWith("I") &&
+      options.typeName.length > 1 &&
+      options.typeName[1] === options.typeName[1].toUpperCase()
+    ) {
+      targetNames.push(options.typeName.slice(1));
+    } else {
+      targetNames.push(`I${options.typeName}`);
     }
 
-    return match[0].trim();
+    for (const name of targetNames) {
+      const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const tsPattern = new RegExp(
+        `export\\s+(?:type|interface|class|enum)\\s+${escapedName}\\b[\\s\\S]*?(?=\\n(?:export\\s+(?:type|interface|const|function|class|enum)\\b|/\\*|//\\s*={3,}|$))`,
+        "m"
+      );
+      const pyPattern = new RegExp(
+        `class\\s+${escapedName}\\b[\\s\\S]*?(?=\\n(?:class\\s+|def\\s+|[A-Z0-9_]+\\s*=\\s*Endpoint|$))`,
+        "m"
+      );
+
+      for (const filePath of candidateFiles) {
+        try {
+          const content = await fs.promises.readFile(filePath, "utf-8");
+          const pattern = filePath.endsWith(".py") ? pyPattern : tsPattern;
+          const match = content.match(pattern);
+          if (match) {
+            return match[0].trim();
+          }
+        } catch (_) {
+          // Skip unreadable files
+        }
+      }
+    }
+
+    throw new Error(`Type declaration not found: ${options.typeName}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     log.error(`❌ Error: ${msg}`);

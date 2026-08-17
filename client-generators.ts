@@ -167,17 +167,19 @@ export const generateFetchClient = (
   content += `// This file was auto-generated. Add custom code in the marked sections.\n\n`;
 
   // Generate types import
-  content += `import type {\n`;
   const uniqueTypes = new Set<string>();
   endpoints.forEach((endpoint) => {
     if (endpoint.queryType) uniqueTypes.add(endpoint.queryType);
     if (endpoint.dtoType) uniqueTypes.add(endpoint.dtoType);
     if (endpoint.responseType) uniqueTypes.add(endpoint.responseType);
   });
-  uniqueTypes.forEach((type) => {
-    content += `  ${type},\n`;
-  });
-  content += `} from '../types';\n\n`;
+  if (uniqueTypes.size > 0) {
+    content += `import type {\n`;
+    uniqueTypes.forEach((type) => {
+      content += `  ${type},\n`;
+    });
+    content += `} from '../types';\n\n`;
+  }
 
   // Generate endpoints import with aliases to avoid naming conflicts
   content += `import {\n`;
@@ -435,17 +437,19 @@ export const generateAxiosClient = (
   content += `import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';\n\n`;
 
   // Generate types import
-  content += `import type {\n`;
   const uniqueTypes = new Set<string>();
   endpoints.forEach((endpoint) => {
     if (endpoint.queryType) uniqueTypes.add(endpoint.queryType);
     if (endpoint.dtoType) uniqueTypes.add(endpoint.dtoType);
     if (endpoint.responseType) uniqueTypes.add(endpoint.responseType);
   });
-  uniqueTypes.forEach((type) => {
-    content += `  ${type},\n`;
-  });
-  content += `} from '../types';\n\n`;
+  if (uniqueTypes.size > 0) {
+    content += `import type {\n`;
+    uniqueTypes.forEach((type) => {
+      content += `  ${type},\n`;
+    });
+    content += `} from '../types';\n\n`;
+  }
 
   // Generate endpoints import
   content += `import {\n`;
@@ -598,14 +602,24 @@ export const generateAxiosClient = (
     }
 
     // Make request
-    content += `    const response = await this.client.${endpoint.method.toLowerCase()}<${responseType}>(\n`;
-    content += `      _url,\n`;
-    if (hasBody) {
-      content += `      data,\n      config\n`;
-    } else {
+    const methodLower = endpoint.method.toLowerCase();
+    const isBodyMethod = ["post", "put", "patch"].includes(methodLower);
+
+    if (isBodyMethod) {
+      content += `    const response = await this.client.${methodLower}<${responseType}>(\n`;
+      content += `      _url,\n`;
+      content += `      ${hasBody ? "data" : "undefined"},\n`;
       content += `      config\n`;
+      content += `    );\n`;
+    } else {
+      if (hasBody) {
+        content += `    config.data = data;\n`;
+      }
+      content += `    const response = await this.client.${methodLower}<${responseType}>(\n`;
+      content += `      _url,\n`;
+      content += `      config\n`;
+      content += `    );\n`;
     }
-    content += `    );\n`;
     content += `    return response.data;\n`;
     content += `  }\n\n`;
   });
@@ -694,17 +708,19 @@ export const generateReactQueryHooks = (
   content += `import apiClient from './client';\n`;
 
   // Generate types import
-  content += `import type {\n`;
   const uniqueTypes = new Set<string>();
   endpoints.forEach((endpoint) => {
     if (endpoint.queryType) uniqueTypes.add(endpoint.queryType);
     if (endpoint.dtoType) uniqueTypes.add(endpoint.dtoType);
     if (endpoint.responseType) uniqueTypes.add(endpoint.responseType);
   });
-  uniqueTypes.forEach((type) => {
-    content += `  ${type},\n`;
-  });
-  content += `} from '../types';\n\n`;
+  if (uniqueTypes.size > 0) {
+    content += `import type {\n`;
+    uniqueTypes.forEach((type) => {
+      content += `  ${type},\n`;
+    });
+    content += `} from '../types';\n\n`;
+  }
 
   // Generate hooks for each endpoint
   endpoints.forEach((endpoint) => {
@@ -1197,17 +1213,19 @@ export const generateSWRHooks = (
   content += `import apiClient from './client';\n`;
 
   // Generate types import
-  content += `import type {\n`;
   const uniqueTypes = new Set<string>();
   endpoints.forEach((endpoint) => {
     if (endpoint.queryType) uniqueTypes.add(endpoint.queryType);
     if (endpoint.dtoType) uniqueTypes.add(endpoint.dtoType);
     if (endpoint.responseType) uniqueTypes.add(endpoint.responseType);
   });
-  uniqueTypes.forEach((type) => {
-    content += `  ${type},\n`;
-  });
-  content += `} from '../types';\n\n`;
+  if (uniqueTypes.size > 0) {
+    content += `import type {\n`;
+    uniqueTypes.forEach((type) => {
+      content += `  ${type},\n`;
+    });
+    content += `} from '../types';\n\n`;
+  }
 
   // Generate hooks for each endpoint
   endpoints.forEach((endpoint) => {
@@ -1403,17 +1421,19 @@ export const generateRTKQuery = (
   content += `import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';\n\n`;
 
   // Generate types import
-  content += `import type {\n`;
   const uniqueTypes = new Set<string>();
   endpoints.forEach((endpoint) => {
     if (endpoint.queryType) uniqueTypes.add(endpoint.queryType);
     if (endpoint.dtoType) uniqueTypes.add(endpoint.dtoType);
     if (endpoint.responseType) uniqueTypes.add(endpoint.responseType);
   });
-  uniqueTypes.forEach((type) => {
-    content += `  ${type},\n`;
-  });
-  content += `} from '../types';\n\n`;
+  if (uniqueTypes.size > 0) {
+    content += `import type {\n`;
+    uniqueTypes.forEach((type) => {
+      content += `  ${type},\n`;
+    });
+    content += `} from '../types';\n\n`;
+  }
 
   // Generate endpoints import
   content += `import {\n`;

@@ -10,7 +10,7 @@
 // 2 = network/spec error, 3 = generation error.
 //
 // Non-interactive init (no prompts, safe for agents):
-//   npx openapi-sync init --no-interactive \
+//   npx openapi-sync init -y \
 //     --api-name petstore \
 //     --api-url https://petstore3.swagger.io/api/v3/openapi.json \
 //     --output-folder ./src/api \
@@ -43,8 +43,9 @@ const { hideBin } = require("yargs/helpers");
  * Used when --json flag is present.
  */
 function jsonExit(data, exitCode = 0) {
-  process.stdout.write(JSON.stringify(data, null, 2) + "\n");
-  process.exit(exitCode);
+  process.stdout.write(JSON.stringify(data, null, 2) + "\n", () => {
+    process.exit(exitCode);
+  });
 }
 
 /**
@@ -56,9 +57,60 @@ function exitCodeFromResult(result) {
   return 0;
 }
 
+/**
+ * Detect --json anywhere in argv (including before subcommand).
+ */
+function hasJsonFlag(argv = process.argv) {
+  return argv.includes("--json");
+}
+
+/**
+ * Write a structured CLI error and exit.
+ */
+function jsonErrorExit(code, message, extra = {}) {
+  jsonExit(
+    {
+      success: false,
+      error: {
+        code,
+        message,
+        ...extra,
+      },
+    },
+    1
+  );
+}
+
+/**
+ * Compute the canonical list of client output files for a given client type
+ * and API folder path. Used as a fallback in --dry-run when dryRunClientFiles
+ * cannot be loaded (e.g. dist not built yet).
+ *
+ * @param {string} clientType - One of fetch | axios | react-query | swr | rtk-query
+ * @param {string} apiFolderPath - Absolute path to the API output folder
+ * @returns {string[]} Planned file paths
+ */
+function computePlannedFiles(clientType, apiFolderPath) {
+  const path = require("path");
+  switch (clientType) {
+    case "rtk-query":
+      return [path.join(apiFolderPath, "api.ts")];
+    case "react-query":
+    case "swr":
+      return [
+        path.join(apiFolderPath, "clients.ts"),
+        path.join(apiFolderPath, "hooks.ts"),
+      ];
+    case "fetch":
+    case "axios":
+    default:
+      return [path.join(apiFolderPath, "clients.ts")];
+  }
+}
+
 // ── CLI definition ────────────────────────────────────────────────────────────
 
-yargs(hideBin(process.argv))
+const cli = yargs(hideBin(process.argv))
   // ── Global flags ──────────────────────────────────────────────────────────
   .option("json", {
     type: "boolean",
@@ -81,13 +133,17 @@ yargs(hideBin(process.argv))
     "Create an openapi.sync config file (interactive or non-interactive)",
     (yargs) => {
       return yargs
-        .option("no-interactive", {
+        .option("interactive", {
+          type: "boolean",
+          default: true,
+          description:
+            "Run the interactive wizard (default). Use --no-interactive or -y to skip prompts.",
+        })
+        .option("yes", {
           alias: "y",
           type: "boolean",
-          description:
-            "Skip all prompts and create config from flags + defaults. " +
-            "Use this from scripts or AI agents.",
           default: false,
+          description: "Non-interactive mode (alias for --no-interactive).",
         })
         // All wizard fields available as flags so agents can pass everything:
         .option("api-name", {
@@ -162,18 +218,19 @@ yargs(hideBin(process.argv))
           "Interactive wizard (human use)"
         )
         .example(
-          "$0 init --no-interactive --api-name petstore --api-url https://petstore3.swagger.io/api/v3/openapi.json",
+          "$0 init -y --api-name petstore --api-url https://petstore3.swagger.io/api/v3/openapi.json",
           "Non-interactive setup (agent use)"
         )
         .example(
-          "$0 init --no-interactive --api-name myapi --api-url https://api.example.com/openapi.json --client-type react-query --validation-library zod --json",
+          "$0 init -y --api-name myapi --api-url https://api.example.com/openapi.json --client-type react-query --validation-library zod --json",
           "Full non-interactive setup with JSON output"
         );
     },
     async (argv) => {
-      const noInteractive = argv["no-interactive"] || argv.y;
+      const nonInteractive =
+        argv.interactive === false || argv.y === true || argv.yes === true;
 
-      if (noInteractive) {
+      if (nonInteractive) {
         // ── Non-interactive path (agent-safe) ─────────────────────────────
         const silent = argv.silent || argv.json;
 
@@ -186,7 +243,7 @@ yargs(hideBin(process.argv))
             error: {
               code: "CONFIG_INVALID",
               message:
-                "You must provide --api-url or --api-file when using --no-interactive.",
+                "You must provide --api-url or --api-file when using non-interactive init.",
             },
           };
           if (argv.json) return jsonExit(err, 1);
@@ -194,33 +251,59 @@ yargs(hideBin(process.argv))
           process.exit(1);
         }
 
-        const { nonInteractiveInit } = require("../dist/Openapi-sync/interactive-init");
+        try {
+          const { nonInteractiveInit } = require("../dist/Openapi-sync/interactive-init");
 
-        const result = await nonInteractiveInit({
-          apiName,
-          apiSource,
-          outputFolder: argv["output-folder"],
-          configFormat: argv["config-format"],
-          clientType: argv["client-type"],
-          validationLibrary: argv["validation-library"],
-          folderSplit: argv["folder-split"],
-          typesPrefix: argv["types-prefix"],
-          useOperationId: argv["use-operation-id"],
-          excludeTags: argv["exclude-tags"]
-            ? argv["exclude-tags"].split(",").map((t) => t.trim())
-            : [],
-          showCurl: argv["show-curl"],
-          refetchInterval: argv["refetch-interval"] || undefined,
-          runSync: argv["run-sync"],
-          silent,
-        });
+          const result = await nonInteractiveInit({
+            apiName,
+            apiSource,
+            outputFolder: argv["output-folder"],
+            configFormat: argv["config-format"],
+            clientType: argv["client-type"],
+            validationLibrary: argv["validation-library"],
+            folderSplit: argv["folder-split"],
+            typesPrefix: argv["types-prefix"],
+            useOperationId: argv["use-operation-id"],
+            excludeTags: argv["exclude-tags"]
+              ? argv["exclude-tags"].split(",").map((t) => t.trim())
+              : [],
+            showCurl: argv["show-curl"],
+            refetchInterval: argv["refetch-interval"] || undefined,
+            runSync: argv["run-sync"],
+            silent,
+          });
 
-        if (argv.json) {
-          return jsonExit(result, result.success ? 0 : 1);
+          if (argv.json) {
+            return jsonExit(result, result.success ? 0 : 1);
+          }
+
+          if (!result.success) {
+            console.error(`❌ ${result.message}`);
+            if (result.errors?.length) {
+              result.errors.forEach((e) => console.error(`   ${e}`));
+            }
+            process.exit(1);
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (argv.json) {
+            return jsonErrorExit("INIT_FAILED", message);
+          }
+          console.error(`❌ ${message}`);
+          process.exit(1);
         }
       } else {
         // ── Interactive wizard path (human use) ───────────────────────────
-        await OpenApisync.InteractiveInit();
+        try {
+          await OpenApisync.InteractiveInit();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (argv.json) {
+            return jsonErrorExit("INIT_FAILED", message);
+          }
+          console.error(`❌ ${message}`);
+          process.exit(1);
+        }
       }
     }
   )
@@ -442,13 +525,29 @@ yargs(hideBin(process.argv))
     },
     async (argv) => {
       if (argv["dry-run"]) {
-        // Dry-run: validate first to count endpoints, then report what would be written
+        // Dry-run: validate + list endpoints so we can estimate what would be written
         const silent = argv.silent || argv.json;
         const validation = await OpenApisync.ValidateConfig({ silent });
+
+        // Build a rough list of planned file categories per API
+        const path = require("path");
+        const plannedFilesByApi = {};
+        for (const [apiName, apiResult] of Object.entries(validation.apis)) {
+          const apiFolderPath = path.join(process.cwd(), "api", apiName);
+          // Spec-generated files (types, endpoints, validations)
+          plannedFilesByApi[apiName] = [
+            path.join(apiFolderPath, "types.ts"),
+            path.join(apiFolderPath, "endpoints.ts"),
+          ];
+        }
+
+        const allPlannedFiles = Object.values(plannedFilesByApi).flat();
 
         const dryRunResult = {
           dryRun: true,
           valid: validation.valid,
+          plannedFiles: allPlannedFiles,
+          fileCount: allPlannedFiles.length,
           apis: validation.apis,
           message: validation.valid
             ? "Dry run complete. Run without --dry-run to write files."
@@ -461,6 +560,8 @@ yargs(hideBin(process.argv))
 
         if (validation.valid) {
           console.log("\n✅ Dry run: config and specs are valid.");
+          console.log(`   Planned files (~${allPlannedFiles.length} spec files, excludes tag-split sub-files):`);
+          allPlannedFiles.forEach((f) => console.log(`     ${f}`));
           console.log("   Run without --dry-run to write files.\n");
         } else {
           console.error("\n❌ Dry run: validation failed — see errors above.\n");
@@ -531,6 +632,11 @@ yargs(hideBin(process.argv))
           description: "Show what files would be written without writing them",
           default: false,
         })
+        .option("verbose", {
+          type: "boolean",
+          description: "In --dry-run mode, also include the full endpoint listing in output",
+          default: false,
+        })
         .example(
           "$0 generate-client --type fetch --json",
           "Generate fetch client and emit JSON result"
@@ -550,32 +656,71 @@ yargs(hideBin(process.argv))
     },
     async (argv) => {
       if (argv["dry-run"]) {
-        // Validate and list what would be generated
+        // —— Compact dry-run: show planned file paths without writing ——
+        // Use ValidateConfig (read-only, no file writes) to count endpoints,
+        // then compute canonical planned paths via computePlannedFiles.
         const silent = argv.silent || argv.json;
-        const endpoints = await OpenApisync.ListEndpoints({
-          apiName: argv.api,
-          tags: argv.tags,
-          silent,
-        });
+        const path = require("path");
+
+        const validation = await OpenApisync.ValidateConfig({ silent });
+
+        // Build the planned file list per API
+        const perApi = {};
+        let totalFileCount = 0;
+        let totalEndpointCount = 0;
+
+        for (const [apiName, apiResult] of Object.entries(validation.apis)) {
+          const endpointCount = apiResult.endpointCount || apiResult.operationCount || 0;
+          totalEndpointCount += endpointCount;
+
+          const basePath = path.join(process.cwd(), "api");
+          const apiFolderPath = path.join(basePath, apiName);
+          const plannedFiles = computePlannedFiles(argv.type, apiFolderPath);
+
+          perApi[apiName] = { endpointCount, plannedFiles };
+          totalFileCount += plannedFiles.length;
+        }
+
+        let endpointsByApi = undefined;
+        if (argv.verbose) {
+          endpointsByApi = await OpenApisync.ListEndpoints({
+            apiName: argv.api,
+            tags: argv.tags,
+            silent,
+          });
+        }
+
         const dryRunResult = {
           dryRun: true,
           type: argv.type,
-          apis: endpoints,
-          message: `Would generate a ${argv.type} client. Run without --dry-run to write files.`,
+          plannedFiles: Object.values(perApi).flatMap((a) => a.plannedFiles),
+          fileCount: totalFileCount,
+          endpointCount: totalEndpointCount,
+          warnings: [],
+          message: validation.valid
+            ? `Would generate a ${argv.type} client. Run without --dry-run to write files.`
+            : "Validation failed. Fix errors before generating client.",
+          ...(argv.verbose ? { endpoints: endpointsByApi } : {}),
         };
+
+        if (!validation.valid) {
+          if (argv.json) return jsonExit({ ...dryRunResult, success: false, errors: validation.configErrors }, 1);
+          console.error(`\n❌ Validation failed. Fix errors before generating client.\n`);
+          process.exit(1);
+        }
+
         if (argv.json) return jsonExit(dryRunResult, 0);
         console.log(`\n✅ Dry run: would generate ${argv.type} client.`);
-        for (const [api, eps] of Object.entries(endpoints)) {
-          console.log(`   ${api}: ${eps.length} endpoints`);
+        console.log(`   Planned files (${totalFileCount}):`);
+        dryRunResult.plannedFiles.forEach((f) => console.log(`     ${f}`));
+        for (const [api, info] of Object.entries(perApi)) {
+          console.log(`   ${api}: ${info.endpointCount} endpoints`);
         }
         return;
       }
 
-      // First sync to get fresh types
+      // Sync + generate client
       const silent = argv.silent || argv.json;
-      const silent2 = silent;
-      await OpenApisync.Init({ silent: silent2 });
-
       const result = await OpenApisync.GenerateClient({
         type: argv.type,
         apiName: argv.api,
@@ -597,7 +742,7 @@ yargs(hideBin(process.argv))
 
   .example("$0 init", "Interactive setup wizard (human)")
   .example(
-    "$0 init --no-interactive --api-name petstore --api-url https://petstore3.swagger.io/api/v3/openapi.json",
+    "$0 init -y --api-name petstore --api-url https://petstore3.swagger.io/api/v3/openapi.json",
     "Non-interactive init (agent)"
   )
   .example("$0 validate --json", "Validate config + specs (no file writes)")
@@ -612,4 +757,19 @@ yargs(hideBin(process.argv))
   .version()
   .alias("version", "v")
   .demandCommand(1, "You need to specify a command")
-  .strict().argv;
+  .fail((msg, err, yargsInstance) => {
+    const message = err?.message || msg;
+    if (hasJsonFlag()) {
+      jsonErrorExit("CLI_PARSE_ERROR", message);
+    }
+    if (err) {
+      console.error(err.message || err);
+    } else {
+      console.error(message);
+    }
+    console.error(yargsInstance.help());
+    process.exit(1);
+  })
+  .strict();
+
+cli.parse();

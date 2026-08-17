@@ -532,6 +532,98 @@ export const validate = <T extends z.ZodTypeAny>(schema: T) => {
 import { IAddPetDTOSchema } from "./api/validation";
 router.post("/pet", validate(IAddPetDTOSchema), handler);`,
   },
+  {
+    category: "AI Agents & MCP",
+    title: "MCP Server Integration",
+    description: "Connect Claude, Cursor, and AI agents with zero glue code",
+    code: `// .cursor/mcp.json or claude_desktop_config.json
+{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "\${workspaceFolder}"
+    }
+  }
+}
+
+// AI Agent can now execute:
+// • openapi_sync_list_endpoints(apiName, pathContains, limit)
+// • openapi_sync_get_endpoint_details(apiName, operationId)
+// • openapi_sync_read_generated_type(apiName, typeName)
+// • openapi_sync_validate()
+// • openapi_sync_sync(dryRun)
+// • openapi_sync_generate_client(type)`,
+  },
+  {
+    category: "AI Agents & MCP",
+    title: "CLI Query & Discovery",
+    description: "Explore endpoints and read types with machine-readable --json output",
+    code: `# List endpoints with path search & pagination
+npx openapi-sync list-endpoints --api petstore --path-contains pet --limit 5 --json
+
+# Deep inspection of an endpoint schema
+npx openapi-sync get-endpoint --api petstore --operation-id getPetById --json
+
+# Read a generated TypeScript declaration directly
+npx openapi-sync read-type --api petstore --type-name Pet --json
+
+# Pre-flight config validation without writing files
+npx openapi-sync validate --json`,
+  },
+  {
+    category: "Programmatic API",
+    title: "Node.js Full SDK Integration",
+    description: "Inspect endpoints, validate configs, and sync programmatically",
+    code: `import {
+  ValidateConfig,
+  ListEndpoints,
+  GetEndpointDetails,
+  ReadGeneratedType,
+  Init,
+  GenerateClient
+} from "openapi-sync";
+
+// 1. Validate spec reachability & config
+const validation = await ValidateConfig({ silent: true });
+
+// 2. Discover endpoints
+const endpoints = await ListEndpoints({ apiName: "petstore", pathContains: "users", silent: true });
+
+// 3. Inspect single endpoint
+const detail = await GetEndpointDetails({ apiName: "petstore", operationId: "getUserByName", silent: true });
+
+// 4. Run sync and generate React Query client
+await Init({ silent: true });
+await GenerateClient({ type: "react-query", silent: true });`,
+  },
+  {
+    category: "Python Codegen",
+    title: "Python Dataclasses & Endpoints",
+    description: "Generate Python @dataclass types and typed URL helpers",
+    code: `// openapi.sync.json
+{
+  "apis": [
+    {
+      "name": "petstore_py",
+      "url": "https://petstore.swagger.io/v2/swagger.json",
+      "destination": "./src/api/petstore_py",
+      "language": "python",
+      "folderSplit": { "byTags": true }
+    }
+  ]
+}
+
+// Generated types.py:
+// @dataclass
+// class Pet:
+//     id: Optional[int] = None
+//     name: Optional[str] = None
+//     category: Optional["Category"] = None
+
+// Generated endpoints.py:
+// GET_PET_BY_ID = Endpoint("getPetById", "/pet/{petId}", "GET", lambda petId: f"/pet/{petId}")`,
+  },
 ];
 
 export default function Examples() {

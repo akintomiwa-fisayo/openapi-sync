@@ -1,6 +1,7 @@
 import prompts from "prompts";
 import fs from "fs";
 import path from "path";
+import { makeLogger } from "../logger";
 
 interface InitAnswers {
   configFormat: "json" | "typescript" | "javascript";
@@ -596,9 +597,7 @@ export async function nonInteractiveInit(
     silent = false,
   } = opts;
 
-  const log = silent
-    ? { log: () => {}, warn: () => {}, error: () => {} }
-    : { log: console.log, warn: console.warn, error: console.error };
+  const log = makeLogger(silent);
 
   const errors: string[] = [];
 

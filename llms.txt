@@ -132,6 +132,7 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 
 OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent workflows. Long-running MCP calls reuse cached endpoints by default when available.
 
+- `openapi_sync_read_config`
 - `openapi_sync_sync`
 - `openapi_sync_validate`
 - `openapi_sync_list_endpoints` (supports pagination, path filters, and `useCache`)
@@ -333,7 +334,9 @@ type EndpointSummary = {
 ```
 
 When `folderSplit.byTags` is true, types/endpoints/validations are split into
-tag-named subdirectories with aggregator index files for easy imports.
+tag-named subdirectories (`{tag}/endpoints.ts`, `{tag}/types.ts`, `shared.ts`).
+When `folderSplit` is omitted or empty (`{}`), generation defaults to flat mode (`endpoints.ts`, `types/index.ts`, `types/shared.ts`).
+Custom `clientGeneration.outputDir` is fully supported with folder splitting, generating tag client subdirectories with relative imports back to types.
 
 
 ## ERROR CODES (typed errors)
