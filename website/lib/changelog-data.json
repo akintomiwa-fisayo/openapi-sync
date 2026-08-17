@@ -1,5 +1,19 @@
 [
   {
+    "version": "6.3.2",
+    "date": "2026-08-17",
+    "type": "patch",
+    "changes": [
+      "fix schema duplicate type generation preventing conflicting declarations (e.g. duplicate IPet in OpenAPI 3.0 specs)",
+      "implement robust balanced-bracket type declaration extraction in read-type ensuring full untruncated output with internal comments and JSDocs",
+      "add optional offset and max-lines pagination support for read-type in programmatic API, CLI, and MCP",
+      "add in-memory TypeScript config transformation via esbuild for seamless programmatic ESM usage without require hooks",
+      "add openapi_sync_doctor tool to MCP server for AI agent diagnostics (total 9 MCP tools)",
+      "add output folder nesting diagnostic warning in doctor command when folder matches API name",
+      "align dry-run planned file paths accurately with actual sync output in both flat and tag-split modes"
+    ]
+  },
+  {
     "version": "6.3.1",
     "date": "2026-08-17",
     "type": "patch",

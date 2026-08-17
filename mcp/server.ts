@@ -70,6 +70,7 @@ import {
   ListEndpoints,
   GetEndpointDetails,
   ReadGeneratedType,
+  Doctor,
 } from "../index.js";
 import { nonInteractiveInit } from "../Openapi-sync/interactive-init.js";
 import path from "path";
@@ -304,20 +305,51 @@ server.tool(
 
 server.tool(
   "openapi_sync_read_generated_type",
-  "Read the exact generated TypeScript interface or type declaration from the generated types file.",
+  "Read the exact generated TypeScript interface or type declaration from the generated types file. Supports optional pagination for large types.",
   {
     apiName: z.string().describe("The configured API name."),
     typeName: z.string().describe("The exported interface or type name to read."),
+    offset: z.number().optional().describe("Starting line offset (0-indexed) for paginating large type definitions."),
+    maxLines: z.number().optional().describe("Maximum number of lines to return."),
   },
-  async ({ apiName, typeName }) => {
+  async ({ apiName, typeName, offset, maxLines }) => {
     log("[openapi-sync-mcp] Reading generated type...");
     try {
-      const result = await ReadGeneratedType({ apiName, typeName, silent: true });
+      const result = await ReadGeneratedType({ apiName, typeName, offset, maxLines, silent: true });
       return {
         content: [
           {
             type: "text",
             text: result,
+          },
+        ],
+      };
+    } catch (err: any) {
+      return {
+        content: [{ type: "text", text: `Error: ${err.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool: openapi_sync_doctor
+// ─────────────────────────────────────────────────────────────────────────────
+
+server.tool(
+  "openapi_sync_doctor",
+  "Run diagnostic health checks on openapi.sync configuration, API specs, peer dependencies, cache, and folder permissions. Returns structured health report and actionable recommendations.",
+  {},
+  async () => {
+    log("[openapi-sync-mcp] Running diagnostic health check...");
+    try {
+      const result = await Doctor({ silent: true });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
           },
         ],
       };

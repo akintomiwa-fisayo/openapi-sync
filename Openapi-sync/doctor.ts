@@ -7,6 +7,7 @@ import { makeLogger } from "../logger";
 import { checkPeerDependencies } from "./client-generation";
 import { getCachePath } from "./state";
 import { getStoredEndpoints } from "./endpoint-store";
+import { tryLoadConfig } from "./config-loader";
 
 /**
  * Diagnostic health check for OpenAPI Sync project setup.
@@ -25,6 +26,8 @@ import { getStoredEndpoints } from "./endpoint-store";
  * @returns {Promise<DoctorResult>} Structured diagnostic report
  * @public
  */
+const rootUsingCwd = process.cwd();
+
 export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorResult> => {
   const silent = options?.silent ?? false;
   const log = makeLogger(silent);
@@ -35,21 +38,9 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
   log.log("\n🩺 Running OpenAPI Sync Doctor...\n");
 
   // 1. Config Check
-  const rootUsingCwd = process.cwd();
-  const jsConfigPath = path.join(rootUsingCwd, "openapi.sync.js");
-  const tsConfigPath = path.join(rootUsingCwd, "openapi.sync.ts");
-  const jsonConfigPath = path.join(rootUsingCwd, "openapi.sync.json");
-  const configPaths = [jsConfigPath, tsConfigPath, jsonConfigPath];
-
-  let foundConfigPath: string | undefined;
-  let loadedConfig: IConfig | undefined;
-
-  for (const cp of configPaths) {
-    if (fs.existsSync(cp)) {
-      foundConfigPath = cp;
-      break;
-    }
-  }
+  const configResult = tryLoadConfig();
+  const foundConfigPath = configResult.foundPath;
+  const loadedConfig = configResult.config;
 
   if (!foundConfigPath) {
     checks.push({
@@ -57,62 +48,59 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
       name: "Configuration File",
       status: "fail",
       message: "No openapi.sync configuration file found in working directory.",
-      details: { searchedPaths: configPaths },
+      details: { error: configResult.error },
     });
     recommendations.push("Run 'npx openapi-sync init' to create a configuration file.");
+  } else if (!loadedConfig) {
+    checks.push({
+      id: "config-file",
+      name: "Configuration File",
+      status: "fail",
+      message: configResult.error || `Failed to parse ${path.basename(foundConfigPath)}.`,
+      details: { configFile: foundConfigPath, error: configResult.error },
+    });
+    recommendations.push("Fix syntax or type errors in your openapi.sync config file.");
+  } else if (!loadedConfig.api || Object.keys(loadedConfig.api).length === 0) {
+    checks.push({
+      id: "config-file",
+      name: "Configuration File",
+      status: "fail",
+      message: `Configuration at ${path.basename(foundConfigPath)} has no 'api' definitions.`,
+      details: { configFile: foundConfigPath },
+    });
+    recommendations.push("Define at least one API under the 'api' block in your configuration.");
   } else {
-    try {
-      if (foundConfigPath.endsWith(".json")) {
-        loadedConfig = JSON.parse(fs.readFileSync(foundConfigPath, "utf-8"));
-      } else {
-        try {
-          require("esbuild-register");
-        } catch (_) {}
-        try {
-          loadedConfig = require(foundConfigPath);
-        } catch (_) {
-          const raw = fs.readFileSync(foundConfigPath, "utf-8");
-          const evaluated = new Function("module", "exports", raw);
-          const m = { exports: {} as any };
-          evaluated(m, m.exports);
-          loadedConfig = m.exports;
+    const apiCount = Object.keys(loadedConfig.api).length;
+    checks.push({
+      id: "config-file",
+      name: "Configuration File",
+      status: "pass",
+      message: `Found valid configuration: ${path.basename(foundConfigPath)} (${apiCount} API${apiCount > 1 ? "s" : ""} configured).`,
+      details: { configFile: foundConfigPath, apis: Object.keys(loadedConfig.api) },
+    });
+
+    // Check for potential folder name duplicate nesting
+    if (loadedConfig.folder && loadedConfig.api) {
+      const normalizedFolder = loadedConfig.folder.replace(/\\/g, "/").replace(/\/$/, "");
+      const folderBase = path.basename(normalizedFolder);
+      for (const apiName of Object.keys(loadedConfig.api)) {
+        if (folderBase.toLowerCase() === apiName.toLowerCase()) {
+          checks.push({
+            id: "folder-nesting",
+            name: "Output Folder Structure",
+            status: "warn",
+            message: `Config folder '${loadedConfig.folder}' matches API name '${apiName}'. Output will be written to '${path.join(loadedConfig.folder, apiName)}'.`,
+            details: {
+              folder: loadedConfig.folder,
+              apiName,
+              resolvedPath: path.join(loadedConfig.folder, apiName),
+            },
+          });
+          recommendations.push(
+            `If you prefer flat output for '${apiName}', set 'folder' to '${path.dirname(loadedConfig.folder) === "." ? "./src/api" : path.dirname(loadedConfig.folder)}'.`
+          );
         }
       }
-      if (loadedConfig && typeof loadedConfig === "object" && (loadedConfig as any).default) {
-        loadedConfig = (loadedConfig as any).default;
-      }
-      if (typeof loadedConfig === "function") {
-        loadedConfig = (loadedConfig as any)();
-      }
-
-      if (!loadedConfig || !loadedConfig.api || Object.keys(loadedConfig.api).length === 0) {
-        checks.push({
-          id: "config-file",
-          name: "Configuration File",
-          status: "fail",
-          message: `Configuration at ${path.basename(foundConfigPath)} has no 'api' definitions.`,
-          details: { configFile: foundConfigPath },
-        });
-        recommendations.push("Define at least one API under the 'api' block in your configuration.");
-      } else {
-        const apiCount = Object.keys(loadedConfig.api).length;
-        checks.push({
-          id: "config-file",
-          name: "Configuration File",
-          status: "pass",
-          message: `Found valid configuration: ${path.basename(foundConfigPath)} (${apiCount} API${apiCount > 1 ? "s" : ""} configured).`,
-          details: { configFile: foundConfigPath, apis: Object.keys(loadedConfig.api) },
-        });
-      }
-    } catch (err: any) {
-      checks.push({
-        id: "config-file",
-        name: "Configuration File",
-        status: "fail",
-        message: `Failed to parse ${path.basename(foundConfigPath)}: ${err.message}`,
-        details: { configFile: foundConfigPath, error: err.message },
-      });
-      recommendations.push("Fix syntax or type errors in your openapi.sync config file.");
     }
   }
 

@@ -50,6 +50,19 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 | `npx openapi-sync generate-client --type <TYPE>` | Generate typed API client |
 | `npx openapi-sync init --no-interactive [FLAGS]` | Create config file without prompts |
 
+### Model Context Protocol (MCP) Server
+
+Run via `npx openapi-sync-mcp` or `openapi-sync-mcp`. Exposes 9 tools for AI agents:
+1. `openapi_sync_validate`: Validate config & specs without writing files.
+2. `openapi_sync_doctor`: Run full diagnostic health checks and return structured reports.
+3. `openapi_sync_list_endpoints`: List all endpoints with optional tag/path filters and pagination.
+4. `openapi_sync_get_endpoint_details`: Retrieve full parameter and response schemas for a specific endpoint.
+5. `openapi_sync_read_generated_type`: Read exact TypeScript declarations with optional `offset`/`maxLines` pagination.
+6. `openapi_sync_sync`: Run full sync generation.
+7. `openapi_sync_generate_client`: Generate typed Fetch/Axios/React Query/SWR/RTK Query clients.
+8. `openapi_sync_init`: Create typed openapi.sync configuration without user prompts.
+9. `openapi_sync_read_config`: Inspect active configuration file content.
+
 ### Interactive-only (requires human stdin — NOT safe for agents)
 
 | Command | Description |
