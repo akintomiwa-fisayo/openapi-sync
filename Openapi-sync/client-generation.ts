@@ -10,8 +10,65 @@ import {
   generateSWRHooks,
   generateRTKQuery,
 } from "../client-generators";
-import { mergeCustomCode } from "../helpers";
 import { makeLogger, ProgressLogger } from "../logger";
+import { mergeCustomCode } from "../helpers";
+
+/**
+ * Check if required peer dependencies are installed in the host project.
+ * Returns an array of warning messages for missing packages.
+ *
+ * @param {string} [clientType] - The client generator type
+ * @param {string} [validationLibrary] - The validation schema library
+ * @returns {string[]} Warning messages
+ * @public
+ */
+export const checkPeerDependencies = (
+  clientType?: string,
+  validationLibrary?: string
+): string[] => {
+  const warnings: string[] = [];
+
+  const checkModule = (modName: string, installCmd: string) => {
+    try {
+      require.resolve(modName, { paths: [process.cwd()] });
+    } catch (_) {
+      try {
+        const pkgJsonPath = path.join(process.cwd(), "package.json");
+        if (fs.existsSync(pkgJsonPath)) {
+          const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+          const allDeps = {
+            ...(pkg.dependencies || {}),
+            ...(pkg.devDependencies || {}),
+            ...(pkg.peerDependencies || {}),
+          };
+          if (allDeps[modName]) return;
+        }
+      } catch (_) {}
+      warnings.push(`[peer-dep] '${modName}' is not installed in the project. Run: ${installCmd}`);
+    }
+  };
+
+  if (clientType === "react-query") {
+    checkModule("@tanstack/react-query", "npm install @tanstack/react-query");
+  } else if (clientType === "swr") {
+    checkModule("swr", "npm install swr");
+  } else if (clientType === "axios") {
+    checkModule("axios", "npm install axios");
+  } else if (clientType === "rtk-query") {
+    checkModule("@reduxjs/toolkit", "npm install @reduxjs/toolkit react-redux");
+  }
+
+  if (validationLibrary === "zod") {
+    checkModule("zod", "npm install zod");
+  } else if (validationLibrary === "yup") {
+    checkModule("yup", "npm install yup");
+  } else if (validationLibrary === "joi") {
+    checkModule("joi", "npm install joi");
+  }
+
+  return warnings;
+};
+
 
 /**
  * Get folder name for an endpoint based on config

@@ -477,6 +477,8 @@ export type EndpointSummary = {
 	path: string;
 	/** OpenAPI operation ID if present */
 	operationId?: string;
+	/** Preferred string identifier to pass to --endpoints (operationId if present, else name) */
+	filterKey?: string;
 	/** OpenAPI tags assigned to this endpoint */
 	tags?: string[];
 	/** Short human-readable summary from the OpenAPI spec */
@@ -519,7 +521,11 @@ export type SyncResult = {
 	 * Note: this reflects the count *after* applying include/exclude filters.
 	 */
 	endpointCount: number;
-	/** Non-fatal warnings (e.g. skipped endpoints) */
+	/** Total number of endpoints discovered in the spec before filtering */
+	totalEndpointCount?: number;
+	/** Total number of endpoints included after applying tag/endpoint filters */
+	filteredEndpointCount?: number;
+	/** Non-fatal warnings (e.g. skipped endpoints, missing peer dependencies) */
 	warnings: string[];
 	/** Fatal or per-file error messages; non-empty when `success` is false */
 	errors: string[];
@@ -535,9 +541,14 @@ export type SyncResult = {
 	 */
 	phases?: {
 		/** Files written during the OpenAPI spec sync step */
-		sync: { filesWritten: string[]; endpointCount: number };
+		sync: { filesWritten: string[]; endpointCount: number; totalEndpointCount?: number };
 		/** Files written during the client code generation step */
-		client: { filesWritten: string[]; endpointCount: number };
+		client: {
+			filesWritten: string[];
+			endpointCount: number;
+			totalEndpointCount?: number;
+			filteredEndpointCount?: number;
+		};
 	};
 };
 
@@ -573,3 +584,32 @@ export type ValidationResult = {
 	/** Config-level errors (missing fields, bad types, etc.) */
 	configErrors: string[];
 };
+
+/**
+ * Status of a single diagnostic check in `Doctor`.
+ * @public
+ */
+export type DoctorCheckStatus = "pass" | "warn" | "fail";
+
+/**
+ * Single diagnostic check item returned by `Doctor`.
+ * @public
+ */
+export type DoctorCheckItem = {
+	id: string;
+	name: string;
+	status: DoctorCheckStatus;
+	message: string;
+	details?: any;
+};
+
+/**
+ * Diagnostic health check report returned by `Doctor` / `openapi-sync doctor`.
+ * @public
+ */
+export type DoctorResult = {
+	healthy: boolean;
+	checks: DoctorCheckItem[];
+	recommendations: string[];
+};
+
