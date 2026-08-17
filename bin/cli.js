@@ -507,6 +507,15 @@ const cli = yargs(hideBin(process.argv))
           description: "Exported interface or type name to read",
           demandOption: true,
         })
+        .option("offset", {
+          type: "number",
+          description: "Starting line offset (0-indexed) for paginating large type definitions",
+        })
+        .option("max-lines", {
+          alias: "limit",
+          type: "number",
+          description: "Maximum number of lines to return",
+        })
         .example("$0 read-type --api petstore --type-name Pet --json", "Read the generated Pet type");
     },
     async (argv) => {
@@ -514,6 +523,8 @@ const cli = yargs(hideBin(process.argv))
         const declaration = await OpenApisync.ReadGeneratedType({
           apiName: argv.api,
           typeName: argv["type-name"],
+          offset: argv.offset,
+          maxLines: argv["max-lines"] || argv.limit,
           silent: argv.silent || argv.json,
         });
 
@@ -575,13 +586,24 @@ const cli = yargs(hideBin(process.argv))
         const path = require("path");
         const plannedFilesByApi = {};
 
+        const isPython = Boolean(config?.python || config?.language === "python");
+        const ext = isPython ? "py" : "ts";
+        const isFolderSplit = Boolean(config?.folderSplit?.byTags);
+
         for (const [apiName, apiResult] of Object.entries(validation.apis)) {
           const apiFolderPath = path.join(process.cwd(), configuredFolder, apiName);
-          const planned = [
-            path.join(apiFolderPath, "types.ts"),
-            path.join(apiFolderPath, "endpoints.ts"),
-          ];
-          if (config?.validations && config.validations.disable !== true) {
+          const planned = [];
+
+          if (isFolderSplit) {
+            planned.push(path.join(apiFolderPath, `shared.${ext}`));
+            planned.push(path.join(apiFolderPath, `endpoints.${ext}`));
+          } else {
+            planned.push(path.join(apiFolderPath, "types", `shared.${ext}`));
+            planned.push(path.join(apiFolderPath, "types", `index.${ext}`));
+            planned.push(path.join(apiFolderPath, `endpoints.${ext}`));
+          }
+
+          if (config?.validations && config.validations.disable !== true && !isPython) {
             planned.push(path.join(apiFolderPath, "validations.ts"));
           }
           plannedFilesByApi[apiName] = planned;
