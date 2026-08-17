@@ -22,6 +22,7 @@ jest.mock("fs", () => {
     ...realFs,
     existsSync: jest.fn(),
     writeFileSync: jest.fn(),
+    readFileSync: jest.fn(),
     readdirSync: jest.fn(),
     promises: {
       writeFile: jest.fn(),
@@ -67,17 +68,6 @@ describe("Phase 3 — Query commands & layout", () => {
     jest.clearAllMocks();
     clearEndpointStore();
 
-    actualFs.writeFileSync(
-      configPath,
-      `module.exports = {
-        api: {
-          prowoks: "https://api.test.com/openapi.json",
-          flatApi: "spec_flat.json"
-        },
-        folder: "src/api/generated"
-      };`
-    );
-
     mockedFs.existsSync.mockImplementation((p: any) => {
       const str = String(p);
       if (str.endsWith("openapi.sync.js") || str.endsWith("openapi.sync.json")) {
@@ -88,14 +78,24 @@ describe("Phase 3 — Query commands & layout", () => {
       }
       return false;
     });
+
+    mockedFs.readFileSync.mockImplementation((p: any) => {
+      const str = String(p);
+      if (str.endsWith("openapi.sync.js") || str.endsWith("openapi.sync.json")) {
+        return `module.exports = {
+          api: {
+            prowoks: "https://api.test.com/openapi.json",
+            flatApi: "spec_flat.json"
+          },
+          folder: "src/api/generated"
+        };`;
+      }
+      return "";
+    });
   });
 
   afterEach(() => {
-    if (actualFs.existsSync(configPath)) {
-      try {
-        actualFs.unlinkSync(configPath);
-      } catch (_) {}
-    }
+    jest.clearAllMocks();
   });
 
   describe("3.1: GetEndpointDetails Lookup (Issue #12)", () => {

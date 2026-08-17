@@ -65,13 +65,23 @@ const loadConfig = (): IConfig => {
         if (configPath.endsWith(".json")) {
           configJS = JSON.parse(fs.readFileSync(configPath, "utf-8"));
         } else {
-          try {
-            const raw = fs.readFileSync(configPath, "utf-8");
-            const evaluated = new Function("module", "exports", raw);
-            const m = { exports: {} as any };
-            evaluated(m, m.exports);
-            configJS = m.exports;
-          } catch (_) {
+          const raw = fs.readFileSync(configPath, "utf-8");
+          if (typeof raw === "string" && raw.trim().length > 0) {
+            try {
+              const evaluated = new Function("module", "exports", raw);
+              const m = { exports: {} as any };
+              evaluated(m, m.exports);
+              configJS = m.exports;
+            } catch (_) {
+              try {
+                delete require.cache[configPath];
+                try { delete require.cache[require.resolve(configPath)]; } catch (_) {}
+                configJS = require(configPath);
+              } catch (requireErr) {
+                throw requireErr;
+              }
+            }
+          } else {
             try {
               delete require.cache[configPath];
               try { delete require.cache[require.resolve(configPath)]; } catch (_) {}
