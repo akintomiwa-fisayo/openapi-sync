@@ -6,8 +6,8 @@ import { DoctorResult, DoctorCheckItem, IConfig } from "../types";
 import { makeLogger } from "../logger";
 import { checkPeerDependencies } from "./client-generation";
 import { getCachePath } from "./state";
-import { getStoredEndpoints } from "./endpoint-store";
 import { tryLoadConfig } from "./config-loader";
+import { buildAuthConfig, extractApiUrl, extractApiAuth } from "./spec-auth";
 
 /**
  * Diagnostic health check for OpenAPI Sync project setup.
@@ -28,7 +28,12 @@ import { tryLoadConfig } from "./config-loader";
  */
 const rootUsingCwd = process.cwd();
 
-export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorResult> => {
+export const runDoctor = async (options?: {
+  silent?: boolean;
+  auth?: import("../types").ISpecAuth;
+  config?: import("../types").IConfig;
+  cliArgs?: Record<string, any>;
+}): Promise<DoctorResult> => {
   const silent = options?.silent ?? false;
   const log = makeLogger(silent);
 
@@ -38,7 +43,9 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
   log.log("\n🩺 Running OpenAPI Sync Doctor...\n");
 
   // 1. Config Check
-  const configResult = tryLoadConfig();
+  const configResult = options?.config
+    ? { config: options.config, foundPath: "[In-Memory Config]" }
+    : tryLoadConfig(undefined, options?.cliArgs);
   const foundConfigPath = configResult.foundPath;
   const loadedConfig = configResult.config;
 
@@ -75,14 +82,27 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
       id: "config-file",
       name: "Configuration File",
       status: "pass",
-      message: `Found valid configuration: ${path.basename(foundConfigPath)} (${apiCount} API${apiCount > 1 ? "s" : ""} configured).`,
+      message: `Found valid configuration: ${path.basename(foundConfigPath)} (${apiCount} API${apiCount === 1 ? "" : "s"} configured).`,
       details: { configFile: foundConfigPath, apis: Object.keys(loadedConfig.api) },
     });
+  }
 
-    // Check for potential folder name duplicate nesting
-    if (loadedConfig.folder && loadedConfig.api) {
-      const normalizedFolder = loadedConfig.folder.replace(/\\/g, "/").replace(/\/$/, "");
-      const folderBase = path.basename(normalizedFolder);
+  // 1b. Preset Check
+  if (loadedConfig && loadedConfig.preset) {
+    checks.push({
+      id: "preset",
+      name: "Active Preset",
+      status: "pass",
+      message: `Preset "${loadedConfig.preset}" is active.`,
+      details: { preset: loadedConfig.preset },
+    });
+  }
+
+  // 1c. Folder Nesting Check
+  if (loadedConfig && loadedConfig.folder && loadedConfig.api) {
+    const folderBase = path.basename(loadedConfig.folder);
+    const isTagSplit = Boolean(loadedConfig.folderSplit?.byTags);
+    if (!isTagSplit) {
       for (const apiName of Object.keys(loadedConfig.api)) {
         if (folderBase.toLowerCase() === apiName.toLowerCase()) {
           checks.push({
@@ -97,7 +117,7 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
             },
           });
           recommendations.push(
-            `If you prefer flat output for '${apiName}', set 'folder' to '${path.dirname(loadedConfig.folder) === "." ? "./src/api" : path.dirname(loadedConfig.folder)}'.`
+            `If you prefer flat output for '${apiName}', set 'folder' to '${path.dirname(loadedConfig.folder) === "." ? "" : path.dirname(loadedConfig.folder)}'.`
           );
         }
       }
@@ -108,12 +128,15 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
   if (loadedConfig && loadedConfig.api) {
     for (const [apiName, apiSource] of Object.entries(loadedConfig.api)) {
       try {
+        const apiUrl = extractApiUrl(apiSource);
+        const specAuth = options?.auth || extractApiAuth(apiSource);
         let specData: any;
-        if (typeof apiSource === "string" && (apiSource.startsWith("http://") || apiSource.startsWith("https://"))) {
-          const res = await axios.get(apiSource, { timeout: 10000 });
+        if (apiUrl.startsWith("http://") || apiUrl.startsWith("https://")) {
+          const authConfig = buildAuthConfig(specAuth);
+          const res = await axios.get(apiUrl, { timeout: 10000, ...authConfig });
           specData = res.data;
-        } else if (typeof apiSource === "string") {
-          const localPath = path.isAbsolute(apiSource) ? apiSource : path.join(rootUsingCwd, apiSource);
+        } else {
+          const localPath = path.isAbsolute(apiUrl) ? apiUrl : path.join(rootUsingCwd, apiUrl);
           if (!fs.existsSync(localPath)) {
             throw new Error(`Local file not found: ${localPath}`);
           }
@@ -144,14 +167,39 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
           details: { apiName, source: apiSource, operationCount: opCount },
         });
       } catch (err: any) {
+        const status = err.statusCode || err.status || err?.response?.status;
+        const isAuthErr =
+          status === 401 ||
+          status === 403 ||
+          (typeof err?.message === "string" && (err.message.includes("401") || err.message.includes("403")));
+
         checks.push({
           id: `spec-${apiName}`,
           name: `API Spec: ${apiName}`,
           status: "fail",
           message: `Spec error: ${err.message}`,
-          details: { apiName, source: apiSource, error: err.message },
+          details: {
+            apiName,
+            source: apiSource,
+            error: err.message,
+            ...(isAuthErr && {
+              code: "SPEC_FETCH_FAILED",
+              status: status || 401,
+              recovery:
+                "Spec requires authentication. Provide credentials via 'auth' in config, CLI flags (--auth-type bearer --auth-token <token> | --auth-type basic | --auth-type apiKey | --auth-type custom), or use --prompt-auth.",
+            }),
+          },
         });
-        recommendations.push(`Verify network access or schema validity for ${apiName} at ${apiSource}.`);
+
+        if (isAuthErr) {
+          recommendations.push(
+            `Spec for '${apiName}' returned HTTP ${status || 401} Unauthorized. Provide credentials via 'auth' in config, CLI flags (--auth-type bearer --auth-token <token>), or use --prompt-auth.`
+          );
+        } else {
+          recommendations.push(
+            `Verify network access or schema validity for ${apiName} at ${typeof apiSource === "string" ? apiSource : (apiSource as any)?.url}.`
+          );
+        }
       }
     }
   }
@@ -202,7 +250,7 @@ export const runDoctor = async (options?: { silent?: boolean }): Promise<DoctorR
   });
 
   // 5. Output Directory Check
-  const outputDir = path.join(rootUsingCwd, loadedConfig?.folder || "api");
+  const outputDir = path.join(rootUsingCwd, loadedConfig?.folder ?? "");
   try {
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });

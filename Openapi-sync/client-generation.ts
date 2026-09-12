@@ -137,7 +137,12 @@ export const generateClients = async (
     return writtenFiles;
   }
 
-  const clientType = clientConfig.type || "fetch";
+  const rawType = clientConfig.type || "fetch";
+  const isNextFetch = rawType === "next-fetch" || Boolean(clientConfig.next);
+  const clientType = rawType === "next-fetch" ? "fetch" : rawType;
+  if (isNextFetch) {
+    clientConfig.next = true;
+  }
   const clientOutputDir =
     clientConfig.outputDir || path.join(outputFolder, apiName, "client");
 
@@ -216,25 +221,40 @@ export const generateClients = async (
     return writtenFiles;
   }
 
-  // Non-folder-split mode: Generate single clients.ts and hooks.ts at API folder level
+  // Non-folder-split mode: Generate single clients.ts and hooks.ts at API folder level or custom outputDir
   const apiFolderPath = path.join(outputFolder, apiName);
-  await fs.promises.mkdir(apiFolderPath, { recursive: true });
+  const destDir = clientConfig.outputDir
+    ? (path.isAbsolute(clientConfig.outputDir)
+        ? clientConfig.outputDir
+        : path.join(process.cwd(), clientConfig.outputDir))
+    : apiFolderPath;
+  await fs.promises.mkdir(destDir, { recursive: true });
+
+  let typesImportPath = "./types";
+  let endpointsImportPath = "./endpoints";
+
+  if (path.resolve(destDir) !== path.resolve(apiFolderPath)) {
+    let rel = path.relative(path.resolve(destDir), path.resolve(apiFolderPath)).replace(/\\/g, "/");
+    if (!rel.startsWith(".")) rel = "./" + rel;
+    typesImportPath = `${rel}/types`;
+    endpointsImportPath = `${rel}/endpoints`;
+  }
 
   // Generate based on type
   switch (clientType) {
     case "fetch":
       let fetchContent = generateFetchClient(filteredEndpoints, clientConfig);
-      // Update import paths to be relative to the same directory
+      // Update import paths to be relative to the destination directory
       fetchContent = fetchContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`);
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`);
       await writeClientFile(
-        path.join(apiFolderPath, "clients.ts"),
+        path.join(destDir, "clients.ts"),
         fetchContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated fetch client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated fetch client: ${destDir}/clients.ts`);
       break;
 
     case "axios":
@@ -243,17 +263,17 @@ export const generateClients = async (
         clientConfig,
         false
       );
-      // Update import paths to be relative to the same directory
+      // Update import paths to be relative to the destination directory
       axiosContent = axiosContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`);
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`);
       await writeClientFile(
-        path.join(apiFolderPath, "clients.ts"),
+        path.join(destDir, "clients.ts"),
         axiosContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated axios client: ${destDir}/clients.ts`);
       break;
 
     case "react-query":
@@ -263,38 +283,38 @@ export const generateClients = async (
         clientConfig,
         false
       );
-      // Update import paths to be relative to the same directory
+      // Update import paths to be relative to the destination directory
       rqClientContent = rqClientContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`);
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`);
       await writeClientFile(
-        path.join(apiFolderPath, "clients.ts"),
+        path.join(destDir, "clients.ts"),
         rqClientContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated axios client: ${destDir}/clients.ts`);
 
       // Then generate React Query hooks
       let rqHooksContent = generateReactQueryHooks(
         filteredEndpoints,
         clientConfig
       );
-      // Update imports to use same directory and clients.ts instead of client.ts
+      // Update imports to use destination directory and clients.ts instead of client.ts
       rqHooksContent = rqHooksContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`)
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`)
         .replace(
           `import apiClient from './client';`,
           `import apiClient from './clients';`
         );
       await writeClientFile(
-        path.join(apiFolderPath, "hooks.ts"),
+        path.join(destDir, "hooks.ts"),
         rqHooksContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated React Query hooks: ${apiFolderPath}/hooks.ts`);
+      log.log(`✅ Generated React Query hooks: ${destDir}/hooks.ts`);
       break;
 
     case "swr":
@@ -304,50 +324,50 @@ export const generateClients = async (
         clientConfig,
         false
       );
-      // Update import paths to be relative to the same directory
+      // Update import paths to be relative to the destination directory
       swrClientContent = swrClientContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`);
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`);
       await writeClientFile(
-        path.join(apiFolderPath, "clients.ts"),
+        path.join(destDir, "clients.ts"),
         swrClientContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated axios client: ${apiFolderPath}/clients.ts`);
+      log.log(`✅ Generated axios client: ${destDir}/clients.ts`);
 
       // Then generate SWR hooks
       let swrHooksContent = generateSWRHooks(filteredEndpoints, clientConfig);
-      // Update imports to use same directory and clients.ts instead of client.ts
+      // Update imports to use destination directory and clients.ts instead of client.ts
       swrHooksContent = swrHooksContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`)
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`)
         .replace(
           `import apiClient from './client';`,
           `import apiClient from './clients';`
         );
       await writeClientFile(
-        path.join(apiFolderPath, "hooks.ts"),
+        path.join(destDir, "hooks.ts"),
         swrHooksContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated SWR hooks: ${apiFolderPath}/hooks.ts`);
+      log.log(`✅ Generated SWR hooks: ${destDir}/hooks.ts`);
       break;
 
     case "rtk-query":
       let rtkContent = generateRTKQuery(filteredEndpoints, clientConfig);
-      // Update import paths to be relative to the same directory
+      // Update import paths to be relative to the destination directory
       rtkContent = rtkContent
-        .replace(`} from '../types';`, `} from './types';`)
-        .replace(`} from '../endpoints';`, `} from './endpoints';`);
+        .replace(`} from '../types';`, `} from '${typesImportPath}';`)
+        .replace(`} from '../endpoints';`, `} from '${endpointsImportPath}';`);
       await writeClientFile(
-        path.join(apiFolderPath, "api.ts"),
+        path.join(destDir, "api.ts"),
         rtkContent,
         config,
         writtenFiles
       );
-      log.log(`✅ Generated RTK Query API: ${apiFolderPath}/api.ts`);
+      log.log(`✅ Generated RTK Query API: ${destDir}/api.ts`);
       break;
 
     default:
@@ -1082,7 +1102,8 @@ export const dryRunClientFiles = (
   const filteredEndpoints = filterEndpoints(endpoints, clientConfig);
   if (filteredEndpoints.length === 0) return [];
 
-  const clientType = clientConfig.type || "fetch";
+  const rawType = clientConfig.type || "fetch";
+  const clientType = rawType === "next-fetch" ? "fetch" : rawType;
   const apiFolderPath = path.join(outputFolder, apiName);
 
   const isFolderSplitEnabled = !!(

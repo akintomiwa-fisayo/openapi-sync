@@ -1,0 +1,94 @@
+Hi! Welcome to OpenAPI Sync. If you're tired of manually writing TypeScript types, API clients, and validation schemas every time your API changes, this tool is for you. Let me show you how it works.
+
+
+
+Getting Started
+
+Let's start with a fresh project. To install, you can run npm install openapi-sync, or use it directly with npx. I'll use npx openapi-sync init to launch the interactive setup wizard.
+
+The wizard asks a series of questions. First, config format - I'll pick TypeScript. Where's your OpenAPI spec? I'll select URL and enter the Petstore API URL. What should we name this API? Petstore. Where should files be saved? Let's go with ./src/api. 
+
+Should we organize code into folders by OpenAPI tags? Yes, this keeps large APIs organized. Generate API client code? Absolutely! Which client type? I'll pick React Query, but we'll generate other types later. 
+
+Generate runtime validation schemas? Yes! Which validation library? Zod. Enable custom code preservation? Yes - this lets you add your own code that won't get overwritten. 
+
+Use operationId for type names? Sure! Add a prefix for interface names? I'll add "I" for interfaces. Exclude any endpoints by tags? Not for this demo. Include cURL examples in documentation? Definitely! Set a refetch interval? I'll use 5000 milliseconds for auto-refresh during development. Run initial sync now? Yes!
+
+Perfect! Our config file is ready.
+
+
+
+Generating Code
+
+Now let's run npx openapi-sync to generate our code. Watch as it fetches the spec, validates it, and creates all the files. 
+
+And there we go! Let's look at what was generated. Notice how the code is organized into folders - pet, store, and user - based on the OpenAPI tags. This makes navigation so much easier.
+
+
+
+TypeScript Types
+
+Open up the types file. See how OpenAPI Sync created fully-typed TypeScript interfaces? Optional properties have question marks, arrays are properly typed, enums become union types, and nested objects reference other interfaces. Everything has full IntelliSense support, so you get autocomplete everywhere.
+
+
+
+Validation Schemas
+
+Here's the validation file using Zod. All the constraints from your OpenAPI spec are here - required fields, string patterns, number ranges, array validations. This is perfect for validating request bodies in your Express or Fastify middleware. You know the data is correct before it hits your business logic.
+
+
+
+API Clients - The Power Feature
+
+Now let's explore API client generation. OpenAPI Sync can generate type-safe clients for five different libraries. Let me show you.
+
+First, let's generate a Fetch client. Run npx openapi-sync generate-client --type fetch. Look at this - fully type-safe API functions with automatic error handling and configuration options. The petId parameter is typed, the response is typed, everything!
+
+Now let's try React Query. Run npx openapi-sync generate-client --type react-query. You get ready-to-use hooks! In your component, just call useGetPetById, pass the ID, and you have automatic caching, loading states, and error handling - all fully typed.
+
+Want SWR instead? Generate it with --type swr.
+
+For Redux users, Generate with --type rtk-query. The new setupApiStore helper reduces your Redux configuration from 15 lines down to just 5. Much cleaner!
+
+And of course there's Axios support too with --type axios. Request interceptors, response interceptors, timeout handling - everything configured and ready to go.
+
+
+
+Customization and Filtering
+
+You can customize what gets generated. Use --tags to generate only specific tags, --endpoints for specific endpoints, or --output to change the destination folder. This is great when you only need part of a large API.
+
+
+
+Advanced Features
+
+Let me show you custom code preservation. Open any generated file and add your code between the custom markers. When you regenerate, your code stays! This is perfect for adding business logic or helper functions.
+
+For endpoint filtering, configure your openapi-sync config to exclude deprecated endpoints or internal APIs. Only generate what you need.
+
+During development, use --refreshInterval to watch your API spec. When it changes, OpenAPI Sync automatically regenerates everything while preserving your custom code. You never manually update types again!
+
+Managing multiple APIs? No problem. Configure multiple specs in your config file, and each gets its own folder with isolated types and clients.
+
+
+
+Real-World Usage
+
+Here's how you'd use this in a real project. In your React component, import the generated hook, use it in your component, and you get automatic state management with full type safety.
+
+For backend validation, import the Zod schema and use it in your Express middleware. Invalid requests are caught before they reach your handlers.
+
+For microservices, import different API clients and get type safety across your entire architecture.
+
+
+
+Wrapping Up
+
+And that's OpenAPI Sync! It generates TypeScript types, creates type-safe clients for five libraries, generates validation schemas, organizes code intelligently, and keeps everything synchronized automatically.
+
+Whether you're building a small app or an enterprise system, this eliminates the tedious work of keeping your API and code in sync.
+
+Try it out! Run npx openapi-sync init to get started. Full docs are at openapi-sync.com, and the code is on GitHub at akintomiwa-fisayo/openapi-sync.
+
+Thanks for watching! If this was helpful, star the project and share it with your team!
+

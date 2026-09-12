@@ -69,7 +69,7 @@ export default function QuickStart() {
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Get up and running in less than 5 minutes with full TypeScript
             types, fully-typed API clients, and validation schemas—now with
-            v6.3.0 MCP and agent workflow improvements.
+            v6.4.0 zero-config presets, diagnostic doctor, stale file purge, and MCP tools.
           </p>
         </div>
 

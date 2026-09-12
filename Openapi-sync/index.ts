@@ -12,6 +12,7 @@ import {
 	resolveOpenApiParamType,
 } from "../helpers";
 import {
+	IApiSource,
 	IConfig,
 	IConfigReplaceWord,
 	IOpenApiMediaTypeSpec,
@@ -22,6 +23,8 @@ import {
 	IOpenApiSpec,
 	IOpenApSchemaSpec,
 } from "../types";
+import { buildAuthConfig, extractApiUrl, extractApiAuth } from "./spec-auth";
+import { SpecFetchError } from "../errors";
 import isEqual from "lodash.isequal";
 import lodashget from "lodash.get";
 import axios, { Method } from "axios";
@@ -155,13 +158,14 @@ const writeFileWithCustomCode = async (
  * @internal
  */
 const OpenapiSync = async (
-	apiUrl: string,
+	apiSource: IApiSource,
 	apiName: string,
 	config: IConfig,
 	refetchInterval?: number,
 	silent = false,
+	writeFiles = true,
 ) => {
-	const res = await processOpenapiSync(apiUrl, apiName, config, silent);
+	const res = await processOpenapiSync(apiSource, apiName, config, silent, writeFiles);
 
 	// auto sync if refetchInterval is provided
 	if (refetchInterval && !isNaN(refetchInterval) && refetchInterval > 0) {
@@ -178,7 +182,7 @@ const OpenapiSync = async (
 			const log = makeLogger(silent);
 			fetchTimeout[apiName] = setTimeout(() => {
 				log.info(`🔄 Auto syncing ${apiName}`);
-				OpenapiSync(apiUrl, apiName, config, refetchInterval, silent);
+				OpenapiSync(apiSource, apiName, config, refetchInterval, silent, writeFiles);
 			}, refetchInterval);
 		}
 	}
@@ -187,11 +191,14 @@ const OpenapiSync = async (
 };
 
 const processOpenapiSync = async (
-	apiUrl: string,
+	apiSource: IApiSource,
 	apiName: string,
 	config: IConfig,
 	silent = false,
+	writeFiles = true,
 ) => {
+	const apiUrl = extractApiUrl(apiSource);
+	const specAuth = extractApiAuth(apiSource);
 	const log = makeLogger(silent);
 
 	// Helper function to check if path is a URL or local file
@@ -204,7 +211,8 @@ const processOpenapiSync = async (
 	try {
 		if (isUrl(apiUrl)) {
 			// Fetch from URL
-			const specResponse = await apiClient.get(apiUrl);
+			const authConfig = buildAuthConfig(specAuth);
+			const specResponse = await apiClient.get(apiUrl, authConfig);
 			specData = specResponse.data;
 		} else {
 			// Read from local file
@@ -217,7 +225,7 @@ const processOpenapiSync = async (
 			const fileContent = await fs.promises.readFile(filePath, "utf-8");
 			specData = fileContent;
 		}
-	} catch (error) {
+	} catch (error: any) {
 		if (
 			!(
 				process.env.NODE_ENV &&
@@ -225,6 +233,16 @@ const processOpenapiSync = async (
 			)
 		) {
 			log.error(`Failed to load OpenAPI spec for ${apiName}:`, error);
+		}
+		if (error instanceof SpecFetchError) {
+			throw error;
+		}
+		if (typeof error?.message === "string" && error.message.includes("referenced in openapi-sync config is not set")) {
+			throw error;
+		}
+		if (isUrl(apiUrl)) {
+			const status = error?.response?.status;
+			throw new SpecFetchError(apiUrl, error, status);
 		}
 		throw error;
 	}
@@ -1020,11 +1038,13 @@ const processOpenapiSync = async (
 
 	// compare new spec with old spec, continuing only if spec is different
 	const prevSpec = getState(apiName);
-	if (isEqual(prevSpec, spec)) {
+	if (writeFiles && isEqual(prevSpec, spec)) {
 		return { success: true, filesWritten: [], warnings: [] };
 	}
 
-	setState(apiName, spec);
+	if (writeFiles) {
+		setState(apiName, spec);
+	}
 
 	let endpointsFileContent = "";
 	let typesFileContent = "";
@@ -2373,6 +2393,13 @@ const processOpenapiSync = async (
 		});
 	});
 
+	// Store collected endpoints for client generation and inspect queries
+	storeEndpoints(apiName, collectedEndpoints);
+
+	if (!writeFiles) {
+		return { success: true, filesWritten: [], warnings: [] };
+	}
+
 	// Write files based on folder splitting configuration
 	if (isFolderSplit) {
 		const pythonEndpointsHeader =
@@ -2600,9 +2627,6 @@ const processOpenapiSync = async (
 			);
 		}
 	}
-
-	// Store collected endpoints for client generation
-	storeEndpoints(apiName, collectedEndpoints);
 
 	log.info(`✅ Successfully synced ${apiName}`);
 	return { success: true, filesWritten: writtenFiles, warnings: integrityWarnings };

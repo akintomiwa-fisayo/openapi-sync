@@ -9,6 +9,9 @@ import {
   FiPackage,
   FiCpu,
   FiTerminal,
+  FiActivity,
+  FiTrash2,
+  FiSliders,
 } from "react-icons/fi";
 
 const features = [
@@ -16,9 +19,17 @@ const features = [
     icon: FiCpu,
     title: "AI Agent Ready (MCP)",
     description:
-      "Built-in Model Context Protocol server lets Claude, Cursor, Copilot, and other AI agents safely invoke sync operations, browse paged endpoints, inspect deep endpoint schemas, and read generated TypeScript types — no custom scripts needed.",
+      "Built-in Model Context Protocol server lets Claude, Cursor, Copilot, and other AI agents safely invoke sync operations, browse paged endpoints, inspect deep schemas, and read generated types.",
     color: "text-violet-600",
     bgColor: "bg-violet-100",
+  },
+  {
+    icon: FiSliders,
+    title: "Zero-Config Presets",
+    description:
+      "10 pre-configured framework presets (React Query, SWR, Axios, Fetch, RTK Query, Next.js, Python) let you sync and generate immediately with a single CLI command.",
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-100",
   },
   {
     icon: FiPackage,
@@ -32,7 +43,7 @@ const features = [
     icon: FiCheckCircle,
     title: "Runtime Validation",
     description:
-      "Generate validation schemas using Zod, Yup, or Joi with full support for all OpenAPI data types, constraints, formats, and patterns.",
+      "Generate validation schemas using Zod, Yup, or Joi with full support for all OpenAPI data types, constraints, formats, and query/body schemas.",
     color: "text-red-600",
     bgColor: "bg-red-100",
   },
@@ -53,26 +64,34 @@ const features = [
     bgColor: "bg-orange-100",
   },
   {
+    icon: FiActivity,
+    title: "Diagnostic Doctor",
+    description:
+      "Automated self-healing diagnostics inspect configuration files, remote spec accessibility, peer dependencies, and directory write permissions.",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-100",
+  },
+  {
+    icon: FiTrash2,
+    title: "Stale File Purge",
+    description:
+      "Manifest-based tracking automatically detects and removes obsolete generated files when endpoints or schemas are deleted from your OpenAPI spec.",
+    color: "text-amber-600",
+    bgColor: "bg-amber-100",
+  },
+  {
     icon: FiTerminal,
     title: "Programmatic API & CI/CD",
     description:
-      "Use the fully-typed Node.js API or the --json CLI flag for machine-readable output, making it easy to integrate into complex build pipelines and agent workflows.",
+      "Use the fully-typed Node.js API or the --json CLI flag for machine-readable output with stable error codes, perfect for automated CI/CD checks.",
     color: "text-teal-600",
     bgColor: "bg-teal-100",
   },
   {
-    icon: FiSettings,
-    title: "Highly Configurable",
-    description:
-      "Customize naming conventions, exclude/include endpoints, folder splitting, headers, and URL transformations via JSON, TypeScript, or JavaScript config files.",
-    color: "text-purple-600",
-    bgColor: "bg-purple-100",
-  },
-  {
     icon: FiShield,
-    title: "Enterprise Ready",
+    title: "Protected Spec Auth",
     description:
-      "Network error handling with exponential backoff, schema validation, and reliable config loading for production environments.",
+      "Full support for Bearer tokens, Basic auth, API keys, and custom headers with dynamic ${env.VAR} resolution from .env and .env.local files.",
     color: "text-green-600",
     bgColor: "bg-green-100",
   },
@@ -80,7 +99,7 @@ const features = [
     icon: FiLayers,
     title: "Folder Splitting",
     description:
-      "Organize generated code by tags, custom logic, or method-based splitting for better code organization across large projects.",
+      "Organize generated code into clean tag-based subdirectories with automated index aggregator files for tidy imports across large codebases.",
     color: "text-indigo-600",
     bgColor: "bg-indigo-100",
   },
@@ -88,7 +107,7 @@ const features = [
     icon: FiZap,
     title: "Custom Code Preservation",
     description:
-      "Add your own custom code that survives regeneration with configurable comment markers — never lose your customizations.",
+      "Add custom middleware, helper functions, and state that survives code regeneration with configurable protected comment markers.",
     color: "text-yellow-600",
     bgColor: "bg-yellow-100",
   },

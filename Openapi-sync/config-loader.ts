@@ -4,6 +4,10 @@ import * as esbuild from "esbuild";
 import { IConfig } from "../types";
 import { ConfigNotFoundError, ConfigParseError } from "../errors";
 
+import { applyPreset } from "./presets";
+import { loadProjectEnvironment } from "./spec-auth";
+import { buildConfigFromCli } from "./cli-config";
+
 const rootUsingCwd = process.cwd();
 
 export interface LoadedConfigResult {
@@ -80,8 +84,12 @@ export const evaluateConfigContent = (
 /**
  * Attempts to load configuration without throwing.
  */
-export const tryLoadConfig = (customCwd?: string): LoadedConfigResult => {
-  const cwd = customCwd || rootUsingCwd;
+export const tryLoadConfig = (
+  customCwd?: string,
+  cliOverrides?: Record<string, any>
+): LoadedConfigResult => {
+  const cwd = customCwd || process.cwd();
+  loadProjectEnvironment(cwd);
   const jsConfigPath = path.join(cwd, "openapi.sync.js");
   const tsConfigPath = path.join(cwd, "openapi.sync.ts");
   const jsonConfigPath = path.join(cwd, "openapi.sync.json");
@@ -95,33 +103,66 @@ export const tryLoadConfig = (customCwd?: string): LoadedConfigResult => {
     }
   }
 
-  if (!foundPath) {
+  let baseConfig: IConfig | null = null;
+
+  if (foundPath) {
+    try {
+      const raw = fs.readFileSync(foundPath, "utf-8");
+      const parsed = evaluateConfigContent(raw, foundPath);
+      baseConfig = parsed as IConfig;
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { config: null, foundPath, error: `Failed to parse ${path.basename(foundPath)}: ${msg}` };
+    }
+  }
+
+  // If CLI overrides provided, build / merge config
+  if (cliOverrides && Object.keys(cliOverrides).length > 0) {
+    try {
+      const cliConfig = buildConfigFromCli(cliOverrides, baseConfig);
+      if (cliConfig) {
+        return { config: cliConfig, foundPath: foundPath || "[CLI Arguments]" };
+      }
+    } catch (cliErr: any) {
+      return { config: null, foundPath, error: `Invalid CLI configuration: ${cliErr.message}` };
+    }
+  }
+
+  if (!foundPath || !baseConfig) {
     return { config: null, error: "No openapi.sync configuration file found." };
   }
 
-  try {
-    const raw = fs.readFileSync(foundPath, "utf-8");
-    const parsed = evaluateConfigContent(raw, foundPath);
-    return { config: parsed as IConfig, foundPath };
-  } catch (err: any) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { config: null, foundPath, error: `Failed to parse ${path.basename(foundPath)}: ${msg}` };
+  let resolvedConfig = baseConfig;
+  if (resolvedConfig && resolvedConfig.preset) {
+    try {
+      resolvedConfig = applyPreset(resolvedConfig, resolvedConfig.preset);
+    } catch (presetErr: any) {
+      return {
+        config: null,
+        foundPath,
+        error: `Invalid preset: ${presetErr.message}`,
+      };
+    }
   }
+  return { config: resolvedConfig, foundPath };
 };
 
 /**
  * Loads configuration or throws appropriate errors.
  */
-export const loadConfig = (customCwd?: string): IConfig => {
-  const cwd = customCwd || rootUsingCwd;
+export const loadConfig = (
+  customCwd?: string,
+  cliOverrides?: Record<string, any>
+): IConfig => {
+  const cwd = customCwd || process.cwd();
   const jsConfigPath = path.join(cwd, "openapi.sync.js");
   const tsConfigPath = path.join(cwd, "openapi.sync.ts");
   const jsonConfigPath = path.join(cwd, "openapi.sync.json");
   const configPaths = [jsConfigPath, tsConfigPath, jsonConfigPath];
 
-  const result = tryLoadConfig(customCwd);
+  const result = tryLoadConfig(customCwd, cliOverrides);
 
-  if (!result.foundPath || !result.config) {
+  if (!result.config) {
     if (result.foundPath && result.error) {
       throw new ConfigParseError(result.foundPath, new Error(result.error));
     }

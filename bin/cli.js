@@ -84,7 +84,11 @@ function jsonErrorExit(code, message, extra = {}) {
 /**
  * Safely load openapi.sync configuration without writing files.
  */
-function getLoadedConfig() {
+function getLoadedConfig(argv) {
+  if (OpenApisync.tryLoadConfig) {
+    const res = OpenApisync.tryLoadConfig(process.cwd(), argv);
+    if (res && res.config) return res.config;
+  }
   const path = require("path");
   const fs = require("fs");
   const cwd = process.cwd();
@@ -144,10 +148,252 @@ function computePlannedFiles(clientType, apiFolderPath) {
         path.join(apiFolderPath, "hooks.ts"),
       ];
     case "fetch":
+    case "next-fetch":
     case "axios":
     default:
       return [path.join(apiFolderPath, "clients.ts")];
   }
+}
+
+/**
+ * Add spec authentication options to a yargs command builder.
+ */
+function addAuthOptions(yargs) {
+  return yargs
+    .option("auth-type", {
+      type: "string",
+      choices: ["bearer", "basic", "apiKey", "custom"],
+      description: "Authentication type for protected spec URL (bearer, basic, apiKey, custom)",
+    })
+    .option("auth-token", {
+      type: "string",
+      description: "Bearer token (used with --auth-type bearer)",
+    })
+    .option("auth-username", {
+      type: "string",
+      description: "Username for basic auth (used with --auth-type basic)",
+    })
+    .option("auth-password", {
+      type: "string",
+      description: "Password for basic auth (used with --auth-type basic)",
+    })
+    .option("auth-name", {
+      type: "string",
+      description: "API key header or query param name (used with --auth-type apiKey, default: X-API-Key)",
+    })
+    .option("auth-value", {
+      type: "string",
+      description: "API key secret value (used with --auth-type apiKey)",
+    })
+    .option("auth-in", {
+      type: "string",
+      choices: ["header", "query"],
+      description: "API key location: header or query (used with --auth-type apiKey)",
+    })
+    .option("auth-header", {
+      type: "string",
+      description: "Custom header in 'Key: Value' format (used with --auth-type custom)",
+    });
+}
+
+/**
+ * Resolves the target API name from argv flags.
+ * Handles --api-name, --api <name>, and extracts the name part from --api <name>=<url>.
+ */
+function resolveApiName(argv) {
+  if (!argv) return undefined;
+  if (argv["api-name"]) return String(argv["api-name"]);
+  if (typeof argv.api === "string") {
+    if (argv.api.includes("=")) return argv.api.split("=")[0].trim();
+    if (
+      argv.api.startsWith("http://") ||
+      argv.api.startsWith("https://") ||
+      argv.api.endsWith(".json") ||
+      argv.api.endsWith(".yaml") ||
+      argv.api.endsWith(".yml")
+    ) {
+      return undefined;
+    }
+    return argv.api;
+  }
+  return undefined;
+}
+
+/**
+ * Add full CLI configuration options to a yargs command builder.
+ * Allows zero-config CLI execution and overriding any property from config.
+ */
+function addCliConfigOptions(yargs) {
+  addAuthOptions(yargs);
+  return yargs
+    .option("api-url", {
+      type: "string",
+      description: "Direct URL to OpenAPI specification (JSON or YAML)",
+    })
+    .option("api-name", {
+      type: "string",
+      description: "Name for the API (default: 'api')",
+    })
+    .option("api", {
+      alias: "a",
+      type: "string",
+      description: "API specification source (<name>=<url>, direct URL, or name to filter)",
+    })
+    .option("config-json", {
+      type: "string",
+      description: "Raw JSON string defining an openapi-sync configuration",
+    })
+    .option("preset", {
+      type: "string",
+      choices: [
+        "react-query-zod",
+        "react-query-yup",
+        "swr-zod",
+        "swr-yup",
+        "axios-zod",
+        "axios-joi",
+        "fetch-zod",
+        "rtk-query-zod",
+        "next-fetch",
+        "python-basic",
+      ],
+      description: "Named preset to apply automatically",
+    })
+    .option("folder", {
+      alias: ["output-folder", "outputFolder", "f"],
+      type: "string",
+      description: "Output directory for generated files (e.g. ./src/api)",
+    })
+    .option("language", {
+      type: "string",
+      choices: ["typescript", "python"],
+      description: "Target programming language",
+    })
+    .option("server", {
+      type: "string",
+      description: "Default server index or base URL override",
+    })
+    .option("validation-lib", {
+      alias: ["validations-library", "validation-library", "validationLibrary"],
+      type: "string",
+      choices: ["zod", "yup", "joi"],
+      description: "Runtime validation library",
+    })
+    .option("no-validations", {
+      type: "boolean",
+      description: "Disable runtime validation generation",
+    })
+    .option("validations-disable", {
+      type: "boolean",
+      description: "Disable runtime validation generation",
+    })
+    .option("validations-query", {
+      type: "boolean",
+      description: "Generate runtime validation schemas for query parameters",
+    })
+    .option("validations-dto", {
+      type: "boolean",
+      description: "Generate runtime validation schemas for request body/DTOs",
+    })
+    .option("validations-prefix", {
+      type: "string",
+      description: "Prefix for generated validation schemas",
+    })
+    .option("validations-suffix", {
+      type: "string",
+      description: "Suffix for generated validation schemas",
+    })
+    .option("client-type", {
+      type: "string",
+      choices: ["fetch", "axios", "react-query", "swr", "rtk-query"],
+      description: "HTTP client / hook generator type",
+    })
+    .option("client-output", {
+      type: "string",
+      description: "Output directory for generated client",
+    })
+    .option("client-base-url", {
+      type: "string",
+      description: "Base URL to embed in generated client",
+    })
+    .option("client-tags", {
+      type: "string",
+      description: "Comma-separated OpenAPI tags to generate client for",
+    })
+    .option("client-mutations", {
+      type: "boolean",
+      description: "Generate mutation hooks (for react-query/swr)",
+    })
+    .option("client-infinite", {
+      type: "boolean",
+      description: "Enable infinite query hooks (for react-query/swr)",
+    })
+    .option("client-react-query-version", {
+      type: "number",
+      choices: [4, 5],
+      description: "Target TanStack React Query major version",
+    })
+    .option("client-rtk-base-query", {
+      type: "string",
+      description: "Base query import or function for RTK Query",
+    })
+    .option("split-by-tags", {
+      alias: ["folder-split", "folderSplit"],
+      type: "boolean",
+      description: "Split generated endpoint files into subdirectories by tag",
+    })
+    .option("custom-code", {
+      type: "boolean",
+      description: "Enable custom code preservation markers",
+    })
+    .option("no-custom-code", {
+      type: "boolean",
+      description: "Disable custom code preservation markers",
+    })
+    .option("custom-code-position", {
+      type: "string",
+      choices: ["top", "bottom", "both"],
+      description: "Position of preserved custom code block",
+    })
+    .option("endpoint-type", {
+      type: "string",
+      choices: ["string", "object"],
+      description: "Endpoint export format ('string' for URL templates, 'object' for rich endpoint objects)",
+    })
+    .option("refetch-interval", {
+      alias: ["refreshinterval", "ri"],
+      type: "number",
+      description: "Interval in ms to auto-refetch specifications",
+    })
+    .option("custom-code-marker", {
+      type: "string",
+      description: "Marker text for preserved custom code block",
+    })
+    .option("no-docs", {
+      type: "boolean",
+      description: "Disable JSDoc documentation generation on endpoints",
+    })
+    .option("show-curl", {
+      type: "boolean",
+      description: "Include cURL examples in generated JSDoc comments",
+    })
+    .option("type-prefix", {
+      alias: ["types-prefix", "typesPrefix"],
+      type: "string",
+      description: "Prefix for generated TypeScript interfaces (e.g. 'I')",
+    })
+    .option("use-operation-id", {
+      type: "boolean",
+      description: "Use operationId for naming endpoint functions and types",
+    })
+    .option("exclude-tags", {
+      type: "string",
+      description: "Comma-separated tags to exclude from generation",
+    })
+    .option("include-tags", {
+      type: "string",
+      description: "Comma-separated tags to include in generation",
+    });
 }
 
 // ── CLI definition ────────────────────────────────────────────────────────────
@@ -174,6 +420,7 @@ const cli = yargs(hideBin(process.argv))
     "init",
     "Create an openapi.sync config file (interactive or non-interactive)",
     (yargs) => {
+      addAuthOptions(yargs);
       return yargs
         .option("interactive", {
           type: "boolean",
@@ -186,6 +433,23 @@ const cli = yargs(hideBin(process.argv))
           type: "boolean",
           default: false,
           description: "Non-interactive mode (alias for --no-interactive).",
+        })
+        .option("preset", {
+          type: "string",
+          choices: [
+            "react-query-zod",
+            "react-query-yup",
+            "swr-zod",
+            "swr-yup",
+            "axios-zod",
+            "axios-joi",
+            "fetch-zod",
+            "rtk-query-zod",
+            "next-fetch",
+            "python-basic",
+          ],
+          description:
+            "Apply a named preset (sets clientGeneration, validations, etc. automatically)",
         })
         // All wizard fields available as flags so agents can pass everything:
         .option("api-name", {
@@ -201,9 +465,10 @@ const cli = yargs(hideBin(process.argv))
           description: "Path to a local OpenAPI spec file",
         })
         .option("output-folder", {
+          alias: ["folder", "f"],
           type: "string",
-          description: "Output folder for generated files",
-          default: "./src/api",
+          description: "Output folder for generated files (default: project root)",
+          default: "",
         })
         .option("config-format", {
           type: "string",
@@ -217,16 +482,19 @@ const cli = yargs(hideBin(process.argv))
           description: "API client type to generate",
         })
         .option("validation-library", {
+          alias: ["validation-lib", "validations-library"],
           type: "string",
           choices: ["zod", "yup", "joi"],
           description: "Runtime validation library",
         })
         .option("folder-split", {
+          alias: ["split-by-tags"],
           type: "boolean",
           description: "Organize generated code into folders by OpenAPI tags",
           default: false,
         })
         .option("types-prefix", {
+          alias: ["type-prefix"],
           type: "string",
           description: "Prefix for generated TypeScript interface names",
           default: "I",
@@ -243,7 +511,7 @@ const cli = yargs(hideBin(process.argv))
         .option("show-curl", {
           type: "boolean",
           description: "Include cURL examples in generated docs",
-          default: true,
+          default: false,
         })
         .option("refetch-interval", {
           type: "number",
@@ -299,12 +567,13 @@ const cli = yargs(hideBin(process.argv))
           const result = await nonInteractiveInit({
             apiName,
             apiSource,
-            outputFolder: argv["output-folder"],
+            preset: argv["preset"],
+            outputFolder: argv["output-folder"] ?? argv.folder ?? "",
             configFormat: argv["config-format"],
             clientType: argv["client-type"],
-            validationLibrary: argv["validation-library"],
-            folderSplit: argv["folder-split"],
-            typesPrefix: argv["types-prefix"],
+            validationLibrary: argv["validation-library"] || argv["validation-lib"] || argv["validations-library"],
+            folderSplit: argv["folder-split"] !== undefined ? argv["folder-split"] : argv["split-by-tags"],
+            typesPrefix: argv["types-prefix"] || argv["type-prefix"],
             useOperationId: argv["use-operation-id"],
             excludeTags: argv["exclude-tags"]
               ? argv["exclude-tags"].split(",").map((t) => t.trim())
@@ -313,6 +582,14 @@ const cli = yargs(hideBin(process.argv))
             refetchInterval: argv["refetch-interval"] || undefined,
             runSync: argv["run-sync"],
             silent,
+            authType: argv["auth-type"],
+            authToken: argv["auth-token"] || argv["auth-password"] || argv["auth-value"],
+            authUsername: argv["auth-username"],
+            authPassword: argv["auth-password"],
+            authName: argv["auth-name"],
+            authValue: argv["auth-value"],
+            authIn: argv["auth-in"],
+            authHeader: argv["auth-header"],
           });
 
           if (argv.json) {
@@ -355,11 +632,14 @@ const cli = yargs(hideBin(process.argv))
     "validate",
     "Validate the config file and all API specs without writing any files. " +
     "Safe to run repeatedly — no side effects.",
-    () => { },
+    (yargs) => {
+      addCliConfigOptions(yargs);
+    },
     async (argv) => {
       const silent = argv.silent || argv.json;
+      const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
 
-      const result = await OpenApisync.ValidateConfig({ silent });
+      const result = await OpenApisync.ValidateConfig({ silent, auth: cliAuth, cliArgs: argv });
 
       if (argv.json) {
         return jsonExit(result, result.valid ? 0 : 1);
@@ -374,12 +654,8 @@ const cli = yargs(hideBin(process.argv))
     "list-endpoints",
     "List all endpoints discovered from your OpenAPI specs. No files are written.",
     (yargs) => {
+      addCliConfigOptions(yargs);
       return yargs
-        .option("api", {
-          alias: "a",
-          type: "string",
-          description: "Limit to a specific API from your config",
-        })
         .option("tags", {
           type: "string",
           description: "Comma-separated tags to filter by",
@@ -399,7 +675,7 @@ const cli = yargs(hideBin(process.argv))
         .option("use-cache", {
           type: "boolean",
           description: "Reuse previously stored endpoints when available",
-          default: false,
+          default: true,
         })
         .example("$0 list-endpoints --json", "List all endpoints as JSON")
         .example(
@@ -412,15 +688,18 @@ const cli = yargs(hideBin(process.argv))
       const tags = argv.tags
         ? argv.tags.split(",").map((t) => t.trim())
         : undefined;
+      const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
 
       const result = await OpenApisync.ListEndpoints({
-        apiName: argv.api,
+        apiName: resolveApiName(argv),
         tags,
         limit: argv.limit,
         offset: argv.offset,
         pathContains: argv["path-contains"],
         useCache: argv["use-cache"],
         silent,
+        auth: cliAuth,
+        cliArgs: argv,
       });
 
       if (argv.json) {
@@ -444,6 +723,7 @@ const cli = yargs(hideBin(process.argv))
     "get-endpoint",
     "Fetch the full stored details for a single endpoint by operationId or name",
     (yargs) => {
+      addCliConfigOptions(yargs);
       return yargs
         .option("operation-id", {
           type: "string",
@@ -453,20 +733,18 @@ const cli = yargs(hideBin(process.argv))
           type: "string",
           description: "Endpoint name to inspect",
         })
-        .option("api", {
-          alias: "a",
-          type: "string",
-          description: "Restrict the lookup to a specific API",
-        })
         .example("$0 get-endpoint --operation-id getPetById", "Inspect one endpoint by operationId");
     },
     async (argv) => {
       try {
+        const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
         const result = await OpenApisync.GetEndpointDetails({
-          apiName: argv.api,
+          apiName: resolveApiName(argv),
           operationId: argv["operation-id"],
           name: argv.name,
           silent: argv.silent || argv.json,
+          auth: cliAuth,
+          cliArgs: argv,
         });
 
         if (argv.json) {
@@ -494,13 +772,8 @@ const cli = yargs(hideBin(process.argv))
     "read-type",
     "Read one generated TypeScript interface or type declaration by name",
     (yargs) => {
+      addCliConfigOptions(yargs);
       return yargs
-        .option("api", {
-          alias: "a",
-          type: "string",
-          description: "API name from your config",
-          demandOption: true,
-        })
         .option("type-name", {
           alias: "t",
           type: "string",
@@ -520,18 +793,20 @@ const cli = yargs(hideBin(process.argv))
     },
     async (argv) => {
       try {
+        const apiName = resolveApiName(argv);
         const declaration = await OpenApisync.ReadGeneratedType({
-          apiName: argv.api,
+          apiName,
           typeName: argv["type-name"],
           offset: argv.offset,
           maxLines: argv["max-lines"] || argv.limit,
           silent: argv.silent || argv.json,
+          cliArgs: argv,
         });
 
         if (argv.json) {
           return jsonExit(
             {
-              apiName: argv.api,
+              apiName,
               typeName: argv["type-name"],
               declaration,
             },
@@ -560,11 +835,13 @@ const cli = yargs(hideBin(process.argv))
     ["$0", "sync"],
     "Sync OpenAPI specifications and generate types, endpoints, and validation schemas",
     (yargs) => {
+      addCliConfigOptions(yargs);
       return yargs
-        .option("refreshinterval", {
-          alias: "ri",
-          type: "number",
-          description: "Interval in ms to auto-refetch specifications",
+        .option("prompt-auth", {
+          type: "boolean",
+          description:
+            "Interactively prompt for credentials before fetching each API spec. Useful for protected spec URLs.",
+          default: false,
         })
         .option("dry-run", {
           type: "boolean",
@@ -573,16 +850,23 @@ const cli = yargs(hideBin(process.argv))
           default: false,
         })
         .example("$0", "Sync all APIs")
+        .example("$0 --api-url http://localhost:3000/api-json --preset next-fetch", "Sync without config file")
+        .example("$0 --api billing", "Sync only the 'billing' API")
+        .example("$0 --auth-type bearer --auth-token token", "Sync with Bearer token")
+        .example("$0 --auth-type basic --auth-username user --auth-password pass", "Sync with Basic auth")
+        .example("$0 --auth-type apiKey --auth-name X-API-Key --auth-value key", "Sync with API key in header")
+        .example("$0 --auth-type custom --auth-header 'X-Secret: val'", "Sync with custom header")
         .example("$0 --json", "Sync and emit JSON result")
         .example("$0 --dry-run --json", "Preview what would be written");
     },
     async (argv) => {
+      const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
       if (argv["dry-run"]) {
         // Dry-run: validate + estimate planned files based on actual config
         const silent = argv.silent || argv.json;
-        const validation = await OpenApisync.ValidateConfig({ silent });
-        const config = getLoadedConfig();
-        const configuredFolder = config?.folder || "api";
+        const validation = await OpenApisync.ValidateConfig({ silent, auth: cliAuth, cliArgs: argv });
+        const config = getLoadedConfig(argv);
+        const configuredFolder = config?.folder ?? "";
         const path = require("path");
         const plannedFilesByApi = {};
 
@@ -590,7 +874,9 @@ const cli = yargs(hideBin(process.argv))
         const ext = isPython ? "py" : "ts";
         const isFolderSplit = Boolean(config?.folderSplit?.byTags);
 
+        const targetApi = resolveApiName(argv);
         for (const [apiName, apiResult] of Object.entries(validation.apis)) {
+          if (targetApi && apiName !== targetApi) continue;
           const apiFolderPath = path.join(process.cwd(), configuredFolder, apiName);
           const planned = [];
 
@@ -639,8 +925,13 @@ const cli = yargs(hideBin(process.argv))
       }
 
       const silent = argv.silent || argv.json;
+      const apiName = resolveApiName(argv);
       const result = await OpenApisync.Init({
-        refetchInterval: argv.refreshinterval,
+        refetchInterval: argv["refetch-interval"] !== undefined ? argv["refetch-interval"] : (argv.refreshinterval !== undefined ? argv.refreshinterval : argv.ri),
+        promptAuth: argv["prompt-auth"],
+        apiName,
+        auth: cliAuth,
+        cliArgs: argv,
         silent,
       });
 
@@ -657,19 +948,14 @@ const cli = yargs(hideBin(process.argv))
     "generate-client",
     "Generate a type-safe API client from your OpenAPI specs",
     (yargs) => {
+      addCliConfigOptions(yargs);
       return yargs
         .option("type", {
           alias: "t",
           type: "string",
           description: "Client type to generate",
-          choices: ["fetch", "axios", "react-query", "swr", "rtk-query"],
+          choices: ["fetch", "axios", "react-query", "swr", "rtk-query", "next-fetch"],
           demandOption: true,
-        })
-        .option("api", {
-          alias: "a",
-          type: "string",
-          description:
-            "API name from config (generates for all APIs if not specified)",
         })
         .option("tags", {
           type: "array",
@@ -731,10 +1017,11 @@ const cli = yargs(hideBin(process.argv))
         // —— Compact dry-run: show planned file paths without writing ——
         const silent = argv.silent || argv.json;
         const path = require("path");
+        const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
 
-        const validation = await OpenApisync.ValidateConfig({ silent });
-        const config = getLoadedConfig();
-        const configuredFolder = config?.folder || "api";
+        const validation = await OpenApisync.ValidateConfig({ silent, auth: cliAuth, cliArgs: argv });
+        const config = getLoadedConfig(argv);
+        const configuredFolder = config?.folder ?? "";
 
         // Build the planned file list per API
         const perApi = {};
@@ -763,9 +1050,11 @@ const cli = yargs(hideBin(process.argv))
         let endpointsByApi = undefined;
         if (argv.verbose) {
           endpointsByApi = await OpenApisync.ListEndpoints({
-            apiName: argv.api,
+            apiName: resolveApiName(argv),
             tags,
             silent,
+            auth: cliAuth,
+            cliArgs: argv,
           });
         }
 
@@ -773,9 +1062,11 @@ const cli = yargs(hideBin(process.argv))
         if (tags?.length || endpoints?.length) {
           try {
             const allEndpointsMap = await OpenApisync.ListEndpoints({
-              apiName: argv.api,
+              apiName: resolveApiName(argv),
               tags,
               silent: true,
+              auth: cliAuth,
+              cliArgs: argv,
             });
             let matched = 0;
             for (const epList of Object.values(allEndpointsMap)) {
@@ -838,15 +1129,18 @@ const cli = yargs(hideBin(process.argv))
 
       // Sync + generate client
       const silent = argv.silent || argv.json;
+      const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
       const result = await OpenApisync.GenerateClient({
         type: argv.type,
-        apiName: argv.api,
+        apiName: resolveApiName(argv),
         tags,
         endpoints,
         outputDir: argv.output,
         baseURL: argv["base-url"],
         useCache: argv["use-cache"],
         silent,
+        auth: cliAuth,
+        cliArgs: argv,
       });
 
       if (argv.json) {
@@ -861,16 +1155,136 @@ const cli = yargs(hideBin(process.argv))
   .command(
     "doctor",
     "Run diagnostic health check on config, specs, peer dependencies, cache, and directory permissions",
-    () => {},
+    (yargs) => {
+      addCliConfigOptions(yargs);
+    },
     async (argv) => {
       const silent = argv.silent || argv.json;
-      const result = await OpenApisync.Doctor({ silent });
+      const cliAuth = OpenApisync.extractCliAuthFromArgv(argv);
+      const result = await OpenApisync.Doctor({ silent, auth: cliAuth, cliArgs: argv });
 
       if (argv.json) {
         return jsonExit(result, result.healthy ? 0 : 1);
       }
 
       process.exit(result.healthy ? 0 : 1);
+    }
+  )
+
+  // ── `purge` command ────────────────────────────────────────────────────────
+  .command(
+    "purge",
+    "Detect and remove generated files that no longer match your current OpenAPI spec",
+    (yargs) => {
+      addCliConfigOptions(yargs);
+      return yargs
+        .option("yes", {
+          alias: "y",
+          type: "boolean",
+          description: "Delete stale files without confirmation prompt",
+          default: false,
+        })
+        .option("dry-run", {
+          type: "boolean",
+          description: "Show which files would be deleted without deleting them",
+          default: false,
+        })
+        .example("$0 purge --dry-run", "Preview stale files")
+        .example("$0 purge --yes", "Delete stale files without prompting");
+    },
+    async (argv) => {
+      const silent = argv.silent || argv.json;
+
+      // 1. Run a sync to get the current set of files (writing them)
+      //    so the manifest is up-to-date, and stalePaths is populated.
+      if (!silent) console.log("\n🔍 Syncing to detect stale files...\n");
+      const syncResult = await OpenApisync.Init({ silent: true, cliArgs: argv, skipClientGen: true });
+
+      // 2. Filter stalePaths by --api if provided
+      let stalePaths = syncResult.stalePaths || [];
+      const targetApi = resolveApiName(argv);
+      if (targetApi) {
+        stalePaths = stalePaths.filter(p => p.includes(`/${targetApi}/`));
+      }
+
+      if (stalePaths.length === 0) {
+        if (argv.json) return jsonExit({ purged: [], message: "No stale files found." }, 0);
+        console.log("\n✅ No stale files found. Your generated code is up to date.\n");
+        return;
+      }
+
+      // 3. Show what will be deleted
+      if (!argv.json && !silent) {
+        console.log(`\n🗑️  Found ${stalePaths.length} stale file(s):\n`);
+        stalePaths.forEach(p => console.log(`   ${p}`));
+        console.log("");
+      }
+
+      // 4. Dry run — stop here
+      if (argv["dry-run"]) {
+        if (argv.json) return jsonExit({ dryRun: true, stalePaths, count: stalePaths.length }, 0);
+        console.log("   (dry run — no files deleted)\n");
+        return;
+      }
+
+      // 5. Confirm unless --yes
+      if (!argv.yes && !argv.json && process.stdin.isTTY) {
+        const prompts = require("prompts");
+        const { confirmed } = await prompts({
+          type: "confirm",
+          name: "confirmed",
+          message: `Delete these ${stalePaths.length} file(s)?`,
+          initial: false,
+        });
+        if (!confirmed) {
+          console.log("\n❌ Purge cancelled.\n");
+          return;
+        }
+      }
+
+      // 6. Delete stale files
+      const fs = require("fs");
+      const deleted = [];
+      const errors = [];
+
+      for (const filePath of stalePaths) {
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            deleted.push(filePath);
+            if (!silent && !argv.json) console.log(`   🗑️  Deleted: ${filePath}`);
+          }
+        } catch (err) {
+          errors.push(`Failed to delete ${filePath}: ${err.message}`);
+        }
+      }
+      if (deleted.length > 0 && typeof OpenApisync.cleanPurgedClientPaths === "function") {
+        OpenApisync.cleanPurgedClientPaths(deleted);
+      }
+
+      // 7. Also remove now-empty directories
+      const path = require("path");
+      const dirsToCheck = [...new Set(deleted.map(f => path.dirname(f)))];
+      for (const dir of dirsToCheck) {
+        try {
+          const remaining = fs.readdirSync(dir);
+          if (remaining.length === 0) {
+            fs.rmdirSync(dir);
+            if (!silent && !argv.json) console.log(`   📁 Removed empty dir: ${dir}`);
+          }
+        } catch (_) {}
+      }
+
+      if (argv.json) {
+        return jsonExit({ purged: deleted, errors, count: deleted.length }, errors.length > 0 ? 1 : 0);
+      }
+
+      if (errors.length > 0) {
+        errors.forEach(e => console.error(`❌ ${e}`));
+        process.exit(1);
+      }
+
+      console.log(`\n✅ Purged ${deleted.length} stale file(s).\n`);
     }
   )
 

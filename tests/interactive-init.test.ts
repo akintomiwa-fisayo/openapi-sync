@@ -67,7 +67,12 @@ describe("Interactive Init", () => {
 
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(
         expect.stringContaining("openapi.sync.ts"),
-        expect.stringMatching(/import.*IConfig.*openapi-sync/),
+        expect.stringMatching(/import.*defineConfig.*openapi-sync/),
+        "utf-8"
+      );
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining("openapi.sync.ts"),
+        expect.stringContaining("export default defineConfig("),
         "utf-8"
       );
     });

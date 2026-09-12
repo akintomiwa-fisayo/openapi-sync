@@ -2,12 +2,13 @@ import OpenapiSync from "./Openapi-sync";
 import path from "path";
 import fs from "fs";
 import { resetState } from "./Openapi-sync/state";
-import { IConfig, IConfigClientGeneration, SyncResult, ValidationResult, EndpointSummary, DoctorResult, DoctorCheckItem } from "./types";
+import { IApiSource, IConfig, IConfigClientGeneration, SyncResult, ValidationResult, EndpointSummary, DoctorResult, DoctorCheckItem, PurgeOptions, PurgeResult } from "./types";
 import {
   getStoredEndpoints,
   getAllStoredEndpoints,
 } from "./Openapi-sync/endpoint-store";
 import { generateClients, dryRunClientFiles, checkPeerDependencies } from "./Openapi-sync/client-generation";
+import { loadManifest, saveManifest, computeStalePaths, recordClientFiles, getStaleClientPaths, cleanPurgedClientPaths } from "./Openapi-sync/manifest";
 
 import { EndpointInfo, filterEndpoints } from "./client-generators";
 import {
@@ -24,7 +25,11 @@ export * from "./types";
 export * from "./helpers";
 export * from "./regex";
 export * from "./errors";
-export { loadConfig } from "./Openapi-sync/config-loader";
+export { loadConfig, tryLoadConfig } from "./Openapi-sync/config-loader";
+export * from "./Openapi-sync/presets";
+export * from "./Openapi-sync/spec-auth";
+export * from "./Openapi-sync/manifest";
+export * from "./Openapi-sync/cli-config";
 
 const rootUsingCwd = process.cwd();
 
@@ -107,6 +112,12 @@ const filterAndPaginateEndpoints = (
 export const Init = async (options?: {
   refetchInterval?: number;
   silent?: boolean;
+  promptAuth?: boolean;
+  apiName?: string;
+  auth?: import("./types").ISpecAuth;
+  config?: import("./types").IConfig;
+  cliArgs?: Record<string, any>;
+  skipClientGen?: boolean;
 }): Promise<SyncResult> => {
   const silent = options?.silent ?? false;
   const log = makeLogger(silent);
@@ -120,8 +131,13 @@ export const Init = async (options?: {
   };
 
   try {
-    const config = loadConfig();
-    const apiNames = Object.keys(config.api);
+    const config = options?.config || loadConfig(undefined, options?.cliArgs);
+
+    if (options?.apiName && !config.api[options.apiName]) {
+      throw new UnknownApiError(options.apiName, Object.keys(config.api));
+    }
+
+    const apiNames = options?.apiName ? [options.apiName] : Object.keys(config.api);
     result.apis = apiNames;
 
     const refetchInterval =
@@ -133,16 +149,88 @@ export const Init = async (options?: {
 
     resetState();
 
+    if (config?.clientGeneration?.enabled && config?.clientGeneration?.type) {
+      const peerWarnings = checkPeerDependencies(
+        config.clientGeneration.type,
+        config?.validations?.library
+      );
+      if (peerWarnings.length > 0) {
+        result.warnings.push(...peerWarnings);
+        peerWarnings.forEach((w) => log.warn(`⚠️  ${w}`));
+      }
+    }
+
+    const previousManifest = loadManifest();
+    const newManifest: Record<string, any> = { ...previousManifest };
+
+    const runClientGenIfNeeded = async (endpoints: EndpointInfo[], apiName: string) => {
+      if (options?.skipClientGen) {
+        return;
+      }
+      if (config?.clientGeneration?.enabled && endpoints.length > 0) {
+        const folderPath = config?.folder ?? "";
+        const currentConfigType = config.clientGeneration?.type;
+        const recordedConfigType = previousManifest.configClientTypes?.[apiName];
+        const lastClientType = previousManifest.clientTypes?.[apiName];
+
+        let effectiveType = currentConfigType;
+        if (lastClientType) {
+          if (recordedConfigType && currentConfigType && currentConfigType !== recordedConfigType) {
+            // User explicitly modified clientGeneration.type in openapi.config
+            effectiveType = currentConfigType;
+          } else {
+            // Respect the client type from generate-client unless config type changed
+            effectiveType = lastClientType as any;
+          }
+        }
+
+        if (!effectiveType) {
+          return;
+        }
+
+        const clientConfig: IConfigClientGeneration = {
+          enabled: true,
+          ...config.clientGeneration,
+          type: effectiveType,
+        };
+        const clientPaths = await generateClients(
+          endpoints,
+          config,
+          clientConfig,
+          apiName,
+          path.join(rootUsingCwd, folderPath),
+          silent
+        );
+        if (clientPaths && clientPaths.length > 0) {
+          result.filesWritten.push(...clientPaths);
+          newManifest[apiName] = [...(newManifest[apiName] || []), ...clientPaths];
+          recordClientFiles(apiName, clientPaths, newManifest, effectiveType, currentConfigType);
+        }
+      }
+    };
+
     for (let i = 0; i < apiNames.length; i += 1) {
       const apiName = apiNames[i];
-      const apiUrl = config.api[apiName];
+      let apiSource = config.api[apiName];
+      if (options?.auth) {
+        const url = typeof apiSource === "string" ? apiSource : apiSource.url;
+        apiSource = { url, auth: options.auth };
+      }
+      const apiUrl = typeof apiSource === "string" ? apiSource : apiSource.url;
 
       log.log(`\n🔄 Syncing ${apiName}...`);
       try {
-        const syncResult = await OpenapiSync(apiUrl, apiName, config, refetchInterval, silent);
+        const syncResult = await OpenapiSync(apiSource, apiName, config, refetchInterval, silent);
 
         if (syncResult && syncResult.filesWritten) {
           result.filesWritten.push(...syncResult.filesWritten);
+          newManifest[apiName] = syncResult.filesWritten;
+          if (options?.skipClientGen && newManifest.clients?.[apiName]) {
+            newManifest[apiName] = [
+              ...newManifest[apiName],
+              ...newManifest.clients[apiName],
+            ];
+          }
         }
         if (syncResult && syncResult.warnings) {
           result.warnings.push(...syncResult.warnings);
@@ -152,12 +240,98 @@ export const Init = async (options?: {
         const endpoints = getStoredEndpoints(apiName);
         result.endpointCount += endpoints.length;
         log.log(`✅ ${apiName}: ${endpoints.length} endpoints`);
+        await runClientGenIfNeeded(endpoints, apiName);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        result.errors.push(`[${apiName}] ${msg}`);
-        log.error(`❌ ${apiName}: ${msg}`);
+        const isAuthError =
+          err instanceof Error &&
+          (err.message.includes("401") ||
+            err.message.includes("403") ||
+            err.message.toLowerCase().includes("unauthorized") ||
+            err.message.toLowerCase().includes("forbidden"));
+
+        if (isAuthError && (options?.promptAuth || process.stdin.isTTY) && !options?.silent) {
+          const { promptForAuth } = await import("./Openapi-sync/auth-prompt");
+          const overrideAuthConfig = await promptForAuth(apiName, apiUrl);
+
+          if (overrideAuthConfig) {
+            const promptedSource: IApiSource = {
+              url: apiUrl,
+              auth: { type: "custom", headers: (overrideAuthConfig.headers as Record<string, string>) || {} },
+            };
+            try {
+              const retryResult = await OpenapiSync(promptedSource, apiName, config, refetchInterval, silent);
+              if (retryResult && retryResult.filesWritten) {
+                result.filesWritten.push(...retryResult.filesWritten);
+                newManifest[apiName] = retryResult.filesWritten;
+                if (options?.skipClientGen && newManifest.clients?.[apiName]) {
+                  newManifest[apiName] = [
+                    ...newManifest[apiName],
+                    ...newManifest.clients[apiName],
+                  ];
+                }
+              }
+              if (retryResult && retryResult.warnings) {
+                result.warnings.push(...retryResult.warnings);
+                retryResult.warnings.forEach(w => log.warn(`⚠️  ${w}`));
+              }
+              const endpoints = getStoredEndpoints(apiName);
+              result.endpointCount += endpoints.length;
+              log.log(`✅ ${apiName}: ${endpoints.length} endpoints`);
+              await runClientGenIfNeeded(endpoints, apiName);
+            } catch (retryErr) {
+              const errCode = (retryErr as any)?.code;
+              const codePrefix = errCode && !String(retryErr).includes(errCode) ? `[${errCode}] ` : "";
+              const msg2 = retryErr instanceof Error ? retryErr.message : String(retryErr);
+              result.errors.push(`[${apiName}] ${codePrefix}${msg2}`);
+              log.error(`❌ ${apiName}: ${codePrefix}${msg2}`);
+            }
+          } else {
+            log.warn(`⚠️  Skipping ${apiName} — auth cancelled.`);
+            result.warnings.push(`[${apiName}] Skipped — auth cancelled by user.`);
+          }
+        } else {
+          const errCode = (err as any)?.code;
+          const codePrefix = errCode && !String(err).includes(errCode) ? `[${errCode}] ` : "";
+          const msg = err instanceof Error ? err.message : String(err);
+          result.errors.push(`[${apiName}] ${codePrefix}${msg}`);
+          log.error(`❌ ${apiName}: ${codePrefix}${msg}`);
+        }
       }
     }
+
+    const allStalePaths: string[] = [];
+    const allKnownApis = new Set([
+      ...Object.keys(previousManifest).filter(
+        (k) =>
+          k !== "clients" &&
+          k !== "staleClients" &&
+          k !== "clientTypes" &&
+          k !== "configClientTypes"
+      ),
+      ...apiNames,
+    ]);
+    const activeClientsSet = new Set(
+      Object.values(newManifest.clients || {}).flat() as string[]
+    );
+
+    for (const apiName of allKnownApis) {
+      const written = newManifest[apiName] || [];
+      const stale = computeStalePaths(apiName, previousManifest, written);
+      const nonClientStale = stale.filter((p) => !activeClientsSet.has(p));
+      allStalePaths.push(...nonClientStale);
+    }
+    const staleClients = getStaleClientPaths(undefined, newManifest);
+    allStalePaths.push(...staleClients);
+
+    const uniqueStalePaths = Array.from(new Set(allStalePaths));
+    if (uniqueStalePaths.length > 0) {
+      result.stalePaths = uniqueStalePaths;
+      if (!silent) {
+        log.warn(`\n⚠️  ${uniqueStalePaths.length} stale file(s) detected. Run \`npx openapi-sync purge\` to remove them.`);
+        uniqueStalePaths.forEach(p => log.warn(`   ${p}`));
+      }
+    }
+    saveManifest(newManifest);
 
     result.success = result.errors.length === 0;
     return result;
@@ -167,6 +341,69 @@ export const Init = async (options?: {
     log.error(`❌ Fatal error: ${msg}`);
     return result;
   }
+};
+
+/**
+ * Detect and optionally delete generated files that no longer correspond to
+ * the current OpenAPI spec. Runs a sync internally to compute stale paths.
+ *
+ * @public
+ */
+export const Purge = async (options?: PurgeOptions): Promise<PurgeResult> => {
+  const syncResult = await Init({
+    silent: options?.silent ?? true,
+    apiName: options?.apiName,
+    auth: options?.auth,
+    config: options?.config,
+    cliArgs: options?.cliArgs,
+    skipClientGen: true,
+  });
+  let stalePaths = syncResult.stalePaths || [];
+
+  if (options?.apiName) {
+    stalePaths = stalePaths.filter(p => p.includes(`/${options.apiName}/`));
+  }
+
+  const deleted: string[] = [];
+  const errors: string[] = [];
+  const isDryRun = Boolean(options?.dryRun);
+  const shouldDelete = Boolean((options?.deleteFiles || options?.yes) && !isDryRun);
+
+  if (shouldDelete) {
+    for (const p of stalePaths) {
+      try {
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          deleted.push(p);
+        }
+      } catch (err: any) {
+        errors.push(`Failed to delete ${p}: ${err.message}`);
+      }
+    }
+    if (deleted.length > 0) {
+      cleanPurgedClientPaths(deleted);
+      const updatedManifest = loadManifest();
+      const deletedSet = new Set(deleted);
+      for (const key of Object.keys(updatedManifest)) {
+        if (Array.isArray(updatedManifest[key])) {
+          updatedManifest[key] = updatedManifest[key].filter((p: string) => !deletedSet.has(p));
+        }
+      }
+      saveManifest(updatedManifest);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    stalePaths,
+    deleted,
+    purged: deleted,
+    dryRun: isDryRun || !shouldDelete,
+    errors,
+    message: shouldDelete
+      ? `Purged ${deleted.length} stale file(s).`
+      : `Found ${stalePaths.length} stale file(s). Dry run only.`,
+  };
 };
 
 /**
@@ -213,14 +450,18 @@ export const Init = async (options?: {
  * @public
  */
 export const GenerateClient = async (options: {
-  type: "fetch" | "axios" | "react-query" | "swr" | "rtk-query";
+  type: "fetch" | "axios" | "react-query" | "swr" | "rtk-query" | "next-fetch";
   apiName?: string;
   tags?: string[];
   endpoints?: string[];
   outputDir?: string;
+  output?: string;
   baseURL?: string;
+  baseUrl?: string;
   silent?: boolean;
   useCache?: boolean;
+  auth?: import("./types").ISpecAuth;
+  cliArgs?: Record<string, any>;
 }): Promise<SyncResult> => {
   const silent = options.silent ?? false;
   const log = makeLogger(silent);
@@ -240,7 +481,7 @@ export const GenerateClient = async (options: {
 
   try {
     log.log("\n🔄 Loading configuration...");
-    const config = loadConfig();
+    const config = loadConfig(undefined, options.cliArgs);
 
     const apiNames = options.apiName
       ? [options.apiName]
@@ -267,7 +508,11 @@ export const GenerateClient = async (options: {
       resetState();
     }
     for (const apiName of apiNames) {
-      const apiUrl = config.api[apiName];
+      let apiSource = config.api[apiName];
+      if (options?.auth) {
+        const url = typeof apiSource === "string" ? apiSource : apiSource.url;
+        apiSource = { url, auth: options.auth };
+      }
       const cachedEndpoints = getStoredEndpoints(apiName);
       const shouldUseCache = Boolean(options.useCache && cachedEndpoints.length > 0);
 
@@ -276,7 +521,7 @@ export const GenerateClient = async (options: {
         continue;
       }
 
-      const syncResult = await OpenapiSync(apiUrl, apiName, config, undefined, silent);
+      const syncResult = await OpenapiSync(apiSource, apiName, config, undefined, silent);
       if (syncResult && syncResult.warnings) {
         result.warnings.push(...syncResult.warnings);
       }
@@ -289,7 +534,7 @@ export const GenerateClient = async (options: {
     }
 
     // Generate clients for each API
-    const folderPath = config?.folder || "api";
+    const folderPath = config?.folder ?? "";
     let totalEndpointsAcrossApis = 0;
     let totalFilteredEndpointsAcrossApis = 0;
 
@@ -305,12 +550,15 @@ export const GenerateClient = async (options: {
 
       totalEndpointsAcrossApis += endpoints.length;
 
+      const clientOutputDir = options.outputDir || options.output;
+      const clientBaseURL = options.baseURL ?? options.baseUrl;
+
       const clientConfig: IConfigClientGeneration = {
         enabled: true,
         ...(config.clientGeneration || {}),
         type: options.type,
-        ...(options.outputDir && { outputDir: options.outputDir }),
-        ...(options.baseURL && { baseURL: options.baseURL }),
+        ...(clientOutputDir && { outputDir: clientOutputDir }),
+        ...(clientBaseURL && { baseURL: clientBaseURL }),
         ...(options.tags && { tags: options.tags }),
         ...(options.endpoints && { endpoints: options.endpoints }),
       };
@@ -330,6 +578,9 @@ export const GenerateClient = async (options: {
       );
       clientFilesWritten.push(...clientPaths);
       result.filesWritten.push(...clientPaths);
+      if (clientPaths && clientPaths.length > 0) {
+        recordClientFiles(apiName, clientPaths, undefined, options.type, config?.clientGeneration?.type);
+      }
     }
 
     log.log("\n✨ All clients generated successfully!\n");
@@ -392,6 +643,9 @@ export const GenerateClient = async (options: {
  */
 export const ValidateConfig = async (options?: {
   silent?: boolean;
+  auth?: import("./types").ISpecAuth;
+  config?: import("./types").IConfig;
+  cliArgs?: Record<string, any>;
 }): Promise<ValidationResult> => {
   const { validateConfig } = await import("./Openapi-sync/validate");
   return validateConfig(options);
@@ -434,12 +688,14 @@ export const ListEndpoints = async (options?: {
   limit?: number;
   offset?: number;
   pathContains?: string;
+  auth?: import("./types").ISpecAuth;
+  cliArgs?: Record<string, any>;
 }): Promise<Record<string, EndpointSummary[]>> => {
   const silent = options?.silent ?? false;
   const log = makeLogger(silent);
 
   try {
-    const config = loadConfig();
+    const config = loadConfig(undefined, options?.cliArgs);
     const apiNames = options?.apiName
       ? [options.apiName]
       : Object.keys(config.api);
@@ -448,9 +704,12 @@ export const ListEndpoints = async (options?: {
       throw new UnknownApiError(options.apiName, Object.keys(config.api));
     }
 
-    resetState();
     for (const apiName of apiNames) {
-      const apiUrl = config.api[apiName];
+      let apiSource = config.api[apiName];
+      if (options?.auth) {
+        const url = typeof apiSource === "string" ? apiSource : apiSource.url;
+        apiSource = { url, auth: options.auth };
+      }
       const cachedEndpoints = getStoredEndpoints(apiName);
       const shouldUseCache = Boolean(options?.useCache && cachedEndpoints.length > 0);
 
@@ -460,7 +719,7 @@ export const ListEndpoints = async (options?: {
       }
 
       log.log(`🔍 Fetching spec for ${apiName}...`);
-      await OpenapiSync(apiUrl, apiName, config, undefined, silent);
+      await OpenapiSync(apiSource, apiName, config, undefined, silent, false);
     }
 
     const result: Record<string, EndpointSummary[]> = {};
@@ -501,6 +760,8 @@ export const GetEndpointDetails = async (options?: {
   operationId?: string;
   name?: string;
   silent?: boolean;
+  auth?: import("./types").ISpecAuth;
+  cliArgs?: Record<string, any>;
 }): Promise<{ apiName: string; endpoint: EndpointInfo }> => {
   const silent = options?.silent ?? false;
   const log = makeLogger(silent);
@@ -510,7 +771,7 @@ export const GetEndpointDetails = async (options?: {
       throw new Error("Provide either operationId or name to look up endpoint details.");
     }
 
-    const config = loadConfig();
+    const config = loadConfig(undefined, options?.cliArgs);
     const apiNames = options?.apiName
       ? [options.apiName]
       : Object.keys(config.api);
@@ -526,12 +787,16 @@ export const GetEndpointDetails = async (options?: {
     const normTarget = normalize(queryOpId || queryName);
 
     for (const apiName of apiNames) {
-      const apiUrl = config.api[apiName];
+      let apiSource = config.api[apiName];
+      if (options?.auth) {
+        const url = typeof apiSource === "string" ? apiSource : apiSource.url;
+        apiSource = { url, auth: options.auth };
+      }
       let endpoints = getStoredEndpoints(apiName);
 
       if (endpoints.length === 0) {
         log.log(`🔍 Fetching spec for ${apiName} to locate endpoint details...`);
-        await OpenapiSync(apiUrl, apiName, config, undefined, silent);
+        await OpenapiSync(apiSource, apiName, config, undefined, silent, false);
         endpoints = getStoredEndpoints(apiName);
       }
 
@@ -699,23 +964,26 @@ export const extractTypeDeclaration = (
 };
 
 export const ReadGeneratedType = async (options: {
-  apiName: string;
+  apiName?: string;
   typeName: string;
   maxLines?: number;
   offset?: number;
   silent?: boolean;
+  cliArgs?: Record<string, any>;
 }): Promise<string> => {
   const silent = options.silent ?? false;
   const log = makeLogger(silent);
 
   try {
-    const config = loadConfig();
+    const config = loadConfig(undefined, options.cliArgs);
+    const availableApis = Object.keys(config.api);
+    const apiName = options.apiName || (availableApis.length === 1 ? availableApis[0] : "");
 
-    if (!config.api[options.apiName]) {
-      throw new UnknownApiError(options.apiName, Object.keys(config.api));
+    if (!apiName || !config.api[apiName]) {
+      throw new UnknownApiError(apiName || "(not specified)", availableApis);
     }
 
-    const apiFolder = path.join(rootUsingCwd, config?.folder || "", options.apiName);
+    const apiFolder = path.resolve(process.cwd(), config?.folder ?? "", apiName);
     const candidateFiles: string[] = [];
 
     // 1. Check direct candidate paths
@@ -767,7 +1035,7 @@ export const ReadGeneratedType = async (options: {
     }
 
     if (candidateFiles.length === 0) {
-      throw new Error(`Generated types file not found for API: ${options.apiName}`);
+      throw new Error(`Generated types file not found for API: ${apiName}`);
     }
 
     // Sort candidate files: shared types first, then types files, then index, then others
@@ -860,8 +1128,21 @@ export const InteractiveInit = async (): Promise<void> => {
  */
 export const Doctor = async (options?: {
   silent?: boolean;
+  auth?: import("./types").ISpecAuth;
+  config?: import("./types").IConfig;
+  cliArgs?: Record<string, any>;
 }): Promise<DoctorResult> => {
   const { runDoctor } = await import("./Openapi-sync/doctor");
   return runDoctor(options);
 };
+
+export {
+  loadManifest,
+  saveManifest,
+  computeStalePaths,
+  recordClientFiles,
+  getStaleClientPaths,
+  cleanPurgedClientPaths,
+} from "./Openapi-sync/manifest";
+
 

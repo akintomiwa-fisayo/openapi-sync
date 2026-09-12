@@ -42,6 +42,26 @@ npx openapi-sync init
 // npx openapi-sync`,
   },
   {
+    category: "Getting Started",
+    title: "Preset Configuration (Zero-Boilerplate)",
+    description:
+      "Use opinionated presets like react-query-zod, swr-zod, or axios-zod to configure client generation and validation in one line",
+    code: `// openapi.sync.json
+{
+  "preset": "react-query-zod",
+  "api": {
+    "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
+  }
+}
+
+// Or in TypeScript (openapi.sync.ts):
+// import { defineConfig } from "openapi-sync";
+// export default defineConfig({
+//   preset: "react-query-zod",
+//   api: { petstore: "https://petstore3.swagger.io/api/v3/openapi.json" }
+// });`,
+  },
+  {
     category: "Validation Schemas",
     title: "Zod Validation",
     description: "Generate Zod schemas for runtime validation",

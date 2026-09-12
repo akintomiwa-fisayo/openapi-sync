@@ -155,6 +155,284 @@ const pet: IPet = {
         />
       </section>
 
+      {/* Presets */}
+      <section id="presets" className="mb-16">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-0">
+            Presets
+          </h2>
+          <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-red-200 dark:border-red-800">
+            Zero-Config
+          </span>
+        </div>
+
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          Presets bundle opinionated defaults for popular frameworks, HTTP clients, and runtime validation libraries into a single name. Instead of configuring dozens of settings manually, simply select a preset during <code className="text-red-600 dark:text-red-400">npx openapi-sync init</code> or declare <code className="text-red-600 dark:text-red-400">&quot;preset&quot;: &quot;&lt;name&gt;&quot;</code> in your config file. Any explicit configuration you provide will cleanly override preset defaults.
+        </p>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+          Available Presets
+        </h3>
+
+        <div className="overflow-x-auto mb-8">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Preset Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Target Framework / HTTP Client
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Validation Library
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Features Configured
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Dependencies
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
+                  <div>react-query-zod</div>
+                  <span className="inline-block mt-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                    Recommended
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">TanStack React Query v5</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Zod
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Typed Query &amp; Mutation hooks, Zod schemas, preserved custom code, operationId naming
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i @tanstack/react-query axios zod
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  react-query-yup
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">TanStack React Query v5</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Yup
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Typed Query &amp; Mutation hooks, Yup validation schemas, preserved custom code
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i @tanstack/react-query axios yup
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  swr-zod
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Vercel SWR</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Zod
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  SWR hooks with mutation support (<code className="text-xs">useSWRMutation</code>), Zod schemas, preserved custom code
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i swr axios zod
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  swr-yup
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Vercel SWR</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Yup
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  SWR hooks with mutation support, Yup schemas, preserved custom code
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i swr axios yup
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  axios-zod
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Axios Client</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Zod
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Standalone typed Axios client instance, Zod schemas, preserved custom code
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i axios zod
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  axios-joi
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Axios Client</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Joi
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Standalone typed Axios client, Joi validation schemas (great for Node.js backends)
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i axios joi
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  fetch-zod
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Native Fetch API</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Zod
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Zero-dependency native fetch client, Zod runtime validation
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i zod
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  rtk-query-zod
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Redux Toolkit Query</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Zod
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  RTK Query API slice definitions with <code className="text-xs">fetchBaseQuery</code>, Zod schemas
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  npm i @reduxjs/toolkit react-redux zod
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  next-fetch
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Next.js (App / Pages router)</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    Disabled
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Server Components-friendly fetch calls with caching headers, validation disabled for zero bundle bloat
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400 italic whitespace-nowrap">
+                  Built-in
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                  python-basic
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                  <span className="font-medium">Python</span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 px-2 py-0.5 rounded text-xs font-mono font-semibold">
+                    N/A
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Generates Python dataclasses / <code className="text-xs">TypedDict</code> types, no TypeScript runtime validation
+                </td>
+                <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  pip install requests
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+          How to Use Presets
+        </h3>
+        
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          <strong>1. Via Setup Wizard:</strong> Run <code className="text-red-600 dark:text-red-400">npx openapi-sync init</code> and select your preset. Questions matching the preset will be automatically configured for you.
+        </p>
+        
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          <strong>2. In JSON Configuration (<code className="text-xs">openapi.sync.json</code>):</strong>
+        </p>
+        <CodeBlock
+          code={`{
+  "$schema": "./node_modules/openapi-sync/openapi.sync.schema.json",
+  "preset": "react-query-zod",
+  "api": {
+    "petstore": "https://petstore3.swagger.io/api/v3/openapi.json"
+  }
+}`}
+          language="json"
+        />
+
+        <p className="text-gray-600 dark:text-gray-300 mb-4 mt-6">
+          <strong>3. In TypeScript (<code className="text-xs">openapi.sync.ts</code>) with <code className="text-xs">defineConfig</code>:</strong>
+        </p>
+        <CodeBlock
+          code={`import { defineConfig } from "openapi-sync";
+
+export default defineConfig({
+  preset: "react-query-zod",
+  api: {
+    petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+  },
+  // Overrides: User values always take precedence over preset defaults
+  folder: "./src/api",
+});`}
+          language="typescript"
+        />
+      </section>
+
       {/* Basic Configuration */}
       <section id="basic-config" className="mb-16">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
@@ -206,6 +484,17 @@ const pet: IPet = {
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">
+                  preset
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  string
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  Pre-configured framework preset (e.g. &quot;react-query-zod&quot;, &quot;swr-zod&quot;). See <a href="#presets" className="text-red-600 dark:text-red-400 hover:underline">Presets</a>.
+                </td>
+              </tr>
+              <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">
                   refetchInterval
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
@@ -251,6 +540,83 @@ const pet: IPet = {
             </tbody>
           </table>
         </div>
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-8">
+          Protected Specs &amp; Authentication
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          OpenAPI Sync can fetch specs protected behind Bearer tokens, Basic auth, API keys, or custom headers.
+        </p>
+
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded mb-6">
+          <p className="text-sm text-amber-800 dark:text-amber-200 font-semibold mb-1">
+            ⚠️ Important for Developers &amp; AI Agents
+          </p>
+          <p className="text-sm text-amber-700 dark:text-amber-300 mb-0">
+            Referencing environment variables for credentials <strong>requires using a TypeScript (<code className="text-xs">openapi.sync.ts</code>) or JavaScript (<code className="text-xs">openapi.sync.js</code>) configuration file</strong>. Static JSON (<code className="text-xs">openapi.sync.json</code>) does not evaluate JavaScript runtime expressions like <code className="text-xs">process.env</code> and will cause JSON syntax errors.
+          </p>
+        </div>
+
+        <CodeBlock
+          code={`// openapi.sync.ts
+import { defineConfig } from "openapi-sync";
+
+export default defineConfig({
+  api: {
+    // 1. Bearer Token
+    billingApi: {
+      url: "https://api.example.com/billing/openapi.json",
+      auth: {
+        type: "bearer",
+        token: process.env.BILLING_API_TOKEN!,
+      },
+    },
+
+    // 2. Basic Auth
+    internalApi: {
+      url: "https://internal.example.com/spec.json",
+      auth: {
+        type: "basic",
+        username: process.env.INTERNAL_USER!,
+        password: process.env.INTERNAL_PASSWORD!,
+      },
+    },
+
+    // 3. API Key in Header or Query
+    analyticsApi: {
+      url: "https://analytics.example.com/openapi.json",
+      auth: {
+        type: "apiKey",
+        in: "header",
+        name: "X-API-Key",
+        value: process.env.ANALYTICS_KEY!,
+      },
+    },
+
+    // 4. Custom Headers
+    customApi: {
+      url: "https://api.example.com/spec.json",
+      auth: {
+        type: "custom",
+        headers: {
+          "X-Organization-Id": "org_12345",
+          "X-Api-Secret": process.env.API_SECRET!,
+        },
+      },
+    },
+
+    // 5. Automatic \${env.VAR} placeholder resolution
+    // (Automatically reads from .env, .env.local, or next.config.js)
+    envResolvedApi: {
+      url: "https://api.example.com/spec.json",
+      auth: {
+        type: "bearer",
+        token: "\${env.SPEC_ACCESS_TOKEN}",
+      },
+    },
+  },
+});`}
+          language="typescript"
+        />
       </section>
 
       {/* Folder Splitting */}
@@ -1515,7 +1881,60 @@ npx openapi-sync generate-client --help`}
         />
 
         <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 mt-8">
-          CLI Improvements (v5.0.0)
+          Non-Interactive Project Initialization
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Initialize openapi-sync non-interactively without stdin prompts — ideal for CI/CD pipelines and AI agent automation. Configure spec authentication directly during initialization:
+        </p>
+        <CodeBlock
+          code={`# Standard non-interactive setup
+npx openapi-sync init --no-interactive \\
+  --api-name petstore \\
+  --api-url https://petstore3.swagger.io/api/v3/openapi.json \\
+  --output-folder ./src/api \\
+  --client-type react-query \\
+  --validation-library zod \\
+  --config-format typescript \\
+  --json
+
+# Initialize with authentication for protected specs
+npx openapi-sync init --no-interactive \\
+  --api-name backend \\
+  --api-url https://api.example.com/openapi.json \\
+  --auth-type bearer \\
+  --auth-token '\${env.SPEC_TOKEN}' \\
+  --preset react-query-zod \\
+  --run-sync \\
+  --json`}
+          language="bash"
+        />
+
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 mt-8">
+          Zero-Config CLI Execution &amp; Config Overrides
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          You can run openapi-sync completely from terminal scripts without creating any configuration file on disk. Pass any property supported by the configuration file via CLI flags:
+        </p>
+        <CodeBlock
+          code={`# Zero-config sync with preset
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --folder ./src/api
+
+# Zero-config sync with protected spec
+npx openapi-sync --api-url https://api.example.com/openapi.json --auth-type bearer --auth-token "$MY_TOKEN" --preset next-fetch
+
+# Multiple APIs via CLI
+npx openapi-sync --api users=https://api.example.com/users.json --api billing=https://api.example.com/billing.json --preset axios-zod
+
+# Override existing disk config properties on-the-fly
+npx openapi-sync --folder ./dist/api --validation-lib yup --no-docs
+
+# Raw JSON configuration via CLI
+npx openapi-sync --config-json '{"api":{"main":"https://api.example.com/spec.json"},"preset":"react-query-zod"}'`}
+          language="bash"
+        />
+
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 mt-8">
+          CLI Improvements
         </h3>
 
         <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
@@ -1605,6 +2024,87 @@ npx openapi-sync --silent && echo "Sync OK!"`}
         </div>
       </section>
 
+      {/* Diagnostic Doctor */}
+      <section id="doctor" className="mb-16">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+          <span>🩺</span> Diagnostic Doctor
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          The <code>doctor</code> command provides automated self-healing and environment diagnostics. It audits your configuration syntax, specification reachability over the network, installed validation peer dependencies (Zod, Yup, Joi), schema cache integrity, and filesystem write permissions.
+        </p>
+
+        <CodeBlock
+          code={`# Run the human-readable diagnostic report
+npx openapi-sync doctor
+
+# Machine-readable output for CI/CD checks or AI agents
+npx openapi-sync doctor --json`}
+          language="bash"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Automated Health Checks Performed
+        </h3>
+        <ul className="list-disc pl-6 space-y-2 text-gray-600 dark:text-gray-300 mb-6">
+          <li><strong>Configuration File:</strong> Verifies that <code>openapi.sync.ts</code>, <code>.js</code>, or <code>.json</code> exists and parses without schema errors.</li>
+          <li><strong>Spec Reachability:</strong> Pings remote URLs with configured authentication or verifies local spec file existence, confirming valid HTTP 200 responses and reachable paths.</li>
+          <li><strong>Peer Dependencies:</strong> Checks whether your configured validation library (<code>zod</code>, <code>yup</code>, or <code>joi</code>) is installed in <code>node_modules</code> and reports version status.</li>
+          <li><strong>Endpoint Cache:</strong> Inspects internal schema store cache integrity to ensure fast subsequent builds.</li>
+          <li><strong>Folder Permissions:</strong> Verifies write access to the configured output directory (e.g. <code>./src/api</code>).</li>
+        </ul>
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+          Structured JSON Health Report
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">
+          When run with <code>--json</code>, <code>doctor</code> outputs a pure JSON object ideal for pre-flight pipeline checks and AI assistants:
+        </p>
+        <CodeBlock
+          code={`{
+  "healthy": true,
+  "checks": [
+    { "name": "Configuration", "status": "ok", "message": "Valid openapi.sync.ts found" },
+    { "name": "Spec Reachability: petstore", "status": "ok", "message": "HTTP 200 OK (20 endpoints discovered)" },
+    { "name": "Peer Dependency: zod", "status": "ok", "message": "zod v3.23.8 installed" },
+    { "name": "Output Directory", "status": "ok", "message": "./src/api is writable" }
+  ],
+  "recommendations": []
+}`}
+          language="json"
+        />
+      </section>
+
+      {/* Stale File Purge */}
+      <section id="purge" className="mb-16">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+          <span>🧹</span> Stale File Purge
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          As your API evolves, endpoints and data models are frequently renamed or deprecated. Standard code generators leave obsolete files behind, causing dead code and broken imports. <code>openapi-sync</code> maintains a manifest at <code>.openapi-sync/manifest.json</code> to track all generated files, allowing you to safely detect and clean up orphaned files.
+        </p>
+
+        <CodeBlock
+          code={`# Preview stale files without deleting anything
+npx openapi-sync purge --dry-run
+
+# Output preview as machine-readable JSON
+npx openapi-sync purge --dry-run --json
+
+# Delete stale files without interactive confirmation (CI & Agent-safe)
+npx openapi-sync purge --yes
+
+# Limit stale cleanup to a specific configured API
+npx openapi-sync purge --api petstore --yes`}
+          language="bash"
+        />
+
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border-l-4 border-emerald-600 dark:border-emerald-500 p-4 rounded mt-4">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            <strong>💡 Pro-Tip:</strong> Run <code>npx openapi-sync purge --dry-run --json</code> inside your CI pipeline to alert developers when previously generated API files need pruning.
+          </p>
+        </div>
+      </section>
+
       {/* Programmatic Usage */}
       <section id="programmatic-usage" className="mb-16">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
@@ -1690,6 +2190,25 @@ const typeDecl = await ReadGeneratedType({
   silent: true,
 });
 console.log(typeDecl);`}
+          language="typescript"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Diagnostic Health Checks &amp; Stale Cleanup
+        </h3>
+        <CodeBlock
+          code={`import { Doctor, Purge } from "openapi-sync";
+
+// 1. Run diagnostic health checks
+const report = await Doctor({ silent: true });
+console.log("System healthy?", report.healthy);
+if (!report.healthy) {
+  console.warn("Recommendations:", report.recommendations);
+}
+
+// 2. Detect and purge stale generated files
+const purgeReport = await Purge({ yes: true, silent: true });
+console.log("Removed stale files:", purgeReport.purged);`}
           language="typescript"
         />
       </section>
@@ -1783,6 +2302,7 @@ console.log(typeDecl);`}
                 ["openapi_sync_read_config", "Read and parse the project's openapi-sync configuration file without executing sync"],
                 ["openapi_sync_sync", "Run the main sync command — generates types, clients, and endpoints"],
                 ["openapi_sync_validate", "Validate your config and OpenAPI specs without writing any files"],
+                ["openapi_sync_doctor", "Run diagnostic health checks on config, specs, peer dependencies, cache, and permissions"],
                 ["openapi_sync_list_endpoints", "List discovered endpoints with tags, pagination, path filtering, and optional cache reuse"],
                 ["openapi_sync_get_endpoint_details", "Return the full stored schema for a single endpoint by operationId or name"],
                 ["openapi_sync_read_generated_type", "Read the exact generated TypeScript interface or type declaration"],
@@ -1817,6 +2337,52 @@ console.log(typeDecl);`}
 # 6. Report back the result as structured JSON`}
           language="bash"
         />
+      </section>
+
+      {/* Error Code Reference */}
+      <section id="error-codes" className="mb-16">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+          <span>⚠️</span> Error Code Reference
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          Every error emitted by <code>openapi-sync</code> belongs to a typed subclass of <code>OpenApiSyncError</code> with a stable machine-readable <code>code</code> string. Whether parsing CLI JSON output or handling errors in TypeScript, applications and AI agents can deterministically branch on error types:
+        </p>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Error Code
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Error Class
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  Description &amp; Suggested Remediation
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {[
+                ["CONFIG_NOT_FOUND", "ConfigNotFoundError", "No openapi.sync config file found in cwd. Run `npx openapi-sync init -y` or pass `--api-url`."],
+                ["CONFIG_PARSE_FAILED", "ConfigParseError", "Configuration file failed to evaluate or parse. Verify TypeScript syntax or ensure referenced environment variables exist."],
+                ["CONFIG_INVALID", "ConfigValidationError", "Configuration contains invalid or missing required properties (e.g. empty `api` map)."],
+                ["SPEC_FETCH_FAILED", "SpecFetchError", "Network error, DNS failure, or HTTP 401/403/404 response. Verify URL or supply credentials via `--auth-type`."],
+                ["SPEC_READ_FAILED", "SpecReadError", "Local OpenAPI specification file could not be found or read. Check relative file path in configuration."],
+                ["SPEC_PARSE_FAILED", "SpecParseError", "Specification is not a valid OpenAPI 3.x or Swagger 2.0 document. Verify syntax with Swagger Editor."],
+                ["GENERATION_FAILED", "GenerationError", "Failed to write generated files to disk. Ensure the destination directory has write permissions."],
+                ["UNKNOWN_API", "UnknownApiError", "Target API specified via `--api <name>` was not found in your configuration file."],
+              ].map(([code, cls, desc]) => (
+                <tr key={code} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <td className="px-4 py-3 text-sm font-mono text-red-600 dark:text-red-400 font-semibold">{code}</td>
+                  <td className="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 text-xs">{cls}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Troubleshooting */}

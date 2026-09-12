@@ -4,6 +4,8 @@ Short, actionable guidance to help automated coding agents (Copilot / AI assista
 
 Keep suggestions small and focused. Reference the files below when changing behavior and always run tests after edits.
 
+If you were asked to fix DX / agent-path issues from the 2026-09-12 E2E review, start at repo-root `AGENT_FIX_BRIEF.md`. OAS-1–13 are live-verified (06:55). Remaining work is P2 + playground OAS-P1.
+
 ## Big picture
 - Core library: `Openapi-sync/` — TypeScript implementation. Primary entry: `Openapi-sync/index.ts`.
 - CLI: `bin/cli.js` — shipped binary name is `openapi-sync` (see `package.json` -> `bin`).

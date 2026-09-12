@@ -48,20 +48,22 @@ All commands support `--json` (machine-readable stdout) and exit codes:
 | `npx openapi-sync get-endpoint` | Inspect one endpoint in full detail by operationId or name |
 | `npx openapi-sync read-type` | Read one generated TypeScript interface/type declaration |
 | `npx openapi-sync generate-client --type <TYPE>` | Generate typed API client |
+| `npx openapi-sync purge --yes` | Detect and remove stale generated files without prompts |
 | `npx openapi-sync init --no-interactive [FLAGS]` | Create config file without prompts |
 
 ### Model Context Protocol (MCP) Server
 
-Run via `npx openapi-sync-mcp` or `openapi-sync-mcp`. Exposes 9 tools for AI agents:
-1. `openapi_sync_validate`: Validate config & specs without writing files.
+Run via `npx openapi-sync-mcp` or `openapi-sync-mcp`. Exposes 10 tools for AI agents:
+1. `openapi_sync_validate`: Validate config & specs without writing files (supports auth and config overrides).
 2. `openapi_sync_doctor`: Run full diagnostic health checks and return structured reports.
 3. `openapi_sync_list_endpoints`: List all endpoints with optional tag/path filters and pagination.
 4. `openapi_sync_get_endpoint_details`: Retrieve full parameter and response schemas for a specific endpoint.
 5. `openapi_sync_read_generated_type`: Read exact TypeScript declarations with optional `offset`/`maxLines` pagination.
 6. `openapi_sync_sync`: Run full sync generation.
-7. `openapi_sync_generate_client`: Generate typed Fetch/Axios/React Query/SWR/RTK Query clients.
-8. `openapi_sync_init`: Create typed openapi.sync configuration without user prompts.
-9. `openapi_sync_read_config`: Inspect active configuration file content.
+7. `openapi_sync_generate_client`: Generate typed Fetch/Next Fetch/Axios/React Query/SWR/RTK Query clients.
+8. `openapi_sync_init`: Create typed openapi.sync configuration without user prompts (default output folder: project root `""`).
+9. `openapi_sync_purge`: Detect and remove stale generated files (supports `dryRun` and `yes`).
+10. `openapi_sync_read_config`: Inspect active configuration file content.
 
 ### Interactive-only (requires human stdin — NOT safe for agents)
 
@@ -86,23 +88,31 @@ Run via `npx openapi-sync-mcp` or `openapi-sync-mcp`. Exposes 9 tools for AI age
 | `--api-name` | `"myapi"` | API key in config |
 | `--api-url` | — | URL to OpenAPI spec |
 | `--api-file` | — | Path to local spec file |
-| `--output-folder` | `"./src/api"` | Generated files output |
+| `--output-folder` | `""` (project root) | Generated files output (alias: `--folder`, `-f`) |
 | `--config-format` | `"typescript"` | `typescript`, `json`, `javascript` |
 | `--client-type` | — | `react-query`, `swr`, `fetch`, `axios`, `rtk-query` |
-| `--validation-library` | — | `zod`, `yup`, `joi` |
-| `--folder-split` | `false` | Organise by OpenAPI tags |
-| `--types-prefix` | `"I"` | TS interface name prefix |
+| `--validation-library` | — | `zod`, `yup`, `joi` (alias: `--validation-lib`) |
+| `--folder-split` | `false` | Organise by OpenAPI tags (alias: `--split-by-tags`) |
+| `--types-prefix` | `"I"` | TS interface name prefix (alias: `--type-prefix`) |
 | `--use-operation-id` | `true` | Use operationId for names |
 | `--exclude-tags` | — | Comma-separated tags to exclude |
-| `--show-curl` | `true` | Include cURL in JSDoc |
+| `--show-curl` | `false` | Include cURL in JSDoc |
 | `--refetch-interval` | `0` | Auto-refetch ms (0=disabled) |
 | `--run-sync` | `false` | Run sync after config creation |
+| `--auth-type` | — | Authentication type (`bearer`, `basic`, `apiKey`, `custom`) |
+| `--auth-token` | — | Bearer token / password / auth value |
+| `--auth-username` | — | Username for basic auth |
+| `--auth-password` | — | Password for basic auth |
+| `--auth-name` | `"X-API-Key"` | Header or query parameter name for API key |
+| `--auth-value` | — | API key value |
+| `--auth-in` | `"header"` | API key location (`header` or `query`) |
+| `--auth-header` | — | Custom header string (`Key: Value`) |
 
 ### `generate-client` flags
 
 | Flag | Alias | Description |
 |------|-------|-------------|
-| `--type` | `-t` | Client type (required) |
+| `--type` | `-t` | Client type (`fetch`, `next-fetch`, `axios`, `react-query`, `swr`, `rtk-query`) (required) |
 | `--api` | `-a` | Specific API from config |
 | `--tags` | | Filter endpoints by tags |
 | `--endpoints` | `-e` | Filter by endpoint names |
@@ -141,19 +151,47 @@ Run via `npx openapi-sync-mcp` or `openapi-sync-mcp`. Exposes 9 tools for AI age
 | `--api` | API name from the config |
 | `--type-name` | Exported interface/type name to read |
 
+### `purge` flags
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--yes` | `-y` | Delete stale files without confirmation prompt |
+| `--dry-run` | | Preview which files would be deleted |
+| `--api` | `-a` | Limit purge check to a specific API |
+
+### Zero-Config CLI Execution (No config file on disk needed)
+
+AI agents can run `openapi-sync` immediately without creating a configuration file:
+
+```bash
+# Sync with preset and direct spec URL
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --folder ./src/api --json
+
+# Protected spec via CLI auth flags
+npx openapi-sync --api-url https://api.example.com/openapi.json --auth-type bearer --auth-token "$TOKEN" --preset next-fetch --json
+
+# Multiple APIs inline
+npx openapi-sync --api users=https://api.example.com/users.json --api billing=https://api.example.com/billing.json --preset axios-zod --json
+
+# Full inline JSON config
+npx openapi-sync --config-json '{"api":{"main":"https://api.example.com/spec.json"},"preset":"react-query-zod"}' --json
+```
+
 
 ## MCP TOOLS
 
 OpenAPI Sync also ships a built-in MCP server (`npx openapi-sync-mcp`) for agent workflows. Long-running MCP calls reuse cached endpoints by default when available.
 
 - `openapi_sync_read_config`
-- `openapi_sync_sync`
-- `openapi_sync_validate`
-- `openapi_sync_list_endpoints` (supports pagination, path filters, and `useCache`)
+- `openapi_sync_validate` (accepts auth & config overrides)
+- `openapi_sync_doctor`
+- `openapi_sync_list_endpoints` (supports pagination, path filters, auth, and `useCache`)
 - `openapi_sync_get_endpoint_details`
 - `openapi_sync_read_generated_type`
-- `openapi_sync_generate_client`
-- `openapi_sync_init`
+- `openapi_sync_sync`
+- `openapi_sync_generate_client` (supports `next-fetch`, `dryRun`, `verbose`, tags, endpoints, outputDir, baseUrl)
+- `openapi_sync_purge` (supports `dryRun` and `yes`)
+- `openapi_sync_init` (first-class auth, `runSync`, default folder `""`)
 
 
 ## PROGRAMMATIC API
@@ -166,6 +204,7 @@ import {
   GenerateClient,      // Generate typed API client
   ValidateConfig,      // Pre-flight check (no file writes)
   Doctor,              // Diagnostic health checks
+  Purge,               // Detect and clean stale generated files
   ListEndpoints,       // Inspect API surface (no file writes)
   GetEndpointDetails,  // Read one endpoint in full detail
   ReadGeneratedType,   // Read one generated TypeScript declaration
@@ -241,6 +280,14 @@ Agent-safe. Returns the matched generated declaration block.
 const declaration = await ReadGeneratedType({ apiName: "petstore", typeName: "Pet" });
 ```
 
+### Purge(options?) → Promise<{ success: boolean; purged: string[]; message?: string }>
+Agent-safe. Compares disk files against manifest and deletes orphaned code.
+
+```typescript
+const purgeReport = await Purge({ yes: true, silent: true });
+// purgeReport: { success: true, purged: ["src/api/petstore/deleted_endpoint.ts"] }
+```
+
 ### InteractiveInit() → Promise<void>
 NOT agent-safe — blocks on stdin prompts.
 Use CLI `init --no-interactive` instead.
@@ -294,7 +341,7 @@ export default config;
 | Field | Type | Description |
 |-------|------|-------------|
 | `api` | `Record<string, string>` | **Required.** Map of API name → spec URL or file path |
-| `folder` | `string` | Output folder (default: `"api"`) |
+| `folder` | `string` | Output folder (default: `""` project root) |
 | `language` | `"typescript"\|"python"` | Output language |
 | `refetchInterval` | `number` | Auto-refetch ms |
 | `folderSplit.byTags` | `boolean` | Split output by OpenAPI tags |
@@ -302,6 +349,31 @@ export default config;
 | `clientGeneration.type` | string | Client type to generate |
 | `clientGeneration.baseURL` | `string` | Base URL for generated client |
 | `endpoints.exclude.tags` | `string[]` | Tags to exclude from generation |
+
+### Protected Specs & Stored Auth (`auth`)
+
+Protected OpenAPI specs can be fetched using Bearer tokens, Basic auth, API keys, or custom headers.
+
+> ⚠️ **CRITICAL INSTRUCTION FOR AI AGENTS & HUMANS:**
+> Whenever authentication credentials or environment variables are needed, you **MUST use a TypeScript (`openapi.sync.ts`) or JavaScript (`openapi.sync.js`) config file** (`--config-format typescript`).
+> **DO NOT write `process.env.VAR` inside a static `openapi.sync.json` file** — JSON does not evaluate JavaScript and will fail with a JSON parse error.
+
+```typescript
+// openapi.sync.ts
+import { defineConfig } from "openapi-sync";
+
+export default defineConfig({
+  api: {
+    protectedApi: {
+      url: "https://api.example.com/openapi.json",
+      auth: {
+        type: "bearer",
+        token: process.env.MY_API_TOKEN!, // safe, dynamic, never hardcoded
+      },
+    },
+  },
+});
+```
 
 
 ## STRUCTURED RETURN TYPES
@@ -360,7 +432,7 @@ type EndpointSummary = {
 When `folderSplit.byTags` is true, types/endpoints/validations are split into
 tag-named subdirectories (`{tag}/endpoints.ts`, `{tag}/types.ts`, `shared.ts`).
 When `folderSplit` is omitted or empty (`{}`), generation defaults to flat mode (`endpoints.ts`, `types/index.ts`, `types/shared.ts`).
-Custom `clientGeneration.outputDir` is fully supported with folder splitting, generating tag client subdirectories with relative imports back to types.
+Custom `clientGeneration.outputDir` (or CLI `--output`) is fully supported in both flat and folder-split layouts, with automatic relative import resolution back to generated types and endpoints.
 
 
 ## ERROR CODES (typed errors)
@@ -384,6 +456,7 @@ All error classes extend `OpenApiSyncError` and expose `.code`, `.message`, and 
 ### Workflow 1: First-time setup
 
 ```bash
+# Public spec:
 npx openapi-sync init --no-interactive \
   --api-name myapi \
   --api-url https://api.example.com/openapi.json \
@@ -392,6 +465,19 @@ npx openapi-sync init --no-interactive \
   --validation-library zod \
   --config-format typescript \
   --json
+
+# Protected spec (configure auth directly on init to prevent 401):
+npx openapi-sync init --no-interactive \
+  --api-name myapi \
+  --api-url https://api.example.com/openapi.json \
+  --output-folder ./src/api \
+  --client-type react-query \
+  --validation-library zod \
+  --config-format typescript \
+  --auth-type bearer \
+  --auth-token '${env.SPEC_TOKEN}' \
+  --json
+
 npx openapi-sync validate --json
 npx openapi-sync --json
 npx openapi-sync generate-client --type react-query --json
@@ -421,4 +507,17 @@ if (!syncResult.success) throw new Error(JSON.stringify(syncResult));
 
 const clientResult = await GenerateClient({ type: "axios", silent: true });
 console.log(JSON.stringify(clientResult));
+```
+
+### Workflow 4: Diagnostic health check & stale file cleanup
+
+```bash
+# 1. Diagnose environment and spec reachability
+npx openapi-sync doctor --json
+
+# 2. Preview any stale files before removal
+npx openapi-sync purge --dry-run --json
+
+# 3. Clean up stale files safely
+npx openapi-sync purge --yes --json
 ```

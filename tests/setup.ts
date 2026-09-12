@@ -32,6 +32,7 @@ jest.mock("axios", () => ({
   create: jest.fn(() => ({
     get: jest.fn(),
   })),
+  get: jest.fn(),
 }));
 
 // Mock axios-retry
