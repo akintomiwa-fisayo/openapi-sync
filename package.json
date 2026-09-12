@@ -1,7 +1,7 @@
 {
 	"name": "openapi-sync",
-	"version": "6.3.2",
-	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
+	"version": "6.4.0",
+	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Next.js Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
 	"types": "dist/index.d.ts",
@@ -98,6 +98,7 @@
 	},
 	"scripts": {
 		"build": "rm -rf dist && tsup",
+		"prepublishOnly": "npm test && npm run build",
 		"publish-package": "npm test && npm run build && npm publish",
 		"test": "jest",
 		"test:coverage": "jest --coverage"
@@ -127,7 +128,7 @@
 		"curl-generator": "^0.4.2",
 		"esbuild": "0.28.1",
 		"esbuild-register": "^3.6.0",
-		"js-yaml": "^4.1.0",
+		"js-yaml": "^4.3.2",
 		"lodash.get": "^4.4.2",
 		"lodash.isequal": "^4.5.0",
 		"prompts": "^2.4.2",

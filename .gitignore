@@ -8,6 +8,10 @@ db.json
 .openapi-sync
 .openapi-sync-eval
 openapi.sync.json
+openapi.sync.ts
+openapi.sync.js
+openapi.sync.cjs
+openapi.sync.mjs
 TODO.md
 var
 src

@@ -17,7 +17,7 @@ export const makeLogger = (silent: boolean): ProgressLogger => ({
     if (!silent) console.error(...args);
   },
   warn: (...args: unknown[]) => {
-    if (!silent) console.warn(...args);
+    if (!silent) console.error(...args);
   },
   error: (...args: unknown[]) => {
     if (!silent) console.error(...args);

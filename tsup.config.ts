@@ -26,7 +26,7 @@ export default defineConfig({
     // Remove pure function calls
     options.pure = [
       "console.log",
-      "console.warn",
+      // "console.warn",
       // "console.error",
       // "console.info",
       "console.debug",

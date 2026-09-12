@@ -210,10 +210,11 @@ export const generateFetchClient = (
   config: IConfigClientGeneration,
   exportAsDefault: boolean = false
 ): string => {
+  const isNext = Boolean(config.next || (config as any).type === "next-fetch");
   const baseURL = config.baseURL || "";
   const authConfig = config.auth;
 
-  let content = `// Generated Fetch API Client\n`;
+  let content = isNext ? `// Generated Next.js Fetch Client\n` : `// Generated Fetch API Client\n`;
   content += `// This file was auto-generated. Add custom code in the marked sections.\n\n`;
 
   // Generate types import
@@ -238,10 +239,26 @@ export const generateFetchClient = (
   });
   content += `} from '../endpoints';\n\n`;
 
+  if (isNext) {
+    content += `export interface NextFetchRequestConfig {\n`;
+    content += `  revalidate?: number | false;\n`;
+    content += `  tags?: string[];\n`;
+    content += `}\n\n`;
+    content += `export interface NextFetchOptions {\n`;
+    content += `  cache?: RequestCache;\n`;
+    content += `  next?: NextFetchRequestConfig;\n`;
+    content += `  headers?: Record<string, string>;\n`;
+    content += `}\n\n`;
+  }
+
   // Generate config interface
   content += `export interface ApiConfig {\n`;
   content += `  baseURL?: string;\n`;
   content += `  headers?: Record<string, string>;\n`;
+  if (isNext) {
+    content += `  cache?: RequestCache;\n`;
+    content += `  next?: NextFetchRequestConfig;\n`;
+  }
   if (authConfig) {
     content += `  auth?: {\n`;
     if (authConfig.type === "bearer") {
@@ -282,7 +299,9 @@ export const generateFetchClient = (
   // Generate helper function
   content += `async function fetchAPI<T>(\n`;
   content += `  url: string,\n`;
-  content += `  options: RequestInit = {}\n`;
+  content += isNext
+    ? `  options: RequestInit & { next?: NextFetchRequestConfig } = {}\n`
+    : `  options: RequestInit = {}\n`;
   content += `): Promise<T> {\n`;
   content += `  const headers: Record<string, string> = {\n`;
   content += `    'Content-Type': 'application/json',\n`;
@@ -310,10 +329,21 @@ export const generateFetchClient = (
     }
   }
 
-  content += `  const response = await fetch(\`\${globalConfig.baseURL}\${url}\`, {\n`;
-  content += `    ...options,\n`;
-  content += `    headers,\n`;
-  content += `  });\n\n`;
+  if (isNext) {
+    content += `  const nextConfig = options.next || globalConfig.next;\n`;
+    content += `  const cacheConfig = options.cache || globalConfig.cache;\n`;
+    content += `  const response = await fetch(\`\${globalConfig.baseURL}\${url}\`, {\n`;
+    content += `    ...options,\n`;
+    content += `    headers,\n`;
+    content += `    ...(cacheConfig ? { cache: cacheConfig } : {}),\n`;
+    content += `    ...(nextConfig ? { next: nextConfig } : {}),\n`;
+    content += `  });\n\n`;
+  } else {
+    content += `  const response = await fetch(\`\${globalConfig.baseURL}\${url}\`, {\n`;
+    content += `    ...options,\n`;
+    content += `    headers,\n`;
+    content += `  });\n\n`;
+  }
 
   content += `  if (!response.ok) {\n`;
   if (config.errorHandling?.generateErrorClasses) {
@@ -341,7 +371,9 @@ export const generateFetchClient = (
     const hasPathParams = pathParams.length > 0;
     const hasQueryParams = queryParams.length > 0;
     const hasBody = !!endpoint.requestBody;
+    const hasParams = hasPathParams || hasQueryParams || hasBody;
     const responseType = endpoint.responseType || "any";
+    const optionsType = isNext ? "NextFetchOptions" : "RequestInit";
 
     // Generate function signature
     content += `/**\n`;
@@ -358,7 +390,7 @@ export const generateFetchClient = (
     content += `export async function ${funcName}(`;
 
     // Build structured params type
-    if (hasPathParams || hasQueryParams || hasBody) {
+    if (hasParams) {
       content += `params: {\n`;
 
       if (hasPathParams) {
@@ -387,13 +419,13 @@ export const generateFetchClient = (
         content += `  data: ${endpoint.dtoType || "any"};\n`;
       }
 
-      content += `}\n`;
+      content += `}, options?: ${optionsType}): Promise<${responseType}> {\n`;
+    } else {
+      content += `options?: ${optionsType}): Promise<${responseType}> {\n`;
     }
 
-    content += `): Promise<${responseType}> {\n`;
-
     // Destructure params if needed
-    if (hasPathParams || hasQueryParams || hasBody) {
+    if (hasParams) {
       const destructuredParts: string[] = [];
       if (hasPathParams) destructuredParts.push("url");
       if (hasQueryParams) destructuredParts.push("query");
@@ -431,6 +463,7 @@ export const generateFetchClient = (
     // Make request
     content += `  return fetchAPI<${responseType}>(_url, {\n`;
     content += `    method: '${endpoint.method.toUpperCase()}',\n`;
+    content += `    ...(options || {}),\n`;
     if (hasBody) {
       content += `    body: JSON.stringify(data),\n`;
     }
@@ -715,7 +748,9 @@ export const generateReactQueryHooks = (
   const enableInfinite = !!(
     config.reactQuery &&
     config.reactQuery.infiniteQueries &&
-    !config.reactQuery.infiniteQueries.disable
+    (typeof config.reactQuery.infiniteQueries === "boolean"
+      ? config.reactQuery.infiniteQueries
+      : !config.reactQuery.infiniteQueries.disable)
   );
 
   let content = `// Generated React Query Hooks\n`;

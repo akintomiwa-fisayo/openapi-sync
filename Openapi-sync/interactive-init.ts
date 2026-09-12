@@ -2,9 +2,11 @@ import prompts from "prompts";
 import fs from "fs";
 import path from "path";
 import { makeLogger } from "../logger";
+import { PRESETS, PresetName } from "./presets";
 
 interface InitAnswers {
   configFormat: "json" | "typescript" | "javascript";
+  preset?: string;
   apiSource: "url" | "file";
   apiUrl?: string;
   apiFile?: string;
@@ -27,6 +29,36 @@ interface InitAnswers {
 
 const isTestEnvironment =
   process.env.NODE_ENV === "test" || process.env.JEST_WORKER_ID !== undefined;
+
+export function serializeObjectToTs(obj: any, indentLevel = 0): string {
+  const indent = " ".repeat(indentLevel);
+  const nextIndent = " ".repeat(indentLevel + 2);
+
+  if (obj === null) return "null";
+  if (obj === undefined) return "undefined";
+  if (typeof obj === "string") return JSON.stringify(obj);
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return "[]";
+    const items = obj.map((item) => `${nextIndent}${serializeObjectToTs(item, indentLevel + 2)}`).join(",\n");
+    return `[\n${items}\n${indent}]`;
+  }
+
+  if (typeof obj === "object") {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return "{}";
+    const props = keys.map((key) => {
+      const isValidIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
+      const formattedKey = isValidIdentifier ? key : JSON.stringify(key);
+      const val = serializeObjectToTs(obj[key], indentLevel + 2);
+      return `${nextIndent}${formattedKey}: ${val}`;
+    }).join(",\n");
+    return `{\n${props}\n${indent}}`;
+  }
+
+  return JSON.stringify(obj);
+}
 
 /**
  * Interactive CLI wizard for creating OpenAPI Sync configuration
@@ -103,11 +135,11 @@ export async function interactiveInit(): Promise<void> {
         {
           type: "text",
           name: "outputFolder",
-          message: "Where should generated files be saved?",
-          initial: "./src/api",
+          message: "Where should generated files be saved? (empty for project root)",
+          initial: "",
           validate: (value: string) => {
             if (!value || value.trim() === "") {
-              return "Output folder cannot be empty";
+              return true;
             }
 
             // Prevent dangerous root paths
@@ -117,7 +149,7 @@ export async function interactiveInit(): Promise<void> {
               normalizedPath === "C:\\" ||
               normalizedPath === "\\"
             ) {
-              return "Cannot use filesystem root directory. Please use a project subfolder like './src/api'";
+              return "Cannot use filesystem root directory. Please use a project subfolder or project root ''";
             }
 
             // Warn about absolute paths outside project
@@ -132,19 +164,83 @@ export async function interactiveInit(): Promise<void> {
           },
         },
         {
-          type: "confirm",
+          type: "select",
+          name: "preset",
+          message: "Choose a preset (or 'none' to configure manually):",
+          choices: [
+            {
+              title: "none (configure manually)",
+              description: "Skip preset — configure client, validations, and naming options by hand",
+              value: null,
+            },
+            {
+              title: "react-query-zod (React Query v5 + Zod)",
+              description: "TanStack React Query v5 hooks, Zod validation schemas, mutation hooks",
+              value: "react-query-zod",
+            },
+            {
+              title: "react-query-yup (React Query v5 + Yup)",
+              description: "TanStack React Query v5 hooks, Yup validation schemas, mutation hooks",
+              value: "react-query-yup",
+            },
+            {
+              title: "swr-zod (SWR + Zod)",
+              description: "Vercel SWR hooks with mutation support, Zod validation schemas",
+              value: "swr-zod",
+            },
+            {
+              title: "swr-yup (SWR + Yup)",
+              description: "Vercel SWR hooks with mutation support, Yup validation schemas",
+              value: "swr-yup",
+            },
+            {
+              title: "axios-zod (Axios + Zod)",
+              description: "Standalone typed Axios client instance, Zod validation schemas",
+              value: "axios-zod",
+            },
+            {
+              title: "axios-joi (Axios + Joi)",
+              description: "Standalone typed Axios client, Joi validation schemas (Node.js/backend)",
+              value: "axios-joi",
+            },
+            {
+              title: "fetch-zod (Fetch + Zod)",
+              description: "Zero-dependency native Fetch API client, Zod validation schemas",
+              value: "fetch-zod",
+            },
+            {
+              title: "rtk-query-zod (RTK Query + Zod)",
+              description: "Redux Toolkit Query API slice with fetchBaseQuery, Zod validation",
+              value: "rtk-query-zod",
+            },
+            {
+              title: "next-fetch (Next.js Fetch)",
+              description: "Next.js App Router Fetch client without runtime validation bundle overhead",
+              value: "next-fetch",
+            },
+            {
+              title: "python-basic (Python Dataclasses)",
+              description: "Python dataclass types and endpoint constants (no TypeScript validation)",
+              value: "python-basic",
+            },
+          ],
+          initial: 0,
+          limit: 12,
+        },
+        {
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "enableFolderSplit",
           message: "Organize generated code into folders by OpenAPI tags?",
           initial: false,
         },
         {
-          type: "confirm",
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "generateClient",
           message: "Generate API client code?",
           initial: true,
         },
         {
-          type: (prev) => (prev ? "select" : null),
+          type: (prev, answers) => (!answers.preset && answers.generateClient ? "select" : null),
           name: "clientType",
           message: "Which client type would you like?",
           choices: [
@@ -160,13 +256,13 @@ export async function interactiveInit(): Promise<void> {
           initial: 0,
         },
         {
-          type: "confirm",
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "enableValidation",
           message: "Enable runtime validation schemas?",
           initial: true,
         },
         {
-          type: (prev) => (prev ? "select" : null),
+          type: (prev, answers) => (!answers.preset && answers.enableValidation ? "select" : null),
           name: "validationLibrary",
           message: "Which validation library?",
           choices: [
@@ -177,48 +273,48 @@ export async function interactiveInit(): Promise<void> {
           initial: 0,
         },
         {
-          type: "confirm",
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "enableCustomCode",
           message: "Enable custom code preservation?",
           initial: true,
         },
         {
-          type: "confirm",
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "typesUseOperationId",
           message: "Use operationId from OpenAPI spec for type names?",
           initial: true,
         },
         {
-          type: "text",
+          type: (prev, answers) => (answers.preset ? null : "text"),
           name: "typesPrefix",
           message:
             "Prefix for TypeScript interface names (leave empty for none):",
           initial: "I",
         },
         {
-          type: "confirm",
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "excludeEndpointsByTags",
           message: "Exclude endpoints by tags (e.g., deprecated, internal)?",
           initial: false,
         },
         {
-          type: (prev) => (prev ? "text" : null),
+          type: (prev, answers) => (!answers.preset && answers.excludeEndpointsByTags ? "text" : null),
           name: "excludeTags",
           message: "Enter tags to exclude (comma-separated):",
           initial: "deprecated,internal",
         },
         {
-          type: "confirm",
+          type: (prev, answers) => (answers.preset ? null : "confirm"),
           name: "showCurlInDocs",
           message: "Include cURL examples in generated documentation?",
-          initial: true,
+          initial: false,
         },
         {
-          type: "number",
+          type: (prev, answers) => (answers.preset ? null : "number"),
           name: "refetchInterval",
           message:
             "Refetch interval in milliseconds (0 to disable auto-refresh):",
-          initial: 5000,
+          initial: 0,
           min: 0,
         },
         {
@@ -242,78 +338,94 @@ export async function interactiveInit(): Promise<void> {
     // Generate configuration object
     const config: any = {
       refetchInterval: answers.refetchInterval || undefined,
-      folder: answers.outputFolder,
+      folder: answers.outputFolder ?? "",
       api: {
         [answers.apiName]: answers.apiUrl || answers.apiFile,
       },
     };
 
-    // Add folder split config (automatically enable byTags when folder splitting is enabled)
-    if (answers.enableFolderSplit) {
-      config.folderSplit = {
-        byTags: true,
-      };
-    }
-
-    // Add types config
-    config.types = {
-      name: {
-        prefix: answers.typesPrefix || "",
-        useOperationId: answers.typesUseOperationId,
-      },
-    };
-
-    // Add endpoints config
-    config.endpoints = {
-      name: {
-        useOperationId: answers.typesUseOperationId,
-      },
-      doc: {
-        showCurl: answers.showCurlInDocs,
-      },
-    };
-
-    // Add endpoint exclusions
-    if (answers.excludeEndpointsByTags && answers.excludeTags) {
-      config.endpoints.exclude = {
-        tags: answers.excludeTags.split(",").map((tag: string) => tag.trim()),
-      };
-    }
-
-    // Add client generation config
-    if (answers.generateClient && answers.clientType) {
-      config.clientGeneration = {
-        enabled: true,
-        type: answers.clientType,
-        outputDir: path.join(answers.outputFolder, answers.apiName, "client"),
-      };
-
-      // Add framework-specific configs
-      if (answers.clientType === "react-query") {
-        config.clientGeneration.reactQuery = {
-          version: 5,
-          mutations: true,
-        };
-      } else if (answers.clientType === "swr") {
-        config.clientGeneration.swr = {
-          mutations: true,
+    if (answers.preset) {
+      config.preset = answers.preset;
+      if (answers.enableFolderSplit) {
+        config.folderSplit = {
+          byTags: true,
         };
       }
-    }
+      if (answers.excludeEndpointsByTags && answers.excludeTags) {
+        config.endpoints = {
+          exclude: {
+            tags: answers.excludeTags.split(",").map((tag: string) => tag.trim()),
+          },
+        };
+      }
+    } else {
+      // Add folder split config (automatically enable byTags when folder splitting is enabled)
+      if (answers.enableFolderSplit) {
+        config.folderSplit = {
+          byTags: true,
+        };
+      }
 
-    // Add validation config
-    if (answers.enableValidation && answers.validationLibrary) {
-      config.validations = {
-        library: answers.validationLibrary,
+      // Add types config
+      config.types = {
+        name: {
+          prefix: answers.typesPrefix || "",
+          useOperationId: answers.typesUseOperationId,
+        },
       };
-    }
 
-    // Add custom code config
-    if (answers.enableCustomCode) {
-      config.customCode = {
-        enabled: true,
-        position: "bottom",
+      // Add endpoints config
+      config.endpoints = {
+        name: {
+          useOperationId: answers.typesUseOperationId,
+        },
+        doc: {
+          showCurl: answers.showCurlInDocs,
+        },
       };
+
+      // Add endpoint exclusions
+      if (answers.excludeEndpointsByTags && answers.excludeTags) {
+        config.endpoints.exclude = {
+          tags: answers.excludeTags.split(",").map((tag: string) => tag.trim()),
+        };
+      }
+
+      // Add client generation config
+      if (answers.generateClient && answers.clientType) {
+        config.clientGeneration = {
+          enabled: true,
+          type: answers.clientType,
+          outputDir: path.join(answers.outputFolder, answers.apiName, "client"),
+        };
+
+        // Add framework-specific configs
+        if (answers.clientType === "react-query") {
+          config.clientGeneration.reactQuery = {
+            version: 5,
+            mutations: true,
+          };
+        } else if (answers.clientType === "swr") {
+          config.clientGeneration.swr = {
+            mutations: true,
+          };
+        }
+      }
+
+      // Add validation config
+      if (answers.enableValidation && answers.validationLibrary) {
+        config.validations = {
+          library: answers.validationLibrary,
+        };
+      }
+
+      // Add custom code config
+      if (answers.enableCustomCode) {
+        config.customCode = {
+          enabled: true,
+          position: "bottom",
+        };
+      }
     }
 
     // Generate config file content
@@ -330,11 +442,9 @@ export async function interactiveInit(): Promise<void> {
     } else if (answers.configFormat === "typescript") {
       configFileName = "openapi.sync.ts";
       configContent = `// @see node_modules/openapi-sync/openapi.sync.schema.json
-import { IConfig } from "openapi-sync";
+import { defineConfig } from "openapi-sync";
 
-const config: IConfig = ${JSON.stringify(config, null, 2)};
-
-export default config;
+export default defineConfig(${serializeObjectToTs(config, 0)});
 `;
     } else {
       // javascript
@@ -373,22 +483,24 @@ module.exports = ${JSON.stringify(config, null, 2)};
     }
 
     // Create output folder if it doesn't exist
-    const outputFolderPath = path.isAbsolute(answers.outputFolder)
-      ? answers.outputFolder
-      : path.join(process.cwd(), answers.outputFolder);
+    if (answers.outputFolder && answers.outputFolder.trim() !== "") {
+      const outputFolderPath = path.isAbsolute(answers.outputFolder)
+        ? answers.outputFolder
+        : path.join(process.cwd(), answers.outputFolder);
 
-    if (!fs.existsSync(outputFolderPath)) {
-      try {
-        fs.mkdirSync(outputFolderPath, { recursive: true });
-        if (!isTestEnvironment) {
-          console.log(`✅ Created output folder: ${answers.outputFolder}\n`);
-        }
-      } catch (error: any) {
-        if (!isTestEnvironment) {
-          console.warn(`⚠️  Could not create output folder: ${error.message}`);
-          console.warn(
-            `   The folder will be created automatically during sync.\n`
-          );
+      if (!fs.existsSync(outputFolderPath)) {
+        try {
+          fs.mkdirSync(outputFolderPath, { recursive: true });
+          if (!isTestEnvironment) {
+            console.log(`✅ Created output folder: ${answers.outputFolder}\n`);
+          }
+        } catch (error: any) {
+          if (!isTestEnvironment) {
+            console.warn(`⚠️  Could not create output folder: ${error.message}`);
+            console.warn(
+              `   The folder will be created automatically during sync.\n`
+            );
+          }
         }
       }
     }
@@ -413,26 +525,46 @@ module.exports = ${JSON.stringify(config, null, 2)};
       console.log("📚 Next steps:\n");
       console.log(`   1. Review the configuration in ${configFileName}`);
 
-      if (answers.generateClient && answers.clientType) {
-        console.log(`   2. Install client dependencies:`);
-        if (answers.clientType === "axios") {
-          console.log(`      npm install axios`);
-        } else if (answers.clientType === "react-query") {
-          console.log(`      npm install @tanstack/react-query`);
-        } else if (answers.clientType === "swr") {
-          console.log(`      npm install swr`);
-        } else if (answers.clientType === "rtk-query") {
-          console.log(`      npm install @reduxjs/toolkit react-redux`);
+      if (answers.preset) {
+        const presetInstallMap: Record<string, string> = {
+          "react-query-zod": "npm install @tanstack/react-query axios zod",
+          "react-query-yup": "npm install @tanstack/react-query axios yup",
+          "swr-zod": "npm install swr axios zod",
+          "swr-yup": "npm install swr axios yup",
+          "axios-zod": "npm install axios zod",
+          "axios-joi": "npm install axios joi",
+          "fetch-zod": "npm install zod",
+          "rtk-query-zod": "npm install @reduxjs/toolkit react-redux zod",
+          "next-fetch": "",
+          "python-basic": "pip install requests",
+        };
+        const installCmd = presetInstallMap[answers.preset];
+        if (installCmd) {
+          console.log(`   2. Install preset dependencies:`);
+          console.log(`      ${installCmd}`);
         }
-      }
+      } else {
+        if (answers.generateClient && answers.clientType) {
+          console.log(`   2. Install client dependencies:`);
+          if (answers.clientType === "axios") {
+            console.log(`      npm install axios`);
+          } else if (answers.clientType === "react-query") {
+            console.log(`      npm install @tanstack/react-query`);
+          } else if (answers.clientType === "swr") {
+            console.log(`      npm install swr`);
+          } else if (answers.clientType === "rtk-query") {
+            console.log(`      npm install @reduxjs/toolkit react-redux`);
+          }
+        }
 
-      if (answers.enableValidation && answers.validationLibrary) {
-        console.log(
-          `   ${
-            answers.generateClient ? "3" : "2"
-          }. Install validation library:`
-        );
-        console.log(`      npm install ${answers.validationLibrary}`);
+        if (answers.enableValidation && answers.validationLibrary) {
+          console.log(
+            `   ${
+              answers.generateClient ? "3" : "2"
+            }. Install validation library:`
+          );
+          console.log(`      npm install ${answers.validationLibrary}`);
+        }
       }
     }
 
@@ -443,22 +575,33 @@ module.exports = ${JSON.stringify(config, null, 2)};
       try {
         // Import and run the sync
         const { Init, GenerateClient } = await import("../index");
-        await Init({
+        const initResult = await Init({
           refetchInterval: answers.refetchInterval,
         });
 
-        // Generate client if enabled
-        if (answers.generateClient && answers.clientType) {
-          console.log("\n🚀 Generating API client...\n");
-          await GenerateClient({
-            type: answers.clientType,
-            apiName: answers.apiName,
-          });
-        }
+        if (!initResult.success) {
+          console.error("\n❌ Error during sync:");
+          if (initResult.errors?.length) {
+            initResult.errors.forEach((e) => console.error(`   ${e}`));
+          }
+          console.log(
+            "\n⚠️  Configuration was created successfully, but sync failed."
+          );
+          console.log("   You can run sync manually with: npx openapi-sync\n");
+        } else {
+          // Generate client if enabled
+          if (answers.generateClient && answers.clientType) {
+            console.log("\n🚀 Generating API client...\n");
+            await GenerateClient({
+              type: answers.clientType,
+              apiName: answers.apiName,
+            });
+          }
 
-        console.log(
-          "\n✨ Setup complete! Your API types and client are ready to use.\n"
-        );
+          console.log(
+            "\n✨ Setup complete! Your API types and client are ready to use.\n"
+          );
+        }
       } catch (syncError: any) {
         console.error("\n❌ Error during sync:", syncError.message);
         console.log(
@@ -530,11 +673,17 @@ module.exports = ${JSON.stringify(config, null, 2)};
  * @public
  */
 export interface NonInteractiveInitOptions {
+  /** Optional preset name (e.g. "react-query-zod") */
+  preset?: string;
   /** API name used as the key in `config.api` (e.g. `"petstore"`) */
   apiName: string;
   /** URL or local file path to the OpenAPI spec */
-  apiSource: string;
-  /** Output folder for generated files (default: `"./src/api"`) */
+  apiSource?: string;
+  /** Direct URL to OpenAPI spec */
+  apiUrl?: string;
+  /** Path to local OpenAPI spec file */
+  apiFile?: string;
+  /** Output folder for generated files (default: `""` project root) */
   outputFolder?: string;
   /** Config file format (default: `"typescript"`) */
   configFormat?: "typescript" | "json" | "javascript";
@@ -550,7 +699,7 @@ export interface NonInteractiveInitOptions {
   useOperationId?: boolean;
   /** Tags to exclude from generation */
   excludeTags?: string[];
-  /** Include cURL examples in generated docs (default: `true`) */
+  /** Include cURL examples in generated docs (default: `false`) */
   showCurl?: boolean;
   /** Auto-refetch interval in milliseconds (omit to disable) */
   refetchInterval?: number;
@@ -558,6 +707,24 @@ export interface NonInteractiveInitOptions {
   runSync?: boolean;
   /** Suppress all console output (default: `false`) */
   silent?: boolean;
+  /** Spec authentication type (bearer, basic, apiKey, custom) */
+  authType?: "bearer" | "basic" | "apiKey" | "custom";
+  /** Auth token or password */
+  authToken?: string;
+  /** Basic auth username */
+  authUsername?: string;
+  /** Basic auth password */
+  authPassword?: string;
+  /** API key header or param name */
+  authName?: string;
+  /** API key secret value */
+  authValue?: string;
+  /** API key location (header or query) */
+  authIn?: "header" | "query";
+  /** Header name or 'Key: Value' string for custom auth */
+  authHeader?: string;
+  /** Full auth configuration object if pre-constructed */
+  auth?: import("../types").ISpecAuth;
 }
 
 /**
@@ -579,19 +746,22 @@ export interface NonInteractiveInitOptions {
  *
  * @public
  */
-export async function nonInteractiveInit(
-  opts: NonInteractiveInitOptions,
+export const nonInteractiveInit = async (
+  opts: NonInteractiveInitOptions
 ): Promise<{
   success: boolean;
   configFile: string;
   message: string;
   errors: string[];
   nextSteps?: string[];
-}> {
+}> => {
+  const silent = opts.silent ?? false;
+  const log = makeLogger(silent);
+  const errors: string[] = [];
+
   const {
     apiName,
-    apiSource,
-    outputFolder = "./src/api",
+    outputFolder = "",
     configFormat = "typescript",
     clientType,
     validationLibrary,
@@ -599,61 +769,135 @@ export async function nonInteractiveInit(
     typesPrefix = "I",
     useOperationId = true,
     excludeTags = [],
-    showCurl = true,
+    showCurl = false,
     refetchInterval,
     runSync = false,
-    silent = false,
   } = opts;
 
-  const log = makeLogger(silent);
+  const apiSource = opts.apiSource || opts.apiUrl || opts.apiFile || "";
 
-  const errors: string[] = [];
+  // ── Construct config object ───────────────────────────────────────────────
+  const apiEntry = (() => {
+    if (opts.auth) {
+      return { url: apiSource, auth: opts.auth };
+    }
+    if (opts.authType) {
+      if (opts.authType === "bearer") {
+        return { url: apiSource, auth: { type: "bearer", token: opts.authToken || "" } };
+      } else if (opts.authType === "basic") {
+        return {
+          url: apiSource,
+          auth: {
+            type: "basic",
+            username: opts.authUsername || "",
+            password: opts.authPassword || opts.authToken || "",
+          },
+        };
+      } else if (opts.authType === "apiKey") {
+        return {
+          url: apiSource,
+          auth: {
+            type: "apiKey",
+            in: opts.authIn || "header",
+            name: opts.authName || opts.authHeader || "X-API-Key",
+            value: opts.authValue || opts.authToken || "",
+          },
+        };
+      } else if (opts.authType === "custom") {
+        if (opts.authHeader && opts.authHeader.includes(":")) {
+          const idx = opts.authHeader.indexOf(":");
+          return {
+            url: apiSource,
+            auth: {
+              type: "custom",
+              headers: { [opts.authHeader.slice(0, idx).trim()]: opts.authHeader.slice(idx + 1).trim() },
+            },
+          };
+        }
+        return {
+          url: apiSource,
+          auth: {
+            type: "custom",
+            headers: opts.authHeader ? { [opts.authHeader]: opts.authToken || "" } : {},
+          },
+        };
+      }
+    }
+    return apiSource;
+  })();
 
-  // ── Build config object ──────────────────────────────────────────────────
   const config: any = {
     folder: outputFolder,
-    api: { [apiName]: apiSource },
+    api: { [apiName]: apiEntry },
   };
 
-  if (refetchInterval && refetchInterval > 0) {
-    config.refetchInterval = refetchInterval;
-  }
-
-  if (folderSplit) {
-    config.folderSplit = { byTags: true };
-  }
-
-  config.types = {
-    name: { prefix: typesPrefix, useOperationId },
-  };
-
-  config.endpoints = {
-    name: { useOperationId },
-    doc: { showCurl },
-  };
-
-  if (excludeTags.length > 0) {
-    config.endpoints.exclude = { tags: excludeTags };
-  }
-
-  if (clientType) {
-    config.clientGeneration = {
-      enabled: true,
-      type: clientType,
-      outputDir: path.join(outputFolder, apiName, "client"),
-    };
-    if (clientType === "react-query") {
-      config.clientGeneration.reactQuery = { version: 5, mutations: true };
-    } else if (clientType === "swr") {
-      config.clientGeneration.swr = { mutations: true };
+  if (opts.preset) {
+    config.preset = opts.preset;
+    if (folderSplit) {
+      config.folderSplit = { byTags: true };
     }
-  }
+    if (refetchInterval && refetchInterval > 0) {
+      config.refetchInterval = refetchInterval;
+    }
+    if (excludeTags.length > 0) {
+      config.endpoints = { exclude: { tags: excludeTags } };
+    }
+    if (clientType) {
+      config.clientGeneration = {
+        enabled: true,
+        type: clientType,
+        outputDir: path.join(outputFolder, apiName, "client"),
+      };
+      if (clientType === "react-query") {
+        config.clientGeneration.reactQuery = { version: 5, mutations: true };
+      } else if (clientType === "swr") {
+        config.clientGeneration.swr = { mutations: true };
+      }
+    }
+    if (validationLibrary) {
+      config.validations = { library: validationLibrary };
+    }
+  } else {
+    if (refetchInterval && refetchInterval > 0) {
+      config.refetchInterval = refetchInterval;
+    }
 
-  if (validationLibrary) {
-    config.validations = { library: validationLibrary };
-  }
+    if (folderSplit) {
+      config.folderSplit = { byTags: true };
+    }
 
-  config.customCode = { enabled: true, position: "bottom" };
+    config.types = {
+      name: { prefix: typesPrefix, useOperationId },
+    };
+
+    config.endpoints = {
+      name: { useOperationId },
+      doc: { showCurl },
+    };
+
+    if (excludeTags.length > 0) {
+      config.endpoints.exclude = { tags: excludeTags };
+    }
+
+    if (clientType) {
+      config.clientGeneration = {
+        enabled: true,
+        type: clientType,
+        outputDir: path.join(outputFolder, apiName, "client"),
+      };
+      if (clientType === "react-query") {
+        config.clientGeneration.reactQuery = { version: 5, mutations: true };
+      } else if (clientType === "swr") {
+        config.clientGeneration.swr = { mutations: true };
+      }
+    }
+
+    if (validationLibrary) {
+      config.validations = { library: validationLibrary };
+    }
+
+    config.customCode = { enabled: true, position: "bottom" };
+  }
 
   // ── Serialise to chosen format ───────────────────────────────────────────
   let configContent: string;
@@ -670,9 +914,8 @@ export async function nonInteractiveInit(
     configFileName = "openapi.sync.ts";
     configContent =
       `// @see node_modules/openapi-sync/openapi.sync.schema.json\n` +
-      `import { IConfig } from "openapi-sync";\n\n` +
-      `const config: IConfig = ${JSON.stringify(config, null, 2)};\n\n` +
-      `export default config;\n`;
+      `import { defineConfig } from "openapi-sync";\n\n` +
+      `export default defineConfig(${serializeObjectToTs(config, 0)});\n`;
   } else {
     configFileName = "openapi.sync.js";
     configContent =
@@ -698,34 +941,67 @@ export async function nonInteractiveInit(
   }
 
   // ── Create output folder (best-effort) ───────────────────────────────────
-  const absOutput = path.isAbsolute(outputFolder)
-    ? outputFolder
-    : path.join(process.cwd(), outputFolder);
-  if (!fs.existsSync(absOutput)) {
-    try { fs.mkdirSync(absOutput, { recursive: true }); } catch { /* ok */ }
+  if (outputFolder && outputFolder.trim() !== "") {
+    const absOutput = path.isAbsolute(outputFolder)
+      ? outputFolder
+      : path.join(process.cwd(), outputFolder);
+    if (!fs.existsSync(absOutput)) {
+      try { fs.mkdirSync(absOutput, { recursive: true }); } catch { /* ok */ }
+    }
   }
+
+  const resolvedClientType =
+    clientType || (opts.preset && PRESETS[opts.preset as PresetName]?.clientGeneration?.type);
+  const clientWillBeGenerated = !!(
+    resolvedClientType ||
+    (config.clientGeneration && config.clientGeneration.enabled && config.clientGeneration.type)
+  );
 
   // ── Optionally run initial sync ──────────────────────────────────────────
   if (runSync) {
     log.log("\n🔄 Running initial sync...");
     try {
-      const { Init, GenerateClient } = await import("../index");
-      await Init({ silent });
-      if (clientType) {
-        await GenerateClient({ type: clientType, apiName, silent });
+      const { Init } = await import("../index");
+      const syncResult = await Init({ silent });
+      if (!syncResult.success) {
+        if (syncResult.errors && syncResult.errors.length > 0) {
+          errors.push(...syncResult.errors);
+        } else {
+          errors.push("Initial sync failed to generate files.");
+        }
+      } else {
+        log.log("✅ Sync complete.");
       }
-      log.log("✅ Sync complete.");
     } catch (err: any) {
       errors.push(`Sync failed: ${err.message}`);
     }
   }
 
-  const checklist = [
-    "1. Validate:       npx openapi-sync validate",
-    "2. Sync:           npx openapi-sync",
-    clientType ? `3. Client:         npx openapi-sync generate-client --type ${clientType}` : undefined,
-    "4. Health Check:   npx openapi-sync doctor",
-  ].filter(Boolean) as string[];
+  const rawSteps: { label: string; cmd: string }[] = [
+    { label: "Validate:      ", cmd: "npx openapi-sync validate" },
+    {
+      label: "Sync:          ",
+      cmd: clientWillBeGenerated
+        ? "npx openapi-sync (types + client)"
+        : "npx openapi-sync",
+    },
+  ];
+
+  if (resolvedClientType) {
+    rawSteps.push({
+      label: "Client:        ",
+      cmd: `npx openapi-sync generate-client --type ${resolvedClientType}`,
+    });
+  }
+
+  rawSteps.push({
+    label: "Health Check:  ",
+    cmd: "npx openapi-sync doctor",
+  });
+
+  const checklist = rawSteps.map(
+    (step, index) => `${index + 1}. ${step.label} ${step.cmd}`
+  );
 
   if (!silent && !isTestEnvironment) {
     log.log("📋 First-run checklist:");
@@ -733,10 +1009,14 @@ export async function nonInteractiveInit(
     log.log("");
   }
 
-  const message =
-    errors.length === 0
-      ? `Config created: ${configFileName}. Run \`npx openapi-sync\` to generate types.`
-      : `Config created with errors (${errors.length}).`;
+  let message: string;
+  if (errors.length > 0) {
+    message = `Config created: ${configFileName}, but initial sync failed (${errors.length} error${errors.length > 1 ? "s" : ""}).`;
+  } else if (runSync) {
+    message = `Config created: ${configFileName}. Files generated successfully.`;
+  } else {
+    message = `Config created: ${configFileName}. Run \`npx openapi-sync\` to generate ${clientWillBeGenerated ? "types and clients" : "types"}.`;
+  }
 
   log.log(`\n${message}\n`);
 

@@ -173,10 +173,15 @@ describe("Phase 5: Evaluation Feedback & Hardening", () => {
 
     it("should support CLI doctor command with --json", () => {
       const cliPath = path.resolve(__dirname, "../bin/cli.js");
-      const output = execSync(`node "${cliPath}" doctor --json`, {
-        cwd: path.resolve(__dirname, ".."),
-        encoding: "utf-8",
-      });
+      let output: string;
+      try {
+        output = execSync(`node "${cliPath}" doctor --json`, {
+          cwd: path.resolve(__dirname, ".."),
+          encoding: "utf-8",
+        });
+      } catch (err: any) {
+        output = err.stdout?.toString() || "";
+      }
       const parsed = JSON.parse(output);
       expect(parsed).toBeDefined();
       expect(parsed.checks).toBeDefined();

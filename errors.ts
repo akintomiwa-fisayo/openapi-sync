@@ -124,16 +124,33 @@ export class SpecFetchError extends OpenApiSyncError {
   readonly code = "SPEC_FETCH_FAILED" as const;
   readonly url: string;
   readonly statusCode?: number;
+  readonly status?: number;
+  readonly recovery?: string;
 
-  constructor(url: string, cause: unknown, statusCode?: number) {
+  constructor(url: string, cause: unknown, statusCode?: number, recovery?: string) {
     const causeMsg = cause instanceof Error ? cause.message : String(cause);
+    const resolvedStatus =
+      statusCode ??
+      (cause && typeof cause === "object" && "response" in cause && (cause as any).response?.status
+        ? (cause as any).response.status
+        : (causeMsg.includes("401") ? 401 : (causeMsg.includes("403") ? 403 : undefined)));
+
+    let defaultRecovery = recovery;
+    if (!defaultRecovery && (resolvedStatus === 401 || resolvedStatus === 403)) {
+      defaultRecovery =
+        "Spec requires authentication. Provide credentials via 'auth' in openapi.sync config (e.g. auth: { type: 'bearer', token: '...' }), CLI flags (--auth-type bearer --auth-token <token> | --auth-type basic | --auth-type apiKey | --auth-type custom), or use --prompt-auth.";
+    }
+
     super(
       `Failed to fetch OpenAPI spec from "${url}": ${causeMsg}` +
-        (statusCode ? ` (HTTP ${statusCode})` : "")
+        (resolvedStatus ? ` (HTTP ${resolvedStatus})` : "") +
+        (defaultRecovery ? `\nRecovery: ${defaultRecovery}` : "")
     );
     this.name = "SpecFetchError";
     this.url = url;
-    this.statusCode = statusCode;
+    this.statusCode = resolvedStatus;
+    this.status = resolvedStatus;
+    this.recovery = defaultRecovery;
   }
 
   override toJSON() {
@@ -141,6 +158,8 @@ export class SpecFetchError extends OpenApiSyncError {
       ...super.toJSON(),
       url: this.url,
       ...(this.statusCode !== undefined && { statusCode: this.statusCode }),
+      ...(this.status !== undefined && { status: this.status }),
+      ...(this.recovery !== undefined && { recovery: this.recovery }),
     };
   }
 }

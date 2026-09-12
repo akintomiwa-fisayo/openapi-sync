@@ -24,6 +24,7 @@ const sections: NavSection[] = [
       { id: "introduction", label: "Introduction" },
       { id: "installation", label: "Installation" },
       { id: "quick-start", label: "Quick Start" },
+      { id: "presets", label: "Presets", icon: "⚡" },
     ],
   },
   {
@@ -76,6 +77,8 @@ const sections: NavSection[] = [
     title: "Usage & CLI",
     links: [
       { id: "cli-usage", label: "CLI Commands" },
+      { id: "doctor", label: "Diagnostic Doctor", icon: "🩺" },
+      { id: "purge", label: "Stale File Purge", icon: "🧹" },
       { id: "programmatic-usage", label: "Programmatic API" },
       { id: "mcp-integration", label: "AI Agent (MCP)", icon: "🤖" },
     ],
@@ -83,6 +86,7 @@ const sections: NavSection[] = [
   {
     title: "Resources",
     links: [
+      { id: "error-codes", label: "Error Code Reference", icon: "⚠️" },
       { id: "api-reference", label: "API Reference" },
       { id: "troubleshooting", label: "Troubleshooting" },
       { id: "changelog", label: "Changelog" },

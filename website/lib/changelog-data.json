@@ -1,5 +1,22 @@
 [
   {
+    "version": "6.4.0",
+    "date": "2026-09-12",
+    "type": "minor",
+    "changes": [
+      "default output folder is now project root (\"\"), writing directly to ./<apiName>/ without artificial nesting",
+      "preserve empty baseURL by default in generated clients without unintended URL inference",
+      "add next-fetch preset and client generation with Next.js App Router caching headers and revalidation",
+      "add openapi_sync_purge MCP tool and expose complete auth flags and CLI overrides across all 10 MCP tools",
+      "support full CLI spec authentication flags (--auth-type, --auth-token, etc.) across init, sync, validate, and doctor",
+      "ensure manifest tracks client type switches to prevent purge from deleting active client files",
+      "ensure list-endpoints and get-endpoint inspection commands are side-effect free and never write source code",
+      "provide actionable recovery guidance and SPEC_FETCH_FAILED error codes for 401/403 protected specs",
+      "support CLI flag aliases across all commands (--output-folder / --folder, --validation-library / --validation-lib)",
+      "support boolean or object format for infiniteQueries configuration"
+    ]
+  },
+  {
     "version": "6.3.2",
     "date": "2026-08-17",
     "type": "patch",

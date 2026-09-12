@@ -2,24 +2,27 @@ import path from "path";
 import fs from "fs";
 import axios from "axios";
 import SwaggerParser from "@apidevtools/swagger-parser";
-import { IConfig, ValidationResult } from "../types";
+import { IApiSource, IConfig, ISpecAuth, ValidationResult } from "../types";
 import { isJson, yamlStringToJson } from "../helpers";
+import { buildAuthConfig, extractApiUrl, extractApiAuth } from "./spec-auth";
+import { SpecFetchError } from "../errors";
 
 const rootUsingCwd = process.cwd();
 
 import { tryLoadConfig } from "./config-loader";
+import { makeLogger } from "../logger";
 
 /**
  * Load and return the raw config object from disk.
  * Shared with index.ts's loadConfig but kept internal here to avoid circular deps.
  * @internal
  */
-const loadConfigForValidation = (): {
+const loadConfigForValidation = (cliArgs?: Record<string, any>): {
   config: IConfig | null;
   errors: string[];
 } => {
-  const result = tryLoadConfig();
-  if (!result.foundPath || !result.config) {
+  const result = tryLoadConfig(undefined, cliArgs);
+  if (!result.config) {
     return {
       config: null,
       errors: [result.error || "No openapi.sync configuration file found."],
@@ -34,17 +37,27 @@ const loadConfigForValidation = (): {
  * @internal
  */
 const validateSpec = async (
-  apiUrl: string,
+  apiSource: IApiSource,
   apiName: string
-): Promise<{ endpointCount: number; error?: string }> => {
+): Promise<{
+  endpointCount: number;
+  error?: string;
+  code?: string;
+  status?: number;
+  url?: string;
+  recovery?: string;
+}> => {
   let specData: any;
+  const apiUrl = extractApiUrl(apiSource);
 
   try {
+    const specAuth = extractApiAuth(apiSource);
     const isUrl =
       apiUrl.startsWith("http://") || apiUrl.startsWith("https://");
 
     if (isUrl) {
-      const response = await axios.get(apiUrl, { timeout: 15000 });
+      const authConfig = buildAuthConfig(specAuth);
+      const response = await axios.get(apiUrl, { timeout: 15000, ...authConfig });
       specData = response.data;
     } else {
       const filePath = path.isAbsolute(apiUrl)
@@ -55,6 +68,18 @@ const validateSpec = async (
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    const isUrl = apiUrl.startsWith("http://") || apiUrl.startsWith("https://");
+    if (isUrl) {
+      const fetchErr = new SpecFetchError(apiUrl, err);
+      return {
+        endpointCount: 0,
+        error: `Could not fetch/read spec: ${msg}`,
+        code: fetchErr.code,
+        status: fetchErr.status,
+        url: apiUrl,
+        recovery: fetchErr.recovery,
+      };
+    }
     return { endpointCount: 0, error: `Could not fetch/read spec: ${msg}` };
   }
 
@@ -71,7 +96,7 @@ const validateSpec = async (
   let endpointCount = 0;
   const paths = spec?.paths || {};
   for (const pathKey of Object.keys(paths)) {
-    const methods = ["get", "post", "put", "patch", "delete", "head", "options"];
+    const methods = ["get", "post", "put", "patch", "delete", "head", "options", "trace"];
     for (const method of methods) {
       if (paths[pathKey]?.[method]) endpointCount++;
     }
@@ -96,11 +121,12 @@ const validateSpec = async (
  */
 export const validateConfig = async (options?: {
   silent?: boolean;
+  auth?: ISpecAuth;
+  config?: IConfig;
+  cliArgs?: Record<string, any>;
 }): Promise<ValidationResult> => {
   const silent = options?.silent ?? false;
-  const log = silent
-    ? { log: () => {}, warn: () => {}, error: () => {} }
-    : { log: console.log, warn: console.warn, error: console.error };
+  const log = makeLogger(silent);
 
   const result: ValidationResult = {
     valid: false,
@@ -109,7 +135,14 @@ export const validateConfig = async (options?: {
   };
 
   // ── 1. Load and validate config file ──────────────────────────────────────
-  const { config, errors: configErrors } = loadConfigForValidation();
+  let config: IConfig | null = options?.config || null;
+  let configErrors: string[] = [];
+
+  if (!config) {
+    const loaded = loadConfigForValidation(options?.cliArgs);
+    config = loaded.config;
+    configErrors = loaded.errors;
+  }
 
   if (configErrors.length > 0) {
     result.configErrors = configErrors;
@@ -142,18 +175,35 @@ export const validateConfig = async (options?: {
 
   await Promise.all(
     apiNames.map(async (apiName) => {
-      const apiUrl = config.api[apiName];
+      let apiSource = config.api[apiName];
+      if (options?.auth) {
+        const url = extractApiUrl(apiSource);
+        apiSource = { url, auth: options.auth };
+      }
+      const apiUrl = extractApiUrl(apiSource);
       log.log(`  🔎 ${apiName}: ${apiUrl}`);
 
-      const { endpointCount, error } = await validateSpec(apiUrl, apiName);
+      const specResult = await validateSpec(apiSource, apiName);
 
-      if (error) {
-        result.apis[apiName] = { valid: false, endpointCount: 0, operationCount: 0, error };
-        log.error(`  ❌ ${apiName}: ${error}`);
+      if (specResult.error) {
+        result.apis[apiName] = {
+          valid: false,
+          endpointCount: 0,
+          operationCount: 0,
+          error: specResult.error,
+          ...(specResult.code && { code: specResult.code }),
+          ...(specResult.status !== undefined && { status: specResult.status }),
+          ...(specResult.url && { url: specResult.url }),
+          ...(specResult.recovery && { recovery: specResult.recovery }),
+        };
+        log.error(`  ❌ ${apiName}: ${specResult.error}`);
+        if (specResult.recovery) {
+          log.warn(`     💡 Recovery: ${specResult.recovery}`);
+        }
         allValid = false;
       } else {
-        result.apis[apiName] = { valid: true, endpointCount, operationCount: endpointCount };
-        log.log(`  ✅ ${apiName}: ${endpointCount} endpoint(s) found`);
+        result.apis[apiName] = { valid: true, endpointCount: specResult.endpointCount, operationCount: specResult.endpointCount };
+        log.log(`  ✅ ${apiName}: ${specResult.endpointCount} endpoint(s) found`);
       }
     })
   );

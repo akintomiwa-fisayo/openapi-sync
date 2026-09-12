@@ -11,6 +11,88 @@
       "type": "string",
       "description": "JSON Schema reference (for editor autocomplete)"
     },
+    "preset": {
+      "type": "string",
+      "description": "Apply a named preset with opinionated defaults for a specific framework. User values always override preset values.",
+      "enum": [
+        "react-query-zod",
+        "react-query-yup",
+        "swr-zod",
+        "swr-yup",
+        "axios-zod",
+        "axios-joi",
+        "fetch-zod",
+        "rtk-query-zod",
+        "next-fetch",
+        "python-basic"
+      ],
+      "enumDescriptions": [
+        "React Query v5 + Zod schemas + Axios client hooks with mutations",
+        "React Query v5 + Yup schemas + Axios client hooks with mutations",
+        "SWR + Zod schemas + Axios client hooks with mutations",
+        "SWR + Yup schemas + Axios client hooks with mutations",
+        "Axios client + Zod validation schemas",
+        "Axios client + Joi validation schemas",
+        "Fetch API client + Zod validation schemas",
+        "Redux Toolkit Query + Zod validation schemas",
+        "Next.js App Router compatible fetch client + Zod validation",
+        "Python dataclass types + requests client generation"
+      ],
+      "markdownEnumDescriptions": [
+        "**React Query v5** + **Zod** validation + Axios client hooks with mutations",
+        "**React Query v5** + **Yup** validation + Axios client hooks with mutations",
+        "**SWR** + **Zod** validation + Axios client hooks with mutations",
+        "**SWR** + **Yup** validation + Axios client hooks with mutations",
+        "**Axios** client + **Zod** validation schemas",
+        "**Axios** client + **Joi** validation schemas",
+        "**Fetch API** client + **Zod** validation schemas",
+        "**Redux Toolkit Query** + **Zod** validation schemas",
+        "**Next.js** App Router compatible fetch client + Zod validation",
+        "**Python** dataclass types + requests client generation"
+      ],
+      "oneOf": [
+        {
+          "const": "react-query-zod",
+          "description": "React Query v5 + Zod schemas + Axios client hooks with mutations"
+        },
+        {
+          "const": "react-query-yup",
+          "description": "React Query v5 + Yup schemas + Axios client hooks with mutations"
+        },
+        {
+          "const": "swr-zod",
+          "description": "SWR + Zod schemas + Axios client hooks with mutations"
+        },
+        {
+          "const": "swr-yup",
+          "description": "SWR + Yup schemas + Axios client hooks with mutations"
+        },
+        {
+          "const": "axios-zod",
+          "description": "Axios client + Zod validation schemas"
+        },
+        {
+          "const": "axios-joi",
+          "description": "Axios client + Joi validation schemas"
+        },
+        {
+          "const": "fetch-zod",
+          "description": "Fetch API client + Zod validation schemas"
+        },
+        {
+          "const": "rtk-query-zod",
+          "description": "Redux Toolkit Query + Zod validation schemas"
+        },
+        {
+          "const": "next-fetch",
+          "description": "Next.js App Router compatible fetch client + Zod validation"
+        },
+        {
+          "const": "python-basic",
+          "description": "Python dataclass types + requests client generation"
+        }
+      ]
+    },
     "language": {
       "type": "string",
       "enum": ["typescript", "python"],
@@ -24,16 +106,75 @@
     },
     "folder": {
       "type": "string",
-      "default": "api",
-      "description": "Root output folder for all generated files (relative to project root)"
+      "default": "",
+      "description": "Root output folder for all generated files (relative to project root, default: \"\" project root)"
     },
     "api": {
       "type": "object",
-      "description": "Map of API names to their OpenAPI spec URLs or local file paths. At least one entry is required.",
+      "description": "Map of API names to their OpenAPI spec sources. Each source can be a URL string, a local file path, or an object with auth configuration.",
       "minProperties": 1,
       "additionalProperties": {
-        "type": "string",
-        "description": "URL (https://...) or relative file path to the OpenAPI spec (JSON or YAML)"
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "URL or local file path to the OpenAPI spec (no auth)"
+          },
+          {
+            "type": "object",
+            "required": ["url"],
+            "additionalProperties": false,
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL or local file path to the OpenAPI spec"
+              },
+              "auth": {
+                "description": "Authentication for fetching this spec URL",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["type", "token"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": { "type": "string", "enum": ["bearer"] },
+                      "token": { "type": "string", "description": "Use ${env.VAR_NAME} to read from environment" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["type", "username", "password"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": { "type": "string", "enum": ["basic"] },
+                      "username": { "type": "string" },
+                      "password": { "type": "string" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["type", "in", "name", "value"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": { "type": "string", "enum": ["apiKey"] },
+                      "in": { "type": "string", "enum": ["header", "query"] },
+                      "name": { "type": "string" },
+                      "value": { "type": "string" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["type", "headers"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": { "type": "string", "enum": ["custom"] },
+                      "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
       },
       "examples": [
         { "petstore": "https://petstore3.swagger.io/api/v3/openapi.json" },
@@ -49,7 +190,7 @@
     },
     "folderSplit": {
       "type": "object",
-      "description": "Controls how generated files are organized into sub-folders",
+      "description": "Controls how generated files are organized into sub-folders. When omitted or empty ({}), files are placed directly in the API folder. When byTags is true, endpoints are organized into tag subfolders (untagged endpoints default to default/).",
       "additionalProperties": false,
       "properties": {
         "byTags": {
@@ -146,7 +287,7 @@
         },
         "outputDir": {
           "type": "string",
-          "description": "Output directory for generated client files"
+          "description": "Output directory for generated client files. In folder-split mode, tag clients are written to {outputDir}/{tag}/client.ts and aggregated at {outputDir}/clients.ts with relative imports pointing to generated types and endpoints."
         },
         "baseURL": {
           "type": "string",
@@ -187,11 +328,17 @@
               "description": "Generate mutation hooks for POST/PUT/PATCH/DELETE"
             },
             "infiniteQueries": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "disable": { "type": "boolean" }
-              }
+              "description": "Enable infinite query hooks for paginated endpoints (boolean or object with disable property)",
+              "oneOf": [
+                { "type": "boolean" },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "disable": { "type": "boolean" }
+                  }
+                }
+              ]
             }
           }
         },
@@ -205,11 +352,17 @@
               "default": true
             },
             "infiniteQueries": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "disable": { "type": "boolean" }
-              }
+              "description": "Enable infinite query hooks for paginated endpoints (boolean or object with disable property)",
+              "oneOf": [
+                { "type": "boolean" },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "disable": { "type": "boolean" }
+                  }
+                }
+              ]
             }
           }
         },
@@ -281,7 +434,10 @@
           "additionalProperties": false,
           "properties": {
             "disable": { "type": "boolean" },
-            "showCurl": { "type": "boolean" }
+            "showCurl": {
+              "type": "boolean",
+              "description": "Include a cURL example in the generated JSDoc (default: false)"
+            }
           }
         }
       }
@@ -329,7 +485,7 @@
             "disable": { "type": "boolean" },
             "showCurl": {
               "type": "boolean",
-              "description": "Include a cURL example in the generated JSDoc for each endpoint"
+              "description": "Include a cURL example in the generated JSDoc for each endpoint (default: false)"
             }
           }
         },
