@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -7,7 +7,12 @@ import ThemeProvider from "@/components/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  themeColor: "#020817",
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://openapi-sync.com"),
   title:
     "OpenAPI Sync - Automate API Documentation, Types, Clients & Validation",
   description:
@@ -38,6 +43,31 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
+  openGraph: {
+    title: "OpenAPI Sync - Automate Types, Clients & Validation",
+    description:
+      "A powerful developer tool that automates TypeScript types, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), and runtime validation schemas from your OpenAPI specs.",
+    url: "https://openapi-sync.com",
+    siteName: "OpenAPI Sync",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "OpenAPI Sync - Automate Types, Clients & Validation",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OpenAPI Sync - Automate Types, Clients & Validation",
+    description:
+      "Automate TypeScript types, fully-typed clients, and runtime validation schemas from your OpenAPI specifications.",
+    images: ["/og-image.png"],
   },
 };
 
