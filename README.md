@@ -786,23 +786,64 @@ For complete documentation including:
 
 ## 🔌 MCP Server (Model Context Protocol)
 
-`openapi-sync` ships a built-in MCP server that exposes all operations as **structured tool calls**. AI agents (Claude Desktop, Cursor, Copilot, and any MCP-compatible host) can call sync, validate, and generate operations directly — no CLI parsing needed.
+`openapi-sync` ships with a complete Model Context Protocol (MCP) server. AI agents (Claude Desktop, Cursor, Windsurf, Zed, and any MCP-compatible client) can query endpoints, inspect schemas, read generated types, and execute syncs directly via **type-safe tool calls over stdio** — without pasting entire 5MB–15MB specs into prompt context.
 
-### Starting the server
+The MCP server is published both as part of `openapi-sync` and as a dedicated zero-install companion package on npm: [**`openapi-sync-mcp`**](https://www.npmjs.com/package/openapi-sync-mcp).
+
+[![npm version](https://img.shields.io/npm/v/openapi-sync-mcp.svg)](https://www.npmjs.com/package/openapi-sync-mcp)
+[![smithery badge](https://smithery.ai/badge/openapi-sync-mcp)](https://smithery.ai/server/openapi-sync-mcp)
+[![Install in Cursor](https://img.shields.io/badge/Cursor-Add%20to%20Cursor-blue?logo=cursor)](cursor://anysphere.cursor-deeplink/mcp/install?name=openapi-sync&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9wZW5hcGktc3luYy1tY3AiXX0=)
+
+### 4 Ways Users & Agents Can Access OpenAPI Sync
+
+| Method | Command / Import | Best For |
+| :--- | :--- | :--- |
+| **1. Standalone MCP Package** | `npx openapi-sync-mcp` | Claude Desktop, Cursor, Windsurf, Zed configs (zero workspace install needed) |
+| **2. Main CLI MCP Subcommand** | `npx openapi-sync mcp` | When `openapi-sync` is already in your `devDependencies` or global PATH |
+| **3. Agent-Safe CLI (`--json`)** | `npx openapi-sync <cmd> --json` | Autonomous agents with bash/terminal access (Cursor Agent, Claude Code, Antigravity) |
+| **4. Programmatic Node / ESM** | `require("openapi-sync/mcp")` | Custom orchestration scripts, internal developer portals, and CI bots |
+
+---
+
+### Starting the Server
 
 ```bash
-# Via npx (no global install required — recommended)
+# Option A: Via standalone companion package (recommended for agent configs)
 npx openapi-sync-mcp
 
-# Or if installed globally
+# Option B: Via main CLI (if openapi-sync is installed)
+npx openapi-sync mcp
+
+# Option C: If installed globally
 openapi-sync-mcp
 ```
 
-> The server uses **stdio transport** — it reads JSON-RPC from stdin and writes responses to stdout. The `cwd` of the process is used as the project root for all operations.
+> **Transport:** The server uses **stdio transport** — it reads JSON-RPC from stdin and writes responses to stdout. The working directory (`cwd`) of the process is used as the project root for reading and writing files.
 
-### Claude Desktop configuration
+---
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+### Host Configuration Guides
+
+#### 1. Cursor Configuration
+Create or update `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+*Or add it globally via **Cursor Settings** → **Features** → **MCP** → **+ Add New MCP Server**.*
+
+#### 2. Claude Desktop Configuration
+Edit your configuration file:
+* **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+* **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -816,17 +857,46 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Cursor configuration
-
-Create `.cursor/mcp.json` in your project root:
+#### 3. Windsurf (Codeium) Configuration
+Add to `~/.codeium/windsurf/mcp_config.json`:
 
 ```json
 {
   "mcpServers": {
     "openapi-sync": {
       "command": "npx",
-      "args": ["-y", "openapi-sync-mcp"],
-      "cwd": "${workspaceFolder}"
+      "args": ["-y", "openapi-sync-mcp"]
+    }
+  }
+}
+```
+
+#### 4. Zed Configuration
+Add to your Zed `settings.json` under `context_servers`:
+
+```json
+{
+  "context_servers": [
+    {
+      "name": "openapi-sync",
+      "command": {
+        "path": "npx",
+        "args": ["-y", "openapi-sync-mcp"]
+      }
+    }
+  ]
+}
+```
+
+#### 5. Google Antigravity Configuration
+Add to your global configuration (`~/.gemini/config/mcp_config.json`) or project root (`.agents/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"]
     }
   }
 }

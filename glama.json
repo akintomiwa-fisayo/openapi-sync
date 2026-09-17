@@ -1,0 +1,8 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "name": "openapi-sync-mcp",
+  "description": "Model Context Protocol (MCP) server for OpenAPI Sync. Allows AI agents to query API endpoints, inspect schemas, and synchronize typed code over stdio.",
+  "maintainers": [
+    "akintomiwa-fisayo"
+  ]
+}

@@ -1,0 +1,13 @@
+# Smithery configuration for openapi-sync-mcp
+# https://smithery.ai/docs/config
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', 'openapi-sync-mcp']
+    })

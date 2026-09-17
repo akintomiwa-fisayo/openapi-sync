@@ -9,6 +9,7 @@ const installCommands = [
   { label: "PNPM", command: "pnpm add openapi-sync" },
   { label: "Global", command: "npm install -g openapi-sync" },
   { label: "NPX", command: "npx openapi-sync" },
+  { label: "MCP (AI)", command: "npx -y openapi-sync-mcp" },
 ];
 
 export default function Installation() {
