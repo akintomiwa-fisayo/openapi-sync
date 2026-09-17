@@ -21,7 +21,7 @@ export default function Footer() {
               Automate TypeScript types, fully-typed API clients (Fetch, Axios,
               React Query, SWR, RTK Query), validation schemas (Zod/Yup/Joi),
               and comprehensive documentation from your OpenAPI specifications.
-              Now with v6.4.1 MCP support, agent-friendly workflows, and enhanced client generation.
+              Now with v6.4.2 MCP support, agent-friendly workflows, and enhanced client generation.
             </p>
             <div className="flex space-x-4">
               <a

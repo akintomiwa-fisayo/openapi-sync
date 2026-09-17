@@ -44,7 +44,7 @@
   },
   "homepage": "https://openapi-sync.com",
   "dependencies": {
-    "openapi-sync": "^6.4.1"
+    "openapi-sync": "^6.4.2"
   },
   "publishConfig": {
     "access": "public"

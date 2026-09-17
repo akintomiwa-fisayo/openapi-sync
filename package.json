@@ -1,6 +1,6 @@
 {
 	"name": "openapi-sync",
-	"version": "6.4.1",
+	"version": "6.4.2",
 	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Next.js Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
