@@ -4,7 +4,7 @@
 > Gives AI coding assistants (Cursor, Claude Desktop, Windsurf, Zed, Antigravity) type-safe, direct tool access to your backend API contracts without blowing past prompt token budgets.
 
 [![npm version](https://img.shields.io/npm/v/openapi-sync-mcp.svg)](https://www.npmjs.com/package/openapi-sync-mcp)
-[![smithery badge](https://smithery.ai/badge/openapi-sync-mcp)](https://smithery.ai/server/openapi-sync-mcp)
+[![Glama](https://img.shields.io/badge/Glama-Verified%20MCP-purple)](https://glama.ai/mcp/servers)
 [![Install in Cursor](https://img.shields.io/badge/Cursor-Add%20to%20Cursor-blue?logo=cursor)](cursor://anysphere.cursor-deeplink/mcp/install?name=openapi-sync&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9wZW5hcGktc3luYy1tY3AiXX0=)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 

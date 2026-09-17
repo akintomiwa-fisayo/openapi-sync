@@ -791,7 +791,7 @@ For complete documentation including:
 The MCP server is published both as part of `openapi-sync` and as a dedicated zero-install companion package on npm: [**`openapi-sync-mcp`**](https://www.npmjs.com/package/openapi-sync-mcp).
 
 [![npm version](https://img.shields.io/npm/v/openapi-sync-mcp.svg)](https://www.npmjs.com/package/openapi-sync-mcp)
-[![smithery badge](https://smithery.ai/badge/openapi-sync-mcp)](https://smithery.ai/server/openapi-sync-mcp)
+[![Glama](https://img.shields.io/badge/Glama-Verified%20MCP-purple)](https://glama.ai/mcp/servers)
 [![Install in Cursor](https://img.shields.io/badge/Cursor-Add%20to%20Cursor-blue?logo=cursor)](cursor://anysphere.cursor-deeplink/mcp/install?name=openapi-sync&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9wZW5hcGktc3luYy1tY3AiXX0=)
 
 ### 4 Ways Users & Agents Can Access OpenAPI Sync

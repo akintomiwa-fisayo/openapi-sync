@@ -6,12 +6,12 @@
     "url": "https://github.com/akintomiwa-fisayo/openapi-sync",
     "source": "github"
   },
-  "version": "6.4.1",
+  "version": "6.4.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "openapi-sync-mcp",
-      "version": "6.4.1",
+      "version": "6.4.2",
       "transport": {
         "type": "stdio"
       }
