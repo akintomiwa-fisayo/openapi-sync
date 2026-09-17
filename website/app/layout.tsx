@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title:
     "OpenAPI Sync - Automate API Documentation, Types, Clients & Validation",
   description:
-    "A powerful developer tool that automates TypeScript type generation, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), runtime validation schemas (Zod, Yup, Joi), endpoint definitions, and comprehensive documentation from your OpenAPI specifications. Now with v6.4.1 MCP support, agent-friendly workflows, and enhanced client generation.",
+    "A powerful developer tool that automates TypeScript type generation, fully-typed API clients (Fetch, Axios, React Query, SWR, RTK Query), runtime validation schemas (Zod, Yup, Joi), endpoint definitions, and comprehensive documentation from your OpenAPI specifications. Now with v6.4.2 MCP support, agent-friendly workflows, and enhanced client generation.",
   keywords: [
     "openapi",
     "swagger",
