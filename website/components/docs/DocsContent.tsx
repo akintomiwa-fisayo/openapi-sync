@@ -2219,33 +2219,127 @@ console.log("Removed stale files:", purgeReport.purged);`}
           AI Agent Integration (MCP)
         </h2>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
-          OpenAPI Sync ships with a built-in{" "}
-          <strong>Model Context Protocol (MCP) server</strong>. This lets AI
-          assistants like Claude Desktop, Cursor, GitHub Copilot, and other
-          MCP-compatible agents safely call sync operations, browse endpoints
-          with pagination and path filters, inspect deep endpoint details, and
-          read generated TypeScript declarations — no shell scripts or custom
-          wrappers needed.
+          OpenAPI Sync includes a full-featured{" "}
+          <strong>Model Context Protocol (MCP) server</strong>. Instead of pasting massive 5MB–15MB Swagger or OpenAPI specifications into an AI prompt — which blows past token limits and induces hallucinations — coding assistants (Cursor, Claude Desktop, Windsurf, Zed, and custom AI agents) connect directly to OpenAPI Sync over <code>stdio</code> to query only the exact endpoints, schemas, and types they need.
         </p>
 
-        <div className="bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-600 dark:border-violet-500 p-4 rounded mb-6">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            <strong>🤖 How it works:</strong> Start the MCP server with{" "}
-            <code>npx openapi-sync-mcp</code> and configure your AI client to
-            connect to it. The agent can then trigger syncs, generate clients,
-            validate configs, and list endpoints — all with full type-safety.
+        <div className="bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-600 dark:border-violet-500 p-4 rounded mb-8">
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-0">
+            <strong>🤖 Two ways to install:</strong> You can spin up the MCP server directly via the dedicated zero-install npm package{" "}
+            <code>npx openapi-sync-mcp</code>, or run it through your project&apos;s main CLI via{" "}
+            <code>npx openapi-sync mcp</code>.
           </p>
         </div>
 
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-          Setup for Claude Desktop
+        {/* 4 Access Methods Grid */}
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+          4 Ways Humans & Agents Access OpenAPI Sync
         </h3>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          Depending on whether your workflow runs through an IDE chat window, an autonomous agent in a terminal, or custom automation scripts, OpenAPI Sync offers 4 native access methods:
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📦</span>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white m-0">
+                1. Dedicated MCP Package
+              </h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Zero project install required. Point your Cursor or Claude Desktop config directly to npm and start querying API tools instantly.
+            </p>
+            <CodeBlock code="npx -y openapi-sync-mcp" language="bash" />
+          </div>
+
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">⚡</span>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white m-0">
+                2. Main CLI MCP Command
+              </h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              If <code>openapi-sync</code> is already in your repository&apos;s <code>devDependencies</code> or global PATH, run the built-in MCP command directly.
+            </p>
+            <CodeBlock code="npx openapi-sync mcp" language="bash" />
+          </div>
+
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">🤖</span>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white m-0">
+                3. Agent-Safe CLI (<code className="text-xs">--json</code>)
+              </h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              For autonomous agents with bash/terminal access (Cursor Agent, Claude Code, Antigravity). Runs 100% non-interactively with structured JSON envelopes.
+            </p>
+            <CodeBlock code="npx openapi-sync list-endpoints --json" language="bash" />
+          </div>
+
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">🧩</span>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white m-0">
+                4. Programmatic Node / ESM API
+              </h4>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Import the runtime directly in TypeScript/Node scripts, CI pipelines, or internal developer portals for seamless workflow automation.
+            </p>
+            <CodeBlock code={`import { ValidateConfig, Init } from "openapi-sync";
+// Or spawn the stdio server:
+import "openapi-sync/mcp";`} language="typescript" />
+          </div>
+        </div>
+
+        {/* Host Setup Guides */}
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+          Host Configuration Guides
+        </h3>
+
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          1. Setup for Cursor
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">
+          Create or update <code>.cursor/mcp.json</code> in your project root to enable project-scoped tools:
+        </p>
+        <CodeBlock
+          code={`{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"],
+      "cwd": "\${workspaceFolder}"
+    }
+  }
+}`}
+          language="json"
+        />
+        <div className="flex items-center gap-3 my-3 not-prose">
+          <a
+            href="cursor://anysphere.cursor-deeplink/mcp/install?name=openapi-sync&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9wZW5hcGktc3luYy1tY3AiXX0="
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all no-underline"
+          >
+            <span>⚡</span> One-Click Install in Cursor
+          </a>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 mb-6">
+          Tip: You can also add it globally via <strong>Cursor Settings → Features → MCP → + Add New MCP Server</strong> with command <code>npx -y openapi-sync-mcp</code>.
+        </p>
+
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          2. Setup for Claude Desktop
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">
           Add the following to your Claude Desktop configuration file at{" "}
           <code>
             ~/Library/Application Support/Claude/claude_desktop_config.json
-          </code>
-          :
+          </code>{" "}
+          (macOS) or{" "}
+          <code>%APPDATA%\\Claude\\claude_desktop_config.json</code> (Windows):
         </p>
         <CodeBlock
           code={`{
@@ -2260,57 +2354,97 @@ console.log("Removed stale files:", purgeReport.purged);`}
           language="json"
         />
 
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
-          Setup for Cursor
-        </h3>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
-          Create or update <code>.cursor/mcp.json</code> in your project root:
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-6">
+          3. Setup for Windsurf (Codeium)
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">
+          Add the server entry to <code>~/.codeium/windsurf/mcp_config.json</code>:
         </p>
         <CodeBlock
           code={`{
   "mcpServers": {
     "openapi-sync": {
       "command": "npx",
-      "args": ["-y", "openapi-sync-mcp"],
-      "cwd": "\${workspaceFolder}"
+      "args": ["-y", "openapi-sync-mcp"]
     }
   }
 }`}
           language="json"
         />
 
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
-          Available MCP Tools
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-6">
+          4. Setup for Zed
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">
+          Add the server to your Zed <code>settings.json</code> under <code>context_servers</code>:
+        </p>
+        <CodeBlock
+          code={`{
+  "context_servers": [
+    {
+      "name": "openapi-sync",
+      "command": {
+        "path": "npx",
+        "args": ["-y", "openapi-sync-mcp"]
+      }
+    }
+  ]
+}`}
+          language="json"
+        />
+
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-6">
+          5. Setup for Google Antigravity
+        </h4>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">
+          Add the server to your global Antigravity configuration (<code>~/.gemini/config/mcp_config.json</code>) or your project root (<code>.agents/mcp_config.json</code>):
+        </p>
+        <CodeBlock
+          code={`{
+  "mcpServers": {
+    "openapi-sync": {
+      "command": "npx",
+      "args": ["-y", "openapi-sync-mcp"]
+    }
+  }
+}`}
+          language="json"
+        />
+
+        {/* Tools Reference */}
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3 mt-10">
+          All 10 Available MCP Tools
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
-          Once connected, the agent has access to these tools:
+          When connected, your AI assistant receives immediate access to these 10 structured tools:
         </p>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto mb-10">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Tool
+                  Tool Name
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Description
+                  Description & Key Arguments
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {[
-                ["openapi_sync_read_config", "Read and parse the project's openapi-sync configuration file without executing sync"],
-                ["openapi_sync_sync", "Run the main sync command — generates types, clients, and endpoints"],
-                ["openapi_sync_validate", "Validate your config and OpenAPI specs without writing any files"],
-                ["openapi_sync_doctor", "Run diagnostic health checks on config, specs, peer dependencies, cache, and permissions"],
-                ["openapi_sync_list_endpoints", "List discovered endpoints with tags, pagination, path filtering, and optional cache reuse"],
-                ["openapi_sync_get_endpoint_details", "Return the full stored schema for a single endpoint by operationId or name"],
-                ["openapi_sync_read_generated_type", "Read the exact generated TypeScript interface or type declaration"],
-                ["openapi_sync_generate_client", "Generate a typed API client for Fetch, Axios, React Query, SWR, or RTK Query"],
-                ["openapi_sync_init", "Non-interactively initialise a new openapi-sync configuration"],
+                ["openapi_sync_read_config", "Read and parse current openapi.sync configuration without executing sync"],
+                ["openapi_sync_init", "Create a new config file non-interactively with auth, preset, and runSync flags"],
+                ["openapi_sync_validate", "Validate config and specs without writing files (supports auth and overrides)"],
+                ["openapi_sync_doctor", "Run diagnostic health checks on config, specs, peer dependencies, and permissions"],
+                ["openapi_sync_list_endpoints", "List discovered endpoints with tags, pagination, path filtering, and cache reuse"],
+                ["openapi_sync_get_endpoint_details", "Inspect full parameters, request bodies, and response types by operationId or name"],
+                ["openapi_sync_read_generated_type", "Read the exact generated TypeScript interface or type declaration (supports pagination)"],
+                ["openapi_sync_sync", "Execute full synchronization — generates TypeScript types, endpoints, and validation schemas"],
+                ["openapi_sync_generate_client", "Generate typed client (fetch, next-fetch, axios, react-query, swr, rtk-query)"],
+                ["openapi_sync_purge", "Detect and purge stale generated files from previous API specs (supports dryRun and yes)"],
               ].map(([tool, desc]) => (
                 <tr key={tool} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <td className="px-4 py-3 text-sm font-mono text-violet-700 dark:text-violet-300">{tool}</td>
+                  <td className="px-4 py-3 text-sm font-mono text-violet-700 dark:text-violet-300 whitespace-nowrap">{tool}</td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{desc}</td>
                 </tr>
               ))}
@@ -2318,23 +2452,24 @@ console.log("Removed stale files:", purgeReport.purged);`}
           </table>
         </div>
 
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
-          Example Agent Prompt
+        {/* Multi-Step Agent Workflow */}
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
+          Typical Agent Multi-Turn Workflow
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
-          Once the MCP server is running, you can ask your AI agent:
+          Once the MCP server is configured in Cursor or Claude, you can prompt the agent naturally:
         </p>
         <CodeBlock
-          code={`# Ask Claude or Cursor:
-"Sync my OpenAPI types, list the pet endpoints, inspect getPetById, and generate a React Query client"
+          code={`# Prompt in Cursor Agent or Claude Desktop:
+"We need to implement the billing page. Use openapi-sync to find all subscription-related endpoints, inspect the checkout session schema, and generate a React Query client."
 
-# The agent will:
-# 1. Call 'openapi_sync_sync' to pull the latest spec
-# 2. Call 'openapi_sync_list_endpoints' with pagination/path filters
-# 3. Call 'openapi_sync_get_endpoint_details' for the selected endpoint
-# 4. Call 'openapi_sync_read_generated_type' for the related type
-# 5. Call 'openapi_sync_generate_client' with --type react-query
-# 6. Report back the result as structured JSON`}
+# Autonomous Multi-Turn Execution Flow:
+# 1. Calls 'openapi_sync_read_config' to check configured API sources
+# 2. Calls 'openapi_sync_list_endpoints' with pathContains: "subscription"
+# 3. Calls 'openapi_sync_get_endpoint_details' for operationId "createCheckoutSession"
+# 4. Calls 'openapi_sync_read_generated_type' for "CreateCheckoutSessionDTO"
+# 5. Calls 'openapi_sync_generate_client' with type: "react-query"
+# 6. Builds the frontend UI using the exact generated types and hooks!`}
           language="bash"
         />
       </section>

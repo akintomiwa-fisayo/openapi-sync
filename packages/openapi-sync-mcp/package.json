@@ -1,0 +1,52 @@
+{
+  "name": "openapi-sync-mcp",
+  "version": "6.4.1",
+  "description": "Model Context Protocol (MCP) server for OpenAPI Sync — provides AI coding agents with type-safe tools to inspect, validate, and synchronize OpenAPI specs",
+  "main": "bin/mcp.js",
+  "bin": {
+    "openapi-sync-mcp": "bin/mcp.js"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE",
+    "smithery.yaml"
+  ],
+  "scripts": {
+    "start": "node bin/mcp.js",
+    "test": "node bin/mcp.js --help"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akintomiwa-fisayo/openapi-sync.git",
+    "directory": "packages/openapi-sync-mcp"
+  },
+  "keywords": [
+    "openapi",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "cursor",
+    "claude",
+    "claude-desktop",
+    "windsurf",
+    "zed",
+    "antigravity",
+    "swagger",
+    "rest",
+    "api-sync",
+    "types"
+  ],
+  "author": "P-Technologies",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/akintomiwa-fisayo/openapi-sync/issues"
+  },
+  "homepage": "https://openapi-sync.com",
+  "dependencies": {
+    "openapi-sync": "^6.4.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

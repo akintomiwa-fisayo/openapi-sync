@@ -1288,6 +1288,17 @@ const cli = yargs(hideBin(process.argv))
     }
   )
 
+  // ── `mcp` command ──────────────────────────────────────────────────────────
+  .command(
+    "mcp",
+    "Start the Model Context Protocol (MCP) server over stdio for AI agent workflows",
+    () => {},
+    () => {
+      require("./mcp");
+    }
+  )
+
+  .example("$0 mcp", "Start MCP server over stdio (Claude Desktop / Cursor)")
   .example("$0 init", "Interactive setup wizard (human)")
   .example(
     "$0 init -y --api-name petstore --api-url https://petstore3.swagger.io/api/v3/openapi.json",

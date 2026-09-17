@@ -1,5 +1,16 @@
 [
   {
+    "version": "6.4.1",
+    "date": "2026-09-17",
+    "type": "patch",
+    "changes": [
+      "publish official standalone openapi-sync-mcp package on npm for zero-install agent workflows",
+      "add mcp subcommand to main openapi-sync CLI (npx openapi-sync mcp)",
+      "expand MCP documentation and host setup guides for Cursor, Claude Desktop, Windsurf, and Zed",
+      "add comprehensive guide to all 4 ways humans and AI agents can access and query the MCP server"
+    ]
+  },
+  {
     "version": "6.4.0",
     "date": "2026-09-12",
     "type": "minor",

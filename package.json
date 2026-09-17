@@ -1,6 +1,6 @@
 {
 	"name": "openapi-sync",
-	"version": "6.4.0",
+	"version": "6.4.1",
 	"description": "A powerful developer tool that automates API documentation synchronization with your codebase using OpenAPI specifications. Generates TypeScript types, fully-typed API clients (Fetch, Next.js Fetch, Axios, React Query, SWR, RTK Query), endpoint definitions, runtime validation schemas (Zod, Yup, Joi), and comprehensive documentation with enterprise-grade reliability",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
@@ -21,7 +21,8 @@
 		"package.json",
 		"openapi.sync.schema.json",
 		"llms.txt",
-		"!website/**/*"
+		"!website/**/*",
+		"!packages/**/*"
 	],
 	"keywords": [
 		"openapi",
@@ -100,6 +101,7 @@
 		"build": "rm -rf dist && tsup",
 		"prepublishOnly": "npm test && npm run build",
 		"publish-package": "npm test && npm run build && npm publish",
+		"publish:mcp": "cd packages/openapi-sync-mcp && npm publish --access public",
 		"test": "jest",
 		"test:coverage": "jest --coverage"
 	},
