@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.akintomiwa-fisayo/openapi-sync-mcp",
+  "description": "Type-safe MCP server for OpenAPI Sync to inspect, validate, and synchronize OpenAPI specs.",
+  "repository": {
+    "url": "https://github.com/akintomiwa-fisayo/openapi-sync",
+    "source": "github"
+  },
+  "version": "6.4.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "openapi-sync-mcp",
+      "version": "6.4.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

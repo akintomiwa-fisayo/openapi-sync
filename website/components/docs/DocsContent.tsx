@@ -2481,35 +2481,7 @@ import "openapi-sync/mcp";`} language="typescript" />
           The <code>openapi-sync-mcp</code> server is registered, indexed, and installable across all major Model Context Protocol marketplaces and registries:
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10 not-prose">
-          {/* Smithery.ai */}
-          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  🔨 Smithery.ai
-                </span>
-                <span className="text-xs bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-medium px-2 py-0.5 rounded-full">
-                  Verified
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                The universal MCP registry. Offers 1-command automated installation for Claude Desktop, Cursor, and Windsurf.
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4 overflow-x-auto">
-                npx -y @smithery/cli install openapi-sync-mcp --client cursor
-              </div>
-            </div>
-            <a
-              href="https://smithery.ai/server/openapi-sync-mcp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
-            >
-              View on Smithery.ai →
-            </a>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 not-prose">
           {/* Cursor Directory */}
           <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
             <div>
@@ -2599,59 +2571,31 @@ import "openapi-sync/mcp";`} language="typescript" />
             </a>
           </div>
 
-          {/* Awesome MCP Servers */}
+          {/* Official MCP Registry & Antigravity MCP Store */}
           <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  ⭐ Awesome MCP
+                  🪐 Antigravity &amp; MCP Store
                 </span>
-                <span className="text-xs bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-medium px-2 py-0.5 rounded-full">
-                  GitHub 15k★
+                <span className="text-xs bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-medium px-2 py-0.5 rounded-full">
+                  Official Registry
                 </span>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                The canonical community-curated collection of production-ready Model Context Protocol servers.
+                Indexed in the official Model Context Protocol Registry and discoverable across Antigravity IDE and compatible clients.
               </p>
-              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4">
-                Category: API &amp; DevTools
+              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4 overflow-x-auto">
+                io.github.akintomiwa-fisayo/openapi-sync-mcp
               </div>
             </div>
             <a
-              href="https://github.com/punkpeye/awesome-mcp-servers"
+              href="https://registry.modelcontextprotocol.io"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
             >
-              View on GitHub →
-            </a>
-          </div>
-
-          {/* PulseMCP & MCP.so */}
-          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  📡 PulseMCP &amp; MCP.so
-                </span>
-                <span className="text-xs bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 font-medium px-2 py-0.5 rounded-full">
-                  Aggregators
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Automated ecosystem search engines and live telemetry trackers for public MCP servers.
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4">
-                Tagged: mcp-server, openapi
-              </div>
-            </div>
-            <a
-              href="https://pulsemcp.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
-            >
-              Explore PulseMCP →
+              View MCP Registry →
             </a>
           </div>
         </div>

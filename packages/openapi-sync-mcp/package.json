@@ -1,6 +1,7 @@
 {
   "name": "openapi-sync-mcp",
-  "version": "6.4.1",
+  "version": "6.4.2",
+  "mcpName": "io.github.akintomiwa-fisayo/openapi-sync-mcp",
   "description": "Model Context Protocol (MCP) server for OpenAPI Sync — provides AI coding agents with type-safe tools to inspect, validate, and synchronize OpenAPI specs",
   "main": "bin/mcp.js",
   "bin": {
@@ -9,8 +10,7 @@
   "files": [
     "bin",
     "README.md",
-    "LICENSE",
-    "smithery.yaml"
+    "LICENSE"
   ],
   "scripts": {
     "start": "node bin/mcp.js",
