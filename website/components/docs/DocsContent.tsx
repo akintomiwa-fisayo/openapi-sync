@@ -2472,6 +2472,189 @@ import "openapi-sync/mcp";`} language="typescript" />
 # 6. Builds the frontend UI using the exact generated types and hooks!`}
           language="bash"
         />
+
+        {/* External Marketplaces & Registries */}
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 mt-12">
+          🌐 External Marketplaces &amp; Registries
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
+          The <code>openapi-sync-mcp</code> server is registered, indexed, and installable across all major Model Context Protocol marketplaces and registries:
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10 not-prose">
+          {/* Smithery.ai */}
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  🔨 Smithery.ai
+                </span>
+                <span className="text-xs bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-medium px-2 py-0.5 rounded-full">
+                  Verified
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                The universal MCP registry. Offers 1-command automated installation for Claude Desktop, Cursor, and Windsurf.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4 overflow-x-auto">
+                npx -y @smithery/cli install openapi-sync-mcp --client cursor
+              </div>
+            </div>
+            <a
+              href="https://smithery.ai/server/openapi-sync-mcp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
+            >
+              View on Smithery.ai →
+            </a>
+          </div>
+
+          {/* Cursor Directory */}
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  ⚡ Cursor Directory
+                </span>
+                <span className="text-xs bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-medium px-2 py-0.5 rounded-full">
+                  1-Click Install
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                The premier hub for Cursor rules and MCP extensions. Deep link opens Cursor and configures the server automatically.
+              </p>
+              <div className="mb-4">
+                <a
+                  href="cursor://anysphere.cursor-deeplink/mcp/install?name=openapi-sync&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIm9wZW5hcGktc3luYy1tY3AiXX0="
+                  className="inline-flex items-center justify-center w-full gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg shadow-sm transition-all"
+                >
+                  Install Directly in Cursor
+                </a>
+              </div>
+            </div>
+            <a
+              href="https://cursor.directory"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
+            >
+              Browse Cursor Directory →
+            </a>
+          </div>
+
+          {/* Glama.ai */}
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  🛡️ Glama.ai
+                </span>
+                <span className="text-xs bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 font-medium px-2 py-0.5 rounded-full">
+                  Schema Verified
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Production-grade MCP server catalog with verified maintainership and tool schema introspection.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4">
+                Verified via glama.json
+              </div>
+            </div>
+            <a
+              href="https://glama.ai/mcp/servers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
+            >
+              Explore on Glama.ai →
+            </a>
+          </div>
+
+          {/* npm Registry */}
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  📦 npm Registry
+                </span>
+                <span className="text-xs bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 font-medium px-2 py-0.5 rounded-full">
+                  Official
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                The official standalone npm package providing the zero-install executable runtime.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4 overflow-x-auto">
+                npx openapi-sync-mcp
+              </div>
+            </div>
+            <a
+              href="https://www.npmjs.com/package/openapi-sync-mcp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
+            >
+              View on npm →
+            </a>
+          </div>
+
+          {/* Awesome MCP Servers */}
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  ⭐ Awesome MCP
+                </span>
+                <span className="text-xs bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-medium px-2 py-0.5 rounded-full">
+                  GitHub 15k★
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                The canonical community-curated collection of production-ready Model Context Protocol servers.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4">
+                Category: API &amp; DevTools
+              </div>
+            </div>
+            <a
+              href="https://github.com/punkpeye/awesome-mcp-servers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
+            >
+              View on GitHub →
+            </a>
+          </div>
+
+          {/* PulseMCP & MCP.so */}
+          <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-5 bg-white dark:bg-gray-900 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  📡 PulseMCP &amp; MCP.so
+                </span>
+                <span className="text-xs bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-400 font-medium px-2 py-0.5 rounded-full">
+                  Aggregators
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Automated ecosystem search engines and live telemetry trackers for public MCP servers.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded text-xs font-mono text-gray-700 dark:text-gray-300 mb-4">
+                Tagged: mcp-server, openapi
+              </div>
+            </div>
+            <a
+              href="https://pulsemcp.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
+            >
+              Explore PulseMCP →
+            </a>
+          </div>
+        </div>
       </section>
 
       {/* Error Code Reference */}
