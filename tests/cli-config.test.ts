@@ -1,5 +1,8 @@
-import { buildConfigFromCli, extractCliAuthFromArgv } from "../Openapi-sync/cli-config";
+import { buildConfigFromCli, extractCliAuthFromArgv, serializeConfigToFile } from "../Openapi-sync/cli-config";
 import { tryLoadConfig, loadConfig } from "../Openapi-sync/config-loader";
+import fs from "fs";
+import path from "path";
+import os from "os";
 import { ConfigNotFoundError } from "../errors";
 
 describe("CLI Configuration & Zero-Config Mode", () => {
@@ -328,6 +331,109 @@ describe("CLI Configuration & Zero-Config Mode", () => {
       });
       expect(typeDecl).toContain("export interface UserProfile");
       expect(typeDecl).toContain("id: string;");
+    });
+  });
+
+  describe("serializeConfigToFile and --preserve flag support", () => {
+    let tmpDir: string;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "openapi-sync-preserve-test-"));
+    });
+
+    afterEach(() => {
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch (_) {}
+    });
+
+    it("should build unexpanded config when skipPresetExpansion is true", () => {
+      const config = buildConfigFromCli(
+        {
+          "api-url": "https://petstore3.swagger.io/api/v3/openapi.json",
+          "api-name": "petstore",
+          preset: "react-query-zod",
+          folder: "./src/api",
+        },
+        null,
+        { skipPresetExpansion: true }
+      );
+
+      expect(config).not.toBeNull();
+      expect(config?.preset).toBe("react-query-zod");
+      expect(config?.folder).toBe("./src/api");
+      expect(config?.api).toEqual({
+        petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+      });
+      // Should not have expanded clientGeneration or validations sub-objects:
+      expect((config as any)?.clientGeneration).toBeUndefined();
+    });
+
+    it("should serialize config to TypeScript (openapi.sync.ts)", () => {
+      const config = {
+        preset: "react-query-zod" as const,
+        folder: "./src/api",
+        api: {
+          petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+        },
+      };
+
+      const result = serializeConfigToFile(config, "typescript", tmpDir);
+      expect(result.fileName).toBe("openapi.sync.ts");
+      expect(fs.writeFileSync).toHaveBeenCalledWith(result.filePath, result.content, "utf-8");
+      expect(result.content).toContain('import { defineConfig } from "openapi-sync";');
+      expect(result.content).toContain('preset: "react-query-zod"');
+      expect(result.content).toContain('folder: "./src/api"');
+      expect(result.content).toContain("petstore: \"https://petstore3.swagger.io/api/v3/openapi.json\"");
+    });
+
+    it("should serialize config to JSON (openapi.sync.json)", () => {
+      const config = {
+        preset: "react-query-zod" as const,
+        folder: "./src/api",
+        api: {
+          petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+        },
+      };
+
+      const result = serializeConfigToFile(config, "json", tmpDir);
+      expect(result.fileName).toBe("openapi.sync.json");
+      expect(fs.writeFileSync).toHaveBeenCalledWith(result.filePath, result.content, "utf-8");
+
+      const parsed = JSON.parse(result.content);
+      expect(parsed.$schema).toBe("./node_modules/openapi-sync/openapi.sync.schema.json");
+      expect(parsed.preset).toBe("react-query-zod");
+      expect(parsed.folder).toBe("./src/api");
+      expect(parsed.api.petstore).toBe("https://petstore3.swagger.io/api/v3/openapi.json");
+    });
+
+    it("should serialize config to JavaScript (openapi.sync.js)", () => {
+      const config = {
+        preset: "react-query-zod" as const,
+        folder: "./src/api",
+        api: {
+          petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+        },
+      };
+
+      const result = serializeConfigToFile(config, "javascript", tmpDir);
+      expect(result.fileName).toBe("openapi.sync.js");
+      expect(fs.writeFileSync).toHaveBeenCalledWith(result.filePath, result.content, "utf-8");
+      expect(result.content).toContain("module.exports = {");
+      expect(result.content).toContain('"preset": "react-query-zod"');
+    });
+
+    it("should respect overwrite flag", () => {
+      const config = {
+        folder: "./src/api",
+        api: { petstore: "https://petstore.example.com" },
+      };
+
+      (fs.existsSync as jest.Mock).mockReturnValueOnce(true);
+
+      expect(() => {
+        serializeConfigToFile(config, "json", tmpDir, false);
+      }).toThrow(/already exists/);
     });
   });
 });

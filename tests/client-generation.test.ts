@@ -439,4 +439,119 @@ describe("Client Generation", () => {
       expect(api).toContain("export default petstoreApi;");
     });
   });
+
+  describe("resolveClientConfigForApi", () => {
+    // Import dynamically from client-generation module
+    const { resolveClientConfigForApi } = require("../Openapi-sync/client-generation");
+
+    it("should return global string baseURL and outputDir unchanged", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        baseURL: "https://api.example.com",
+        outputDir: "./src/client",
+      };
+
+      const resolved = resolveClientConfigForApi(config, "petstore");
+      expect(resolved.baseURL).toBe("https://api.example.com");
+      expect(resolved.outputDir).toBe("./src/client");
+    });
+
+    it("should resolve per-API baseURL from Record map", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        baseURL: {
+          petstore: "https://petstore.example.com/v3",
+          users: "https://users.example.com/api",
+        },
+      };
+
+      const petstoreResolved = resolveClientConfigForApi(config, "petstore");
+      expect(petstoreResolved.baseURL).toBe("https://petstore.example.com/v3");
+
+      const usersResolved = resolveClientConfigForApi(config, "users");
+      expect(usersResolved.baseURL).toBe("https://users.example.com/api");
+
+      const unknownResolved = resolveClientConfigForApi(config, "unknown");
+      expect(unknownResolved.baseURL).toBeUndefined();
+    });
+
+    it("should resolve per-API outputDir from Record map", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "react-query",
+        outputDir: {
+          petstore: "./src/api/petstore/client",
+          billing: "./src/api/billing/client",
+        },
+      };
+
+      const petstoreResolved = resolveClientConfigForApi(config, "petstore");
+      expect(petstoreResolved.outputDir).toBe("./src/api/petstore/client");
+
+      const billingResolved = resolveClientConfigForApi(config, "billing");
+      expect(billingResolved.outputDir).toBe("./src/api/billing/client");
+    });
+
+    it("should resolve from perApi override block", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "fetch",
+        baseURL: "https://default.example.com",
+        outputDir: "./src/api/clients",
+        perApi: {
+          petstore: {
+            baseURL: "https://petstore.swagger.io/v2",
+            outputDir: "./src/custom/petstore",
+          },
+        },
+      };
+
+      const petstoreResolved = resolveClientConfigForApi(config, "petstore");
+      expect(petstoreResolved.baseURL).toBe("https://petstore.swagger.io/v2");
+      expect(petstoreResolved.outputDir).toBe("./src/custom/petstore");
+
+      const otherResolved = resolveClientConfigForApi(config, "otherApi");
+      expect(otherResolved.baseURL).toBe("https://default.example.com");
+      expect(otherResolved.outputDir).toBe("./src/api/clients");
+    });
+
+    it("should give perApi precedence over per-API maps and global strings", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        baseURL: {
+          petstore: "https://map.example.com",
+        },
+        outputDir: {
+          petstore: "./src/map/path",
+        },
+        perApi: {
+          petstore: {
+            baseURL: "https://perapi.example.com",
+            outputDir: "./src/perapi/path",
+          },
+        },
+      };
+
+      const resolved = resolveClientConfigForApi(config, "petstore");
+      expect(resolved.baseURL).toBe("https://perapi.example.com");
+      expect(resolved.outputDir).toBe("./src/perapi/path");
+    });
+
+    it("should integrate with client generator to bake resolved per-API baseURL into code", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        baseURL: {
+          petstore: "https://petstore3.swagger.io/api/v3",
+        },
+      };
+
+      const resolved = resolveClientConfigForApi(config, "petstore");
+      const clientCode = generateAxiosClient([mockEndpoints[0]], resolved);
+      expect(clientCode).toContain('baseURL: config.baseURL || "https://petstore3.swagger.io/api/v3"');
+    });
+  });
 });

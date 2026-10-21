@@ -7,7 +7,7 @@ import {
   getStoredEndpoints,
   getAllStoredEndpoints,
 } from "./Openapi-sync/endpoint-store";
-import { generateClients, dryRunClientFiles, checkPeerDependencies } from "./Openapi-sync/client-generation";
+import { generateClients, dryRunClientFiles, checkPeerDependencies, resolveClientConfigForApi } from "./Openapi-sync/client-generation";
 import { loadManifest, saveManifest, computeStalePaths, recordClientFiles, getStaleClientPaths, cleanPurgedClientPaths } from "./Openapi-sync/manifest";
 
 import { EndpointInfo, filterEndpoints } from "./client-generators";
@@ -188,11 +188,14 @@ export const Init = async (options?: {
           return;
         }
 
-        const clientConfig: IConfigClientGeneration = {
-          enabled: true,
-          ...config.clientGeneration,
-          type: effectiveType,
-        };
+        const clientConfig: IConfigClientGeneration = resolveClientConfigForApi(
+          {
+            enabled: true,
+            ...config.clientGeneration,
+            type: effectiveType,
+          },
+          apiName
+        );
         const clientPaths = await generateClients(
           endpoints,
           config,
@@ -553,15 +556,18 @@ export const GenerateClient = async (options: {
       const clientOutputDir = options.outputDir || options.output;
       const clientBaseURL = options.baseURL ?? options.baseUrl;
 
-      const clientConfig: IConfigClientGeneration = {
-        enabled: true,
-        ...(config.clientGeneration || {}),
-        type: options.type,
-        ...(clientOutputDir && { outputDir: clientOutputDir }),
-        ...(clientBaseURL && { baseURL: clientBaseURL }),
-        ...(options.tags && { tags: options.tags }),
-        ...(options.endpoints && { endpoints: options.endpoints }),
-      };
+      const clientConfig: IConfigClientGeneration = resolveClientConfigForApi(
+        {
+          enabled: true,
+          ...(config.clientGeneration || {}),
+          type: options.type,
+          ...(clientOutputDir && { outputDir: clientOutputDir }),
+          ...(clientBaseURL && { baseURL: clientBaseURL }),
+          ...(options.tags && { tags: options.tags }),
+          ...(options.endpoints && { endpoints: options.endpoints }),
+        },
+        apiName
+      );
 
       const filtered = filterEndpoints(endpoints, clientConfig);
       totalFilteredEndpointsAcrossApis += filtered.length;
@@ -1144,5 +1150,7 @@ export {
   getStaleClientPaths,
   cleanPurgedClientPaths,
 } from "./Openapi-sync/manifest";
+
+export { resolveClientConfigForApi } from "./Openapi-sync/client-generation";
 
 

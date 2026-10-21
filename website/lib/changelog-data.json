@@ -1,5 +1,16 @@
 [
   {
+    "version": "6.5.0",
+    "date": "2026-10-16",
+    "type": "minor",
+    "changes": [
+      "add --preserve and --config-format CLI flags to auto-create openapi.sync.ts, .json, or .js configuration files after zero-config sync execution",
+      "add endpoints.sharedPaths configuration and --shared-paths CLI flag to de-duplicate URL path templates with shared path helpers and single BASE_URL extraction while preserving 100% backward-compatible operationId constants and full JSDoc markdown",
+      "support per-API baseURL and outputDir configuration in clientGeneration with mapping objects or perApi blocks, backed by TypeScript autocomplete and JSON schema validation",
+      "fix custom code merging in generated clients to prevent blank line accumulation and indentation creep on repeated synchronizations"
+    ]
+  },
+  {
     "version": "6.4.2",
     "date": "2026-09-17",
     "type": "patch",

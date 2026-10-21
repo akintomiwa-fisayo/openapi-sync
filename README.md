@@ -35,7 +35,6 @@ npm install -g openapi-sync
 npx openapi-sync
 ```
 
-> ⚠️ **macOS Big Sur Users:** If you encounter an esbuild error (`Symbol not found: _SecTrustCopyCertificateChain`), install `esbuild@0.17.19` first. See [Troubleshooting](#troubleshooting) for details.
 
 ---
 
@@ -514,27 +513,40 @@ Supports multiple configuration formats: `openapi.sync.json`, `openapi.sync.ts`,
 }
 ```
 
-**Advanced TypeScript Example:**
+**Advanced TypeScript Example (`openapi.sync.ts`):**
 
 ```typescript
-import { IConfig } from "openapi-sync";
+import { defineConfig } from "openapi-sync";
 
-const config: IConfig = {
+export default defineConfig({
 	refetchInterval: 10000,
 	folder: "./src/api",
 	api: {
-		"main-api": "https://api.example.com/openapi.json",
+		petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+		billing: "https://billing.example.com/openapi.json",
 	},
 	folderSplit: { byTags: true },
 	types: { name: { prefix: "I", useOperationId: true } },
 	endpoints: {
+		sharedPaths: true, // De-duplicate URL path templates with shared path helpers
 		exclude: { tags: ["deprecated"] },
 		doc: { showCurl: true },
 	},
 	validations: { library: "zod" },
-};
-
-export default config;
+	clientGeneration: {
+		enabled: true,
+		type: "react-query",
+		// Configure baseURL and outputDir globally or per-API with full autocomplete
+		baseURL: {
+			petstore: "https://petstore3.swagger.io/api/v3",
+			billing: "https://billing.example.com/api/v1",
+		},
+		outputDir: {
+			petstore: "./src/api/petstore/client",
+			billing: "./src/api/billing/client",
+		},
+	},
+});
 ```
 
 ### 🔐 Protected Specs & Stored Authentication (`auth`)
@@ -636,6 +648,15 @@ You can run `openapi-sync` directly from terminal scripts or CI/CD pipelines **w
 # Zero-config sync with preset
 npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --folder ./src/api
 
+# Zero-config sync and auto-create configuration file on disk (--preserve)
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --folder ./src/api --preserve
+
+# Choose format for preserved config: ts (default), json, or js
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset axios-zod --preserve --config-format json
+
+# Optimize endpoints.ts file length by sharing common URL paths
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --shared-paths
+
 # Zero-config sync with protected spec
 npx openapi-sync --api-url https://api.example.com/openapi.json --auth-type bearer --auth-token "$MY_TOKEN" --preset next-fetch
 
@@ -650,6 +671,8 @@ npx openapi-sync --config-json '{"api":{"main":"https://api.example.com/spec.jso
 ```
 
 > [!NOTE]
+> When using `--preserve`, `openapi-sync` serializes your active CLI options into `openapi.sync.ts` (or `openapi.sync.json`/`openapi.sync.js`) upon successful sync, allowing future runs to use `npx openapi-sync` without repeating CLI flags.
+>
 > If run without a configuration file on disk and without necessary CLI flags (e.g. `--api-url`, `--api <name>=<url>`, or `--config-json`), `openapi-sync` will display the standard `ConfigNotFoundError`, prompting you to run `npx openapi-sync init`.
 
 
@@ -949,34 +972,6 @@ All tools return JSON-serialized versions of the same structured types used by t
 ---
 
 ## Troubleshooting
-
-### macOS Big Sur (11.x) - esbuild Installation Error
-
-**Error:** `dyld: Symbol not found: _SecTrustCopyCertificateChain` when installing `openapi-sync`
-
-**Cause:** The default esbuild version requires macOS 12.0+ APIs that aren't available in Big Sur.
-
-**Solution:** Install a compatible esbuild version before installing openapi-sync:
-
-```bash
-# Install compatible esbuild first
-npm install esbuild@0.17.19
-
-# Then install openapi-sync
-npm install openapi-sync
-```
-
-Alternatively, add an override to your `package.json`:
-
-```json
-{
-	"overrides": {
-		"esbuild": "0.17.19"
-	}
-}
-```
-
-**Note:** This issue only affects macOS Big Sur (darwin 20.x). Users on macOS 12+ are not affected.
 
 ---
 

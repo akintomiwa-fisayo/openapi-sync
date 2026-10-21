@@ -102,16 +102,66 @@ const getFolderForEndpoint = (
   return "default";
 };
 
+export type IResolvedClientConfig = Omit<IConfigClientGeneration, "baseURL" | "outputDir"> & {
+  baseURL?: string;
+  outputDir?: string;
+};
+
 /**
- * Generate API clients based on collected endpoint information
+ * Resolves API-specific client configuration options (such as baseURL and outputDir)
+ * from global values, per-API record maps, or perApi override blocks.
  *
- * Orchestrates the complete client generation process. Handles both single-file
- * and folder-split modes, generates appropriate client types (Fetch, Axios, React Query, etc.),
+ * Priority order for baseURL and outputDir:
+ * 1. clientConfig.perApi?.[apiName]?.[prop]
+ * 2. clientConfig[prop]?.[apiName] (when clientConfig[prop] is an object map)
+ * 3. clientConfig[prop] (when clientConfig[prop] is a string)
+ *
+ * @param {IConfigClientGeneration} clientConfig - Client generation configuration
+ * @param {string} apiName - Name of the target API
+ * @returns {IResolvedClientConfig} Normalized client configuration with resolved strings for the target API
+ * @public
+ */
+export const resolveClientConfigForApi = (
+  clientConfig: IConfigClientGeneration,
+  apiName: string
+): IResolvedClientConfig => {
+  if (!clientConfig) return clientConfig as any;
+
+  let resolvedBaseURL: string | undefined;
+  if (clientConfig.perApi?.[apiName]?.baseURL !== undefined) {
+    resolvedBaseURL = clientConfig.perApi[apiName].baseURL;
+  } else if (typeof clientConfig.baseURL === "object" && clientConfig.baseURL !== null) {
+    resolvedBaseURL = (clientConfig.baseURL as Record<string, string>)[apiName];
+  } else if (typeof clientConfig.baseURL === "string") {
+    resolvedBaseURL = clientConfig.baseURL;
+  }
+
+  let resolvedOutputDir: string | undefined;
+  if (clientConfig.perApi?.[apiName]?.outputDir !== undefined) {
+    resolvedOutputDir = clientConfig.perApi[apiName].outputDir;
+  } else if (typeof clientConfig.outputDir === "object" && clientConfig.outputDir !== null) {
+    resolvedOutputDir = (clientConfig.outputDir as Record<string, string>)[apiName];
+  } else if (typeof clientConfig.outputDir === "string") {
+    resolvedOutputDir = clientConfig.outputDir;
+  }
+
+  return {
+    ...clientConfig,
+    baseURL: resolvedBaseURL,
+    outputDir: resolvedOutputDir,
+  };
+};
+
+/**
+ * Generate API client files based on configuration
+ *
+ * Main orchestration function for client generation. Handles folder-split and
+ * single-folder modes, filters endpoints, invokes appropriate generator, and
  * creates index files, README documentation, and root aggregators for folder-split mode.
  *
  * @param {EndpointInfo[]} endpoints - Complete array of endpoint information from OpenAPI spec
  * @param {IConfig} config - Full OpenAPI sync configuration
- * @param {IConfigClientGeneration} clientConfig - Specific client generation configuration
+ * @param {IConfigClientGeneration} rawClientConfig - Specific client generation configuration
  * @param {string} apiName - Name of the API being generated
  * @param {string} outputFolder - Base output folder path for generated files
  * @returns {Promise<void>}
@@ -122,11 +172,12 @@ const getFolderForEndpoint = (
 export const generateClients = async (
   endpoints: EndpointInfo[],
   config: IConfig,
-  clientConfig: IConfigClientGeneration,
+  rawClientConfig: IConfigClientGeneration,
   apiName: string,
   outputFolder: string,
   silent = false
 ): Promise<string[]> => {
+  const clientConfig = resolveClientConfigForApi(rawClientConfig, apiName);
   const log = makeLogger(silent);
   const writtenFiles: string[] = [];
   // Filter endpoints based on config
@@ -144,7 +195,8 @@ export const generateClients = async (
     clientConfig.next = true;
   }
   const clientOutputDir =
-    clientConfig.outputDir || path.join(outputFolder, apiName, "client");
+    (typeof clientConfig.outputDir === "string" ? clientConfig.outputDir : undefined) ||
+    path.join(outputFolder, apiName, "client");
 
   // Check if folder splitting is enabled
   const isFolderSplitEnabled = !!(

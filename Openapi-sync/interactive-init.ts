@@ -688,7 +688,9 @@ export interface NonInteractiveInitOptions {
   /** Config file format (default: `"typescript"`) */
   configFormat?: "typescript" | "json" | "javascript";
   /** Client type to generate (omit to skip client generation) */
-  clientType?: "react-query" | "swr" | "fetch" | "axios" | "rtk-query";
+  clientType?: "react-query" | "swr" | "fetch" | "axios" | "rtk-query" | "next-fetch";
+  /** Group endpoints by URL path and extract shared path functions and BASE_URL in endpoints.ts */
+  sharedPaths?: boolean;
   /** Validation library (omit to skip validation schema generation) */
   validationLibrary?: "zod" | "yup" | "joi";
   /** Organize files into folders by OpenAPI tags (default: `false`) */
@@ -897,6 +899,13 @@ export const nonInteractiveInit = async (
     }
 
     config.customCode = { enabled: true, position: "bottom" };
+  }
+
+  if (opts.sharedPaths !== undefined) {
+    config.endpoints = {
+      ...(config.endpoints || {}),
+      sharedPaths: opts.sharedPaths,
+    };
   }
 
   // ── Serialise to chosen format ───────────────────────────────────────────

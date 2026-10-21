@@ -78,6 +78,9 @@ import {
   Purge,
   tryLoadConfig,
   extractCliAuthFromArgv,
+  resolveClientConfigForApi,
+  buildConfigFromCli,
+  serializeConfigToFile,
 } from "../index.js";
 import { nonInteractiveInit } from "../Openapi-sync/interactive-init.js";
 import path from "path";
@@ -92,17 +95,21 @@ const log = (...args: any[]) => process.stderr.write(args.join(" ") + "\n");
 const cwd = process.cwd();
 
 // ─────────────────────────────────────────────────────────────────────────────
-let packageVersion = "6.4.0";
+let packageVersion = "6.5.0";
 try {
   const candidates: string[] = [];
   if (process.argv && process.argv[1]) {
     candidates.push(path.resolve(path.dirname(process.argv[1]), "../package.json"));
+    candidates.push(path.resolve(path.dirname(process.argv[1]), "../../package.json"));
   }
   candidates.push(path.resolve(process.cwd(), "package.json"));
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {
       const parsed = JSON.parse(fs.readFileSync(candidate, "utf-8"));
-      if (parsed.name === "openapi-sync" && parsed.version) {
+      if (
+        (parsed.name === "openapi-sync" || parsed.name === "openapi-sync-mcp") &&
+        parsed.version
+      ) {
         packageVersion = parsed.version;
         break;
       }
@@ -202,6 +209,12 @@ const cliConfigOverridesZodSchema = {
     .string()
     .optional()
     .describe("Default server index or base URL override."),
+  sharedPaths: z
+    .boolean()
+    .optional()
+    .describe(
+      "Group endpoints by URL path and extract shared path functions and BASE_URL in endpoints.ts.",
+    ),
   configJson: z
     .string()
     .optional()
@@ -374,6 +387,17 @@ server.tool(
       .describe(
         "Auto-refetch interval in ms. Omit unless you want a long-lived process timer; not for one-shot agent calls.",
       ),
+    preserve: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe(
+        "Auto-create a config file preserving CLI options after sync succeeds if no config file exists.",
+      ),
+    configFormat: z
+      .enum(["typescript", "json", "javascript"])
+      .optional()
+      .describe("Config file format to create when preserving config."),
     ...cliConfigOverridesZodSchema,
   },
   async (params) => {
@@ -387,6 +411,35 @@ server.tool(
         cliArgs,
         apiName: params.apiName,
       });
+
+      if (params.preserve && result && result.success !== false) {
+        const loaded = tryLoadConfig(process.cwd());
+        const hasExistingDiskConfig = Boolean(
+          loaded?.foundPath && loaded.foundPath !== "[CLI Arguments]",
+        );
+        if (!hasExistingDiskConfig) {
+          const configToPreserve = buildConfigFromCli(cliArgs, null, {
+            skipPresetExpansion: true,
+          });
+          if (configToPreserve) {
+            const format =
+              params.configFormat ||
+              (fs.existsSync(path.join(process.cwd(), "tsconfig.json"))
+                ? "typescript"
+                : "typescript");
+            const preserved = serializeConfigToFile(
+              configToPreserve,
+              format,
+              process.cwd(),
+            );
+            (result as any).preservedConfig = {
+              file: preserved.fileName,
+              path: preserved.filePath,
+            };
+          }
+        }
+      }
+
       return {
         content: [
           {
@@ -630,12 +683,15 @@ server.tool(
           totalEndpointCount += endpointCount;
 
           const basePath = path.join(process.cwd(), configuredFolder);
+          const resolvedClientConfig = config?.clientGeneration
+            ? resolveClientConfigForApi(config.clientGeneration, apiName)
+            : undefined;
           const apiFolderPath = effectiveOutputDir
             ? (path.isAbsolute(effectiveOutputDir) ? effectiveOutputDir : path.join(process.cwd(), effectiveOutputDir))
-            : (config?.clientGeneration?.outputDir
-              ? (path.isAbsolute(config.clientGeneration.outputDir)
-                  ? config.clientGeneration.outputDir
-                  : path.join(process.cwd(), config.clientGeneration.outputDir))
+            : (resolvedClientConfig?.outputDir
+              ? (path.isAbsolute(resolvedClientConfig.outputDir)
+                  ? resolvedClientConfig.outputDir
+                  : path.join(process.cwd(), resolvedClientConfig.outputDir))
               : path.join(basePath, apiName));
 
           const plannedFiles = computePlannedFiles(params.type, apiFolderPath);
@@ -828,10 +884,16 @@ server.tool(
       .default("typescript")
       .describe("Config file format (default: typescript)."),
     clientType: z
-      .enum(["react-query", "swr", "fetch", "axios", "rtk-query"])
+      .enum(["react-query", "swr", "fetch", "axios", "rtk-query", "next-fetch"])
       .optional()
       .describe(
         "Client type to pre-configure in the config. Omit to skip client generation.",
+      ),
+    sharedPaths: z
+      .boolean()
+      .optional()
+      .describe(
+        "Group endpoints by URL path and extract shared path functions and BASE_URL in endpoints.ts.",
       ),
     validationLibrary: z
       .enum(["zod", "yup", "joi"])
@@ -912,6 +974,7 @@ server.tool(
         outputFolder: params.outputFolder ?? "",
         configFormat: params.configFormat,
         clientType: params.clientType,
+        sharedPaths: params.sharedPaths,
         validationLibrary: params.validationLibrary,
         folderSplit: params.folderSplit,
         typesPrefix: params.typesPrefix,

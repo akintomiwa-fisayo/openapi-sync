@@ -276,17 +276,29 @@ export type IConfigValidations = {
  *
  * @public
  */
-export type IConfigClientGeneration = {
+export type IConfigClientGeneration<TApis extends string = string> = {
 	/** Enable client generation (default: false) */
 	enabled?: boolean;
 	/** Client type to generate */
 	type?: "fetch" | "axios" | "react-query" | "swr" | "rtk-query" | "next-fetch";
 	/** Enable Next.js App Router-friendly fetch options (cache, revalidate, tags) */
 	next?: boolean;
-	/** Output directory for generated clients */
-	outputDir?: string;
-	/** Base URL for API requests (can be overridden at runtime) */
-	baseURL?: string;
+	/** Output directory for generated clients (global string or per-API path map) */
+	outputDir?: string | Partial<Record<TApis, string>>;
+	/** Base URL for API requests (global string or per-API URL map) */
+	baseURL?: string | Partial<Record<TApis, string>>;
+	/** Per-API client generation configuration overrides */
+	perApi?: Partial<
+		Record<
+			TApis,
+			{
+				/** Base URL for API requests for this specific API */
+				baseURL?: string;
+				/** Output directory for generated clients for this specific API */
+				outputDir?: string;
+			}
+		>
+	>;
 	/** Filter endpoints by tags */
 	tags?: string[];
 	/** Filter endpoints by endpoint names */
@@ -477,7 +489,7 @@ export type PresetName =
  *
  * @public
  */
-export type IConfig = {
+export type IConfig<TApis extends string = string> = {
 	/**
 	 * Optional preset name. Applies opinionated defaults for a specific
 	 * framework/library combination. User values always override preset defaults.
@@ -499,7 +511,7 @@ export type IConfig = {
 	language?: "typescript" | "python";
 	refetchInterval?: number;
 	folder?: string;
-	api: Record<string, IApiSource>;
+	api: Record<TApis, IApiSource>;
 	server?: number | string;
 	/** Configuration for splitting generated code into folders */
 	folderSplit?: IConfigFolderSplit;
@@ -508,7 +520,7 @@ export type IConfig = {
 	/** Configuration for validation schema generation */
 	validations?: IConfigValidations;
 	/** Configuration for API client generation */
-	clientGeneration?: IConfigClientGeneration;
+	clientGeneration?: IConfigClientGeneration<TApis>;
 	/** Configuration for excluding endpoints from code generation */
 	types?: {
 		name?: {
@@ -537,6 +549,11 @@ export type IConfig = {
 			includeServer?: boolean;
 			type?: "string" | "object";
 		};
+		/**
+		 * Extract BASE_URL and group endpoints by path using shared path helper functions/constants.
+		 * Reduces repetitive URL strings and groups operations on the same URL path.
+		 */
+		sharedPaths?: boolean;
 		name?: {
 			format?: (
 				data: {
@@ -577,7 +594,7 @@ export type IConfig = {
  * @returns The exact same configuration object with type guarantees
  * @public
  */
-export function defineConfig(config: IConfig): IConfig {
+export function defineConfig<TApis extends string = string>(config: IConfig<TApis>): IConfig<TApis> {
 	return config;
 }
 

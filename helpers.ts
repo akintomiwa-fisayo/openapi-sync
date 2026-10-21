@@ -344,7 +344,7 @@ export const extractCustomCode = (
       blockStart = Math.max(0, startIndex - 200) + lastSeparatorIndex;
     }
 
-    const customBlock = fileContent.substring(blockStart, blockEnd);
+    const customBlock = fileContent.substring(blockStart, blockEnd).trim();
     blocks.push({ start: blockStart, end: blockEnd, content: customBlock });
 
     searchPos = blockEnd;
@@ -516,22 +516,26 @@ export const mergeCustomCode = (
     }
   }
 
-  // Assemble final content
+  // Assemble final content with consistent single blank line separation
   const parts: string[] = [];
 
-  if (customCode.beforeGenerated) {
-    parts.push(customCode.beforeGenerated);
-    parts.push(""); // Empty line
+  const normalizedBefore = customCode.beforeGenerated.trim();
+  const normalizedGenerated = generatedContent.trim();
+  const normalizedAfter = customCode.afterGenerated.trim();
+
+  if (normalizedBefore) {
+    parts.push(normalizedBefore);
   }
 
-  parts.push(generatedContent);
-
-  if (customCode.afterGenerated) {
-    parts.push(""); // Empty line
-    parts.push(customCode.afterGenerated);
+  if (normalizedGenerated) {
+    parts.push(normalizedGenerated);
   }
 
-  return parts.join("\n");
+  if (normalizedAfter) {
+    parts.push(normalizedAfter);
+  }
+
+  return parts.join("\n\n");
 };
 
 /**
