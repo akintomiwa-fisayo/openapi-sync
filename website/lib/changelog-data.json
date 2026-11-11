@@ -1,5 +1,15 @@
 [
   {
+    "version": "6.5.2",
+    "date": "2026-11-11",
+    "type": "patch",
+    "changes": [
+      "explicitly type generated Axios response variables with AxiosResponse<T> while preserving unwrapped data return types across axios, react-query, and swr clients",
+      "annotate const response: AxiosResponse<T> on all generated Axios request calls (eliminating unused AxiosResponse import warnings under strict linting and noUnusedLocals)",
+      "simplify Axios request emission to handle body and non-body HTTP methods uniformly"
+    ]
+  },
+  {
     "version": "6.5.1",
     "date": "2026-11-11",
     "type": "patch",
