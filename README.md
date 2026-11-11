@@ -476,6 +476,22 @@ function PetDetails({ petId }: { petId: string }) {
 | `--output, -o`    | Output directory         | `--output ./src/clients`                                               |
 | `--base-url, -b`  | Base URL for requests    | `--base-url https://api.example.com`                                   |
 
+### Object Endpoints Support (`endpoints.value.type: "object"`)
+
+When `endpoints.value.type` is set to `"object"`, `endpoints.ts` exports endpoint metadata objects (`{ method, operationId, url, tags }`) instead of raw URL strings or builder functions:
+
+```typescript
+// endpoints.ts
+export const getPetById = {
+  method: "get",
+  operationId: "getPetById",
+  url: (petId: number) => `https://petstore3.swagger.io/api/v3/pet/${petId}`,
+  tags: ["pet"],
+};
+```
+
+All six client generators (`fetch`, `next-fetch`, `axios`, `react-query`, `swr`, and `rtk-query`) automatically resolve `.url` and `.url(...)` in both flat and folder-split layouts—so you can switch `endpoints.value.type` between `"string"` and `"object"` without broken imports or manual wrapper code.
+
 ### Custom Code Preservation
 
 Generated clients support custom code sections that are preserved during regeneration:
@@ -700,7 +716,7 @@ Generate fully-typed API clients for various frameworks and libraries.
 | ----------------- | --------------------------------------------------------------------------- |
 | `init`            | Interactive setup wizard (or non-interactive with `-y` / `--no-interactive`) |
 | `sync` (default)  | Sync OpenAPI specs and generate types, endpoints, and validation schemas   |
-| `generate-client` | Generate typed API client code (`fetch`, `axios`, `react-query`, `swr`, `rtk-query`) |
+| `generate-client` | Generate typed API client code (`fetch`, `next-fetch`, `axios`, `react-query`, `swr`, `rtk-query`) |
 | `validate`        | Validate configuration and remote/local specs without writing files         |
 | `doctor`          | Run diagnostic health checks on config, specs, peer dependencies, and cache |
 | `purge`           | Detect and remove stale generated files that no longer exist in specs       |

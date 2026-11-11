@@ -321,13 +321,14 @@ const config: IConfig = {
   folderSplit: { byTags: true },
   types: { name: { prefix: "I", useOperationId: true } },
   endpoints: {
+    value: { type: "string" },      // "string" | "object"
     doc: { showCurl: true },
     exclude: { tags: ["deprecated"] },
   },
   validations: { library: "zod" },  // "zod" | "yup" | "joi"
   clientGeneration: {
     enabled: true,
-    type: "react-query",            // "fetch"|"axios"|"react-query"|"swr"|"rtk-query"
+    type: "react-query",            // "fetch"|"next-fetch"|"axios"|"react-query"|"swr"|"rtk-query"
     baseURL: "https://api.example.com",
     reactQuery: { version: 5, mutations: true },
   },
@@ -346,8 +347,10 @@ export default config;
 | `refetchInterval` | `number` | Auto-refetch ms |
 | `folderSplit.byTags` | `boolean` | Split output by OpenAPI tags |
 | `validations.library` | `"zod"\|"yup"\|"joi"` | Validation schema library |
-| `clientGeneration.type` | string | Client type to generate |
-| `clientGeneration.baseURL` | `string` | Base URL for generated client |
+| `endpoints.value.type` | `"string"\|"object"` | Endpoint export format (`"string"` URL/builder or `"object"` metadata `{ method, operationId, url, tags }`; all client types auto-resolve `.url`) |
+| `endpoints.sharedPaths` | `boolean` | Extract shared URL path helpers and `BASE_URL` in `endpoints.ts` |
+| `clientGeneration.type` | string | Client type to generate (`fetch`, `next-fetch`, `axios`, `react-query`, `swr`, `rtk-query`) |
+| `clientGeneration.baseURL` | `string \| Record<string, string>` | Base URL (or per-API map) for generated client |
 | `endpoints.exclude.tags` | `string[]` | Tags to exclude from generation |
 
 ### Protected Specs & Stored Auth (`auth`)

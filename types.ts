@@ -547,6 +547,11 @@ export type IConfig<TApis extends string = string> = {
 		value?: {
 			replaceWords?: IConfigReplaceWord[];
 			includeServer?: boolean;
+			/**
+			 * Controls the exported shape of generated endpoints in endpoints.ts.
+			 * - `"string"` (default): exports URL string / path-builder function directly.
+			 * - `"object"`: exports metadata object `{ method, operationId, url, tags }`; all generated API clients resolve `.url` automatically.
+			 */
 			type?: "string" | "object";
 		};
 		/**

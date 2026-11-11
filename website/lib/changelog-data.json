@@ -1,5 +1,16 @@
 [
   {
+    "version": "6.5.1",
+    "date": "2026-11-11",
+    "type": "patch",
+    "changes": [
+      "fix generated API client URL resolution when endpoints.value.type is set to \"object\" across all client generation types (fetch, next-fetch, axios, react-query, swr, and rtk-query) in both flat and folder-split modes",
+      "automatically emit .url and .url(...) endpoint accesses across generated Fetch, Next.js Fetch, Axios, React Query, SWR, and RTK Query clients when object endpoints are enabled",
+      "preserve existing direct string/function endpoint call behavior when endpoints.value.type is \"string\" or omitted",
+      "update configuration JSON schema, TypeScript JSDocs, and documentation with object-endpoint client compatibility"
+    ]
+  },
+  {
     "version": "6.5.0",
     "date": "2026-10-16",
     "type": "minor",

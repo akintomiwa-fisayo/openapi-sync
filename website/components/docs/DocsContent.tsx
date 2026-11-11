@@ -906,6 +906,22 @@ export const updatePet = (petId: string) => \`/pet/\${petId}\`;`}
 }`}
           language="typescript"
         />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Endpoint Value Format (String vs. Object)
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          By default (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">value.type: &quot;string&quot;</code>), each export in <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">endpoints.ts</code> is a URL string or path-builder function. Set <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">endpoints.value.type: &quot;object&quot;</code> to export structured endpoint metadata objects (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">{`{ method, operationId, url, tags }`}</code>). All six client generators (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">fetch</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">next-fetch</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">axios</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">react-query</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">swr</code>, and <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">rtk-query</code>) automatically resolve <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">.url</code> and <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">.url(...)</code> in both flat and folder-split layouts:
+        </p>
+        <CodeBlock
+          code={`endpoints: {
+  value: {
+    type: "object",        // "string" (default) | "object"
+    includeServer: true,   // Prepend server URL to endpoint.url
+  },
+}`}
+          language="typescript"
+        />
       </section>
 
       {/* Python Codegen */}
@@ -1009,8 +1025,13 @@ class Endpoints:
 
         <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 dark:border-blue-500 p-4 rounded mb-6">
           <p className="text-sm text-gray-700 dark:text-gray-300 mb-0">
-            Generate clients for Fetch, Axios, React Query, SWR, and RTK Query
-            with full TypeScript support!
+            Generate clients for Fetch, Next.js Fetch, Axios, React Query, SWR,
+            and RTK Query with full TypeScript support—works seamlessly with both
+            default string endpoints and{" "}
+            <code className="text-xs bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5 rounded font-mono">
+              endpoints.value.type: &quot;object&quot;
+            </code>
+            !
           </p>
         </div>
 
@@ -1038,6 +1059,10 @@ class Endpoints:
             types
           </li>
           <li>
+            <strong>next-fetch</strong> - Next.js App Router &amp; Server
+            Components fetch client with built-in cache and revalidation support
+          </li>
+          <li>
             <strong>axios</strong> - Axios client with interceptors and error
             handling
           </li>
@@ -1059,6 +1084,9 @@ class Endpoints:
         <CodeBlock
           code={`# Generate Fetch client
 npx openapi-sync generate-client --type fetch
+
+# Generate Next.js Fetch client
+npx openapi-sync generate-client --type next-fetch
 
 # Generate Axios client
 npx openapi-sync generate-client --type axios
@@ -1480,7 +1508,7 @@ export function setupCustomInterceptors() {
                   Client type to generate (required)
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                  fetch, axios, react-query, swr, rtk-query
+                  fetch, next-fetch, axios, react-query, swr, rtk-query
                 </td>
               </tr>
               <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">

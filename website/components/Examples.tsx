@@ -380,7 +380,8 @@ const config: IConfig = {
   {
     category: "Endpoint Configuration",
     title: "Endpoint as Objects",
-    description: "Generate endpoints as objects with metadata",
+    description:
+      "Generate endpoints as metadata objects—automatically compatible with all generated API clients",
     code: `endpoints: {
   value: {
     type: "object",
@@ -388,13 +389,16 @@ const config: IConfig = {
   }
 }
 
-// Generated output:
+// Generated output (endpoints.ts):
 export const getPetById = {
-  method: "GET",
+  method: "get",
   operationId: "getPetById",
-  url: (petId: string) => \`/pet/\${petId}\`,
+  url: (petId: number) => \`https://petstore3.swagger.io/api/v3/pet/\${petId}\`,
   tags: ["pet"]
-};`,
+};
+
+// All generated clients (fetch, next-fetch, axios, react-query, swr, rtk-query)
+// automatically resolve getPetById.url(url.petId)!`,
   },
   {
     category: "Custom Code",

@@ -491,7 +491,9 @@
             "includeServer": { "type": "boolean" },
             "type": {
               "type": "string",
-              "enum": ["string", "object"]
+              "enum": ["string", "object"],
+              "default": "string",
+              "description": "Export endpoints as URL strings/builders (\"string\") or metadata objects { method, operationId, url, tags } (\"object\"). Supported across all generated API client types."
             },
             "replaceWords": {
               "type": "array",
