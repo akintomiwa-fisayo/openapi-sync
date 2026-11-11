@@ -711,21 +711,15 @@ export const generateAxiosClient = (
     const methodLower = endpoint.method.toLowerCase();
     const isBodyMethod = ["post", "put", "patch"].includes(methodLower);
 
-    if (isBodyMethod) {
-      content += `    const response = await this.client.${methodLower}<${responseType}>(\n`;
-      content += `      _url,\n`;
-      content += `      ${hasBody ? "data" : "undefined"},\n`;
-      content += `      config\n`;
-      content += `    );\n`;
-    } else {
-      if (hasBody) {
-        content += `    config.data = data;\n`;
-      }
-      content += `    const response = await this.client.${methodLower}<${responseType}>(\n`;
-      content += `      _url,\n`;
-      content += `      config\n`;
-      content += `    );\n`;
+    if (!isBodyMethod && hasBody) {
+      content += `    config.data = data;\n`;
     }
+    const callArgs = isBodyMethod
+      ? [`_url`, hasBody ? "data" : "undefined", `config`]
+      : [`_url`, `config`];
+    content += `    const response: AxiosResponse<${responseType}> = await this.client.${methodLower}<${responseType}>(\n`;
+    content += callArgs.map((arg) => `      ${arg}`).join(",\n") + `\n`;
+    content += `    );\n`;
     content += `    return response.data;\n`;
     content += `  }\n\n`;
   });
