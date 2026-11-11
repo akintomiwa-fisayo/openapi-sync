@@ -227,8 +227,9 @@ function addCliConfigOptions(yargs) {
   addAuthOptions(yargs);
   return yargs
     .option("api-url", {
+      alias: "api-file",
       type: "string",
-      description: "Direct URL to OpenAPI specification (JSON or YAML)",
+      description: "Direct URL or local file path to OpenAPI specification (JSON or YAML)",
     })
     .option("api-name", {
       type: "string",
@@ -260,7 +261,7 @@ function addCliConfigOptions(yargs) {
       description: "Named preset to apply automatically",
     })
     .option("folder", {
-      alias: ["output-folder", "outputFolder", "f"],
+      alias: ["output-folder", "f"],
       type: "string",
       description: "Output directory for generated files (e.g. ./src/api)",
     })
@@ -274,16 +275,13 @@ function addCliConfigOptions(yargs) {
       description: "Default server index or base URL override",
     })
     .option("validation-lib", {
-      alias: ["validations-library", "validation-library", "validationLibrary"],
+      alias: ["validations-library", "validation-library"],
       type: "string",
       choices: ["zod", "yup", "joi"],
       description: "Runtime validation library",
     })
     .option("no-validations", {
-      type: "boolean",
-      description: "Disable runtime validation generation",
-    })
-    .option("validations-disable", {
+      alias: "validations-disable",
       type: "boolean",
       description: "Disable runtime validation generation",
     })
@@ -305,7 +303,7 @@ function addCliConfigOptions(yargs) {
     })
     .option("client-type", {
       type: "string",
-      choices: ["fetch", "axios", "react-query", "swr", "rtk-query"],
+      choices: ["fetch", "axios", "react-query", "swr", "rtk-query", "next-fetch"],
       description: "HTTP client / hook generator type",
     })
     .option("client-output", {
@@ -338,17 +336,13 @@ function addCliConfigOptions(yargs) {
       description: "Base query import or function for RTK Query",
     })
     .option("split-by-tags", {
-      alias: ["folder-split", "folderSplit"],
+      alias: "folder-split",
       type: "boolean",
       description: "Split generated endpoint files into subdirectories by tag",
     })
     .option("custom-code", {
       type: "boolean",
-      description: "Enable custom code preservation markers",
-    })
-    .option("no-custom-code", {
-      type: "boolean",
-      description: "Disable custom code preservation markers",
+      description: "Enable custom code preservation markers (use --no-custom-code to disable)",
     })
     .option("custom-code-position", {
       type: "string",
@@ -360,8 +354,12 @@ function addCliConfigOptions(yargs) {
       choices: ["string", "object"],
       description: "Endpoint export format ('string' for URL templates, 'object' for rich endpoint objects)",
     })
+    .option("shared-paths", {
+      type: "boolean",
+      description: "Group endpoints by URL path and extract shared path functions and BASE_URL in endpoints.ts",
+    })
     .option("refetch-interval", {
-      alias: ["refreshinterval", "ri"],
+      alias: ["refresh-interval", "refreshinterval", "ri"],
       type: "number",
       description: "Interval in ms to auto-refetch specifications",
     })
@@ -378,7 +376,7 @@ function addCliConfigOptions(yargs) {
       description: "Include cURL examples in generated JSDoc comments",
     })
     .option("type-prefix", {
-      alias: ["types-prefix", "typesPrefix"],
+      alias: "types-prefix",
       type: "string",
       description: "Prefix for generated TypeScript interfaces (e.g. 'I')",
     })
@@ -393,6 +391,16 @@ function addCliConfigOptions(yargs) {
     .option("include-tags", {
       type: "string",
       description: "Comma-separated tags to include in generation",
+    })
+    .option("preserve", {
+      type: "boolean",
+      description: "Auto-create a config file preserving CLI options after sync succeeds if no config file exists",
+      default: false,
+    })
+    .option("config-format", {
+      type: "string",
+      choices: ["typescript", "json", "javascript"],
+      description: "Config file format to create when preserving config",
     });
 }
 
@@ -457,12 +465,9 @@ const cli = yargs(hideBin(process.argv))
           description: "Name for this API (e.g. petstore)",
         })
         .option("api-url", {
+          alias: "api-file",
           type: "string",
-          description: "URL to the OpenAPI spec (JSON or YAML)",
-        })
-        .option("api-file", {
-          type: "string",
-          description: "Path to a local OpenAPI spec file",
+          description: "URL or path to the OpenAPI spec (JSON or YAML)",
         })
         .option("output-folder", {
           alias: ["folder", "f"],
@@ -478,7 +483,7 @@ const cli = yargs(hideBin(process.argv))
         })
         .option("client-type", {
           type: "string",
-          choices: ["react-query", "swr", "fetch", "axios", "rtk-query"],
+          choices: ["react-query", "swr", "fetch", "axios", "rtk-query", "next-fetch"],
           description: "API client type to generate",
         })
         .option("validation-library", {
@@ -503,6 +508,10 @@ const cli = yargs(hideBin(process.argv))
           type: "boolean",
           description: "Use operationId from spec for type/function names",
           default: true,
+        })
+        .option("shared-paths", {
+          type: "boolean",
+          description: "Group endpoints by URL path and extract shared path functions and BASE_URL in endpoints.ts",
         })
         .option("exclude-tags", {
           type: "string",
@@ -571,6 +580,7 @@ const cli = yargs(hideBin(process.argv))
             outputFolder: argv["output-folder"] ?? argv.folder ?? "",
             configFormat: argv["config-format"],
             clientType: argv["client-type"],
+            sharedPaths: argv["shared-paths"] ?? argv.sharedPaths,
             validationLibrary: argv["validation-library"] || argv["validation-lib"] || argv["validations-library"],
             folderSplit: argv["folder-split"] !== undefined ? argv["folder-split"] : argv["split-by-tags"],
             typesPrefix: argv["types-prefix"] || argv["type-prefix"],
@@ -935,6 +945,28 @@ const cli = yargs(hideBin(process.argv))
         silent,
       });
 
+      if (argv.preserve && result && result.success !== false) {
+        const loaded = OpenApisync.tryLoadConfig ? OpenApisync.tryLoadConfig(process.cwd()) : null;
+        const hasExistingDiskConfig = Boolean(loaded?.foundPath && loaded.foundPath !== "[CLI Arguments]");
+        if (!hasExistingDiskConfig) {
+          const configToPreserve = OpenApisync.buildConfigFromCli(argv, null, { skipPresetExpansion: true });
+          if (configToPreserve) {
+            const fs = require("fs");
+            const path = require("path");
+            const format = argv["config-format"] || argv.configFormat || (fs.existsSync(path.join(process.cwd(), "tsconfig.json")) ? "typescript" : "typescript");
+            const preserved = OpenApisync.serializeConfigToFile(configToPreserve, format, process.cwd());
+            if (!silent) {
+              console.log(`\n💾 Preserved configuration to ${preserved.fileName}`);
+            }
+            if (argv.json) {
+              result.preservedConfig = { file: preserved.fileName, path: preserved.filePath };
+            }
+          }
+        } else if (!silent) {
+          console.log(`\n⚠️  Config file already exists (${loaded.foundPath}), skipping --preserve.`);
+        }
+      }
+
       if (argv.json) {
         return jsonExit(result, exitCodeFromResult(result));
       }
@@ -951,13 +983,14 @@ const cli = yargs(hideBin(process.argv))
       addCliConfigOptions(yargs);
       return yargs
         .option("type", {
-          alias: "t",
+          alias: ["client-type", "t"],
           type: "string",
           description: "Client type to generate",
           choices: ["fetch", "axios", "react-query", "swr", "rtk-query", "next-fetch"],
           demandOption: true,
         })
         .option("tags", {
+          alias: "client-tags",
           type: "array",
           description: "Filter endpoints by tags (e.g. --tags pet,user)",
         })
@@ -968,12 +1001,12 @@ const cli = yargs(hideBin(process.argv))
             "Filter endpoints by operationId, generated name, or path (e.g. --endpoints getPetById,PostPet or /pet/{petId})",
         })
         .option("output", {
-          alias: "o",
+          alias: ["client-output", "o"],
           type: "string",
           description: "Output directory for generated client",
         })
         .option("base-url", {
-          alias: "b",
+          alias: ["client-base-url", "b"],
           type: "string",
           description: "Base URL for API requests",
         })
@@ -1316,7 +1349,6 @@ const cli = yargs(hideBin(process.argv))
   .alias("help", "h")
   .version()
   .alias("version", "v")
-  .demandCommand(1, "You need to specify a command")
   .fail((msg, err, yargsInstance) => {
     const message = err?.message || msg;
     if (hasJsonFlag()) {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FiCopy, FiCheck } from "react-icons/fi";
+import versionsData from "@/lib/changelog-data.json";
 
 const installCommands = [
   { label: "NPM", command: "npm install openapi-sync" },
@@ -103,7 +104,9 @@ export default function Installation() {
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <li>
                   • Latest version: {" "}
-                  <span className="font-mono text-red-600">6.2.0</span>
+                  <span className="font-mono text-red-600">
+                    {versionsData[0].version}
+                  </span>
                 </li>
                 <li>• Includes: CLI workflows, MCP tooling, and cache-aware sync</li>
                 <li>• Dependencies: lightweight core runtime with optional validation peers</li>

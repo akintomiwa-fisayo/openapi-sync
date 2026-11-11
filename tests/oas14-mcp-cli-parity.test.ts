@@ -199,13 +199,15 @@ describe("OAS-14 & OAS-15: Default output folder is \"\" and MCP CLI parity", ()
               expect(toolNames).toContain("openapi_sync_purge");
               expect(toolNames).toContain("openapi_sync_read_config");
 
-              // 2. Check openapi_sync_init properties: outputFolder default is "", authPassword exists
+              // 2. Check openapi_sync_init properties: outputFolder default is "", authPassword exists, next-fetch in clientType, sharedPaths
               const initTool = tools.find((t: any) => t.name === "openapi_sync_init");
               expect(initTool.inputSchema.properties.outputFolder.default).toBe("");
               expect(initTool.inputSchema.properties.authPassword).toBeDefined();
               expect(initTool.inputSchema.properties.authName).toBeDefined();
               expect(initTool.inputSchema.properties.authValue).toBeDefined();
               expect(initTool.inputSchema.properties.authIn).toBeDefined();
+              expect(initTool.inputSchema.properties.clientType.enum).toContain("next-fetch");
+              expect(initTool.inputSchema.properties.sharedPaths).toBeDefined();
 
               // 3. Check openapi_sync_generate_client properties: next-fetch included in type enum
               const genTool = tools.find((t: any) => t.name === "openapi_sync_generate_client");
@@ -220,10 +222,17 @@ describe("OAS-14 & OAS-15: Default output folder is \"\" and MCP CLI parity", ()
               expect(purgeTool.inputSchema.properties.yes).toBeDefined();
               expect(purgeTool.inputSchema.properties.dryRun).toBeDefined();
 
-              // 5. Check auth flags present on validate
+              // 5. Check auth and sharedPaths flags present on validate
               const valTool = tools.find((t: any) => t.name === "openapi_sync_validate");
               expect(valTool.inputSchema.properties.authType).toBeDefined();
               expect(valTool.inputSchema.properties.authToken).toBeDefined();
+              expect(valTool.inputSchema.properties.sharedPaths).toBeDefined();
+
+              // 6. Check openapi_sync_sync properties: preserve, configFormat, sharedPaths
+              const syncTool = tools.find((t: any) => t.name === "openapi_sync_sync");
+              expect(syncTool.inputSchema.properties.preserve).toBeDefined();
+              expect(syncTool.inputSchema.properties.configFormat).toBeDefined();
+              expect(syncTool.inputSchema.properties.sharedPaths).toBeDefined();
 
               proc.kill();
               done();

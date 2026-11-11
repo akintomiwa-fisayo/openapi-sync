@@ -1,5 +1,8 @@
+import fs from "fs";
+import path from "path";
 import { IConfig, IApiSource, ISpecAuth, PresetName } from "../types";
 import { applyPreset, PRESETS } from "./presets";
+import { serializeObjectToTs } from "./interactive-init";
 
 /**
  * Extract an ISpecAuth object from CLI argv flags.
@@ -80,7 +83,8 @@ function parseStringArray(val: any): string[] | undefined {
  */
 export function buildConfigFromCli(
   argv: Record<string, any>,
-  diskConfig?: IConfig | null
+  diskConfig?: IConfig | null,
+  options?: { skipPresetExpansion?: boolean }
 ): IConfig | null {
   if (!argv && !diskConfig) return null;
 
@@ -324,6 +328,7 @@ export function buildConfigFromCli(
   }
 
   const endpointType = argv?.["endpoint-type"] || argv?.endpointType;
+  const sharedPaths = argv?.["shared-paths"] ?? argv?.sharedPaths;
   if (
     useOperationId !== undefined ||
     noDocs !== undefined ||
@@ -331,10 +336,12 @@ export function buildConfigFromCli(
     argv?.["exclude-tags"] ||
     argv?.["include-tags"] ||
     endpointType !== undefined ||
+    sharedPaths !== undefined ||
     base.endpoints
   ) {
     result.endpoints = {
       ...(base.endpoints || {}),
+      ...(sharedPaths !== undefined ? { sharedPaths: Boolean(sharedPaths) } : {}),
       ...(endpointType !== undefined || base.endpoints?.value
         ? {
             value: {
@@ -364,9 +371,56 @@ export function buildConfigFromCli(
   }
 
   // 4. Apply preset if preset is specified
-  if (result.preset) {
+  if (result.preset && !options?.skipPresetExpansion) {
     return applyPreset(result, result.preset);
   }
 
   return result;
+}
+
+/**
+ * Serialize an IConfig to a configuration file on disk.
+ *
+ * @param config - The IConfig object to write
+ * @param format - Format to write: 'typescript' | 'json' | 'javascript' (default: 'typescript')
+ * @param cwd - Target directory (default: process.cwd())
+ * @param overwrite - Whether to overwrite existing file (default: true)
+ * @returns { filePath: string, fileName: string, content: string }
+ */
+export function serializeConfigToFile(
+  config: IConfig,
+  format: "typescript" | "json" | "javascript" = "typescript",
+  cwd: string = process.cwd(),
+  overwrite = true
+): { filePath: string; fileName: string; content: string } {
+  let fileName: string;
+  let content: string;
+
+  if (format === "json") {
+    fileName = "openapi.sync.json";
+    const jsonConfig = {
+      $schema: "./node_modules/openapi-sync/openapi.sync.schema.json",
+      ...config,
+    };
+    content = JSON.stringify(jsonConfig, null, 2) + "\n";
+  } else if (format === "javascript") {
+    fileName = "openapi.sync.js";
+    content =
+      `// @see node_modules/openapi-sync/openapi.sync.schema.json\n` +
+      `/** @type {import('openapi-sync').IConfig} */\n` +
+      `module.exports = ${JSON.stringify(config, null, 2)};\n`;
+  } else {
+    fileName = "openapi.sync.ts";
+    content =
+      `// @see node_modules/openapi-sync/openapi.sync.schema.json\n` +
+      `import { defineConfig } from "openapi-sync";\n\n` +
+      `export default defineConfig(${serializeObjectToTs(config, 0)});\n`;
+  }
+
+  const filePath = path.join(cwd, fileName);
+  if (!overwrite && fs.existsSync(filePath)) {
+    throw new Error(`Configuration file already exists at ${filePath}`);
+  }
+  fs.writeFileSync(filePath, content, "utf-8");
+  return { filePath, fileName, content };
 }

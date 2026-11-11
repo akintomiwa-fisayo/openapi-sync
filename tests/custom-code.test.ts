@@ -379,5 +379,34 @@ custom_value = 1
     expect(result).not.toContain("// 🔒 CUSTOM CODE START");
     expect(result).toContain("custom_value = 1");
   });
+
+  it("should not accumulate blank lines or whitespace on repeated merges (bottom)", () => {
+    const generated = `export const endpoint = "/api";`;
+    const run1 = mergeCustomCode(generated, null, { position: "bottom" });
+    const run2 = mergeCustomCode(generated, run1, { position: "bottom" });
+    const run3 = mergeCustomCode(generated, run2, { position: "bottom" });
+
+    expect(run2).toBe(run1);
+    expect(run3).toBe(run2);
+  });
+
+  it("should not accumulate blank lines or whitespace on repeated merges (top)", () => {
+    const generated = `export const endpoint = "/api";`;
+    const run1 = mergeCustomCode(generated, null, { position: "top" });
+    const run2 = mergeCustomCode(generated, run1, { position: "top" });
+    const run3 = mergeCustomCode(generated, run2, { position: "top" });
+
+    expect(run2).toBe(run1);
+    expect(run3).toBe(run2);
+  });
+
+  it("should not accumulate blank lines when generated content has trailing newlines", () => {
+    const generated = `export const endpoint = "/api";\n\n`;
+    const run1 = mergeCustomCode(generated, null, { position: "bottom" });
+    const run2 = mergeCustomCode(generated, run1, { position: "bottom" });
+
+    expect(run2).toBe(run1);
+  });
   });
 });
+

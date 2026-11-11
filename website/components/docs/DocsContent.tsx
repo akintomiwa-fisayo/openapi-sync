@@ -74,27 +74,7 @@ npx openapi-sync`}
           language="bash"
         />
 
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-600 dark:border-yellow-500 p-4 rounded mt-4">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            <strong>⚠️ macOS Big Sur Users:</strong> If you encounter an esbuild
-            installation error (
-            <code className="text-xs bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">
-              Symbol not found: _SecTrustCopyCertificateChain
-            </code>
-            ), please install esbuild@0.17.19 first:{" "}
-            <code className="text-xs bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">
-              npm install esbuild@0.17.19
-            </code>{" "}
-            then install openapi-sync. See{" "}
-            <a
-              href="#troubleshooting"
-              className="text-yellow-700 dark:text-yellow-400 hover:underline font-semibold"
-            >
-              Troubleshooting
-            </a>{" "}
-            for details.
-          </p>
-        </div>
+
       </section>
 
       {/* Quick Start */}
@@ -913,6 +893,35 @@ export const updatePet = (petId: string) => \`/pet/\${petId}\`;`}
 }`}
           language="typescript"
         />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Shared Path Optimization
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Enable <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">sharedPaths: true</code> (or CLI flag <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">--shared-paths</code>) to de-duplicate URL paths in <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">endpoints.ts</code>. Common URL path templates and base URLs are extracted once into internal helper functions, while each endpoint remains exported by its original <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">operationId</code> for 100% backward compatibility with full JSDocs:
+        </p>
+        <CodeBlock
+          code={`endpoints: {
+  sharedPaths: true, // Extracts shared path functions & BASE_URL
+}`}
+          language="typescript"
+        />
+
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-6">
+          Endpoint Value Format (String vs. Object)
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          By default (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">value.type: &quot;string&quot;</code>), each export in <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">endpoints.ts</code> is a URL string or path-builder function. Set <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">endpoints.value.type: &quot;object&quot;</code> to export structured endpoint metadata objects (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">{`{ method, operationId, url, tags }`}</code>). All six client generators (<code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">fetch</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">next-fetch</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">axios</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">react-query</code>, <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">swr</code>, and <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">rtk-query</code>) automatically resolve <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">.url</code> and <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded font-mono">.url(...)</code> in both flat and folder-split layouts:
+        </p>
+        <CodeBlock
+          code={`endpoints: {
+  value: {
+    type: "object",        // "string" (default) | "object"
+    includeServer: true,   // Prepend server URL to endpoint.url
+  },
+}`}
+          language="typescript"
+        />
       </section>
 
       {/* Python Codegen */}
@@ -1016,8 +1025,13 @@ class Endpoints:
 
         <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 dark:border-blue-500 p-4 rounded mb-6">
           <p className="text-sm text-gray-700 dark:text-gray-300 mb-0">
-            Generate clients for Fetch, Axios, React Query, SWR, and RTK Query
-            with full TypeScript support!
+            Generate clients for Fetch, Next.js Fetch, Axios, React Query, SWR,
+            and RTK Query with full TypeScript support—works seamlessly with both
+            default string endpoints and{" "}
+            <code className="text-xs bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5 rounded font-mono">
+              endpoints.value.type: &quot;object&quot;
+            </code>
+            !
           </p>
         </div>
 
@@ -1045,6 +1059,10 @@ class Endpoints:
             types
           </li>
           <li>
+            <strong>next-fetch</strong> - Next.js App Router &amp; Server
+            Components fetch client with built-in cache and revalidation support
+          </li>
+          <li>
             <strong>axios</strong> - Axios client with interceptors and error
             handling
           </li>
@@ -1066,6 +1084,9 @@ class Endpoints:
         <CodeBlock
           code={`# Generate Fetch client
 npx openapi-sync generate-client --type fetch
+
+# Generate Next.js Fetch client
+npx openapi-sync generate-client --type next-fetch
 
 # Generate Axios client
 npx openapi-sync generate-client --type axios
@@ -1383,18 +1404,28 @@ function PetCard({ petId }: { petId: string }) {
         </h3>
         <CodeBlock
           code={`// openapi.sync.ts
-import { IConfig } from "openapi-sync/types";
+import { defineConfig } from "openapi-sync";
 
-const config: IConfig = {
+export default defineConfig({
   folder: "./src/api",
   api: {
     petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+    billing: "https://billing.example.com/openapi.json",
   },
   // Client generation configuration
   clientGeneration: {
     enabled: true,
     type: "react-query",
-    baseURL: "https://api.example.com",
+    // Can be a single URL or a per-API mapping with autocomplete
+    baseURL: {
+      petstore: "https://petstore3.swagger.io/api/v3",
+      billing: "https://billing.example.com/api/v1",
+    },
+    // Optional per-API output directory override
+    outputDir: {
+      petstore: "./src/api/petstore/client",
+      billing: "./src/api/billing/client",
+    },
     tags: ["pets", "users"],  // Optional: filter by tags
     endpoints: ["getPetById"], // Optional: specific endpoints
     auth: {
@@ -1410,9 +1441,7 @@ const config: IConfig = {
       infiniteQueries: false,
     },
   },
-};
-
-export default config;`}
+});`}
           language="typescript"
         />
 
@@ -1479,7 +1508,7 @@ export function setupCustomInterceptors() {
                   Client type to generate (required)
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                  fetch, axios, react-query, swr, rtk-query
+                  fetch, next-fetch, axios, react-query, swr, rtk-query
                 </td>
               </tr>
               <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -1918,6 +1947,15 @@ npx openapi-sync init --no-interactive \\
         <CodeBlock
           code={`# Zero-config sync with preset
 npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --folder ./src/api
+
+# Zero-config sync and auto-create configuration file on disk (--preserve)
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --folder ./src/api --preserve
+
+# Choose format for preserved config: ts (default), json, or js
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset axios-zod --preserve --config-format json
+
+# Optimize endpoints.ts file length with shared URL paths
+npx openapi-sync --api-url https://petstore3.swagger.io/api/v3/openapi.json --preset react-query-zod --shared-paths
 
 # Zero-config sync with protected spec
 npx openapi-sync --api-url https://api.example.com/openapi.json --auth-type bearer --auth-token "$MY_TOKEN" --preset next-fetch

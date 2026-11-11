@@ -286,12 +286,44 @@
           "description": "Client framework to generate"
         },
         "outputDir": {
-          "type": "string",
-          "description": "Output directory for generated client files. In folder-split mode, tag clients are written to {outputDir}/{tag}/client.ts and aggregated at {outputDir}/clients.ts with relative imports pointing to generated types and endpoints."
+          "description": "Output directory for generated client files (single path string or a map of API names to output directories)",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Map of API names to output directory paths"
+            }
+          ]
         },
         "baseURL": {
-          "type": "string",
-          "description": "Base URL baked into the generated client (can be overridden at runtime)"
+          "description": "Base URL baked into the generated client (single URL string or a map of API names to base URLs)",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Map of API names to base URLs"
+            }
+          ]
+        },
+        "perApi": {
+          "type": "object",
+          "description": "Per-API client generation configuration overrides (baseURL, outputDir)",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "baseURL": {
+                "type": "string",
+                "description": "Base URL for this specific API"
+              },
+              "outputDir": {
+                "type": "string",
+                "description": "Output directory for this specific API"
+              }
+            }
+          }
         },
         "tags": {
           "type": "array",
@@ -447,6 +479,11 @@
       "description": "Configuration for endpoint function generation",
       "additionalProperties": false,
       "properties": {
+        "sharedPaths": {
+          "type": "boolean",
+          "default": false,
+          "description": "Group endpoints by URL path and extract shared path functions and BASE_URL in endpoints.ts"
+        },
         "value": {
           "type": "object",
           "additionalProperties": false,
@@ -454,7 +491,9 @@
             "includeServer": { "type": "boolean" },
             "type": {
               "type": "string",
-              "enum": ["string", "object"]
+              "enum": ["string", "object"],
+              "default": "string",
+              "description": "Export endpoints as URL strings/builders (\"string\") or metadata objects { method, operationId, url, tags } (\"object\"). Supported across all generated API client types."
             },
             "replaceWords": {
               "type": "array",

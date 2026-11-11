@@ -35,6 +35,10 @@ import { CurlGenerator } from "curl-generator";
 import { EndpointInfo } from "../client-generators";
 import { storeEndpoints, getStoredEndpoints } from "./endpoint-store";
 import { makeLogger } from "../logger";
+import {
+	SharedPathEndpointDescriptor,
+	renderEndpointsWithSharedPaths,
+} from "./endpoint-shared-paths";
 
 const rootUsingCwd = process.cwd();
 let fetchTimeout: Record<string, null | NodeJS.Timeout> = {};
@@ -284,6 +288,7 @@ const processOpenapiSync = async (
 			endpoints: string;
 			types: string;
 			validation: string;
+			endpointDescriptors?: SharedPathEndpointDescriptor[];
 		}
 	> = {};
 
@@ -330,6 +335,7 @@ const processOpenapiSync = async (
 		typeof config?.endpoints?.name?.prefix === "string"
 			? config?.endpoints.name.prefix
 			: "";
+	const isSharedPaths = Boolean(config?.endpoints?.sharedPaths && !isPython);
 
 	const getSharedComponentName = (
 		componentName: string,
@@ -1047,6 +1053,7 @@ const processOpenapiSync = async (
 	}
 
 	let endpointsFileContent = "";
+	const rootEndpointDescriptors: SharedPathEndpointDescriptor[] = [];
 	let typesFileContent = "";
 	let sharedTypesFileContent: Record<string, string> = {};
 	const collectedEndpoints: EndpointInfo[] = [];
@@ -1682,6 +1689,7 @@ const processOpenapiSync = async (
 					endpoints: "",
 					types: "",
 					validation: "",
+					endpointDescriptors: [],
 				};
 			}
 
@@ -1720,34 +1728,32 @@ const processOpenapiSync = async (
 			const queryParams = allResolvedParams.filter((p) => p.in === "query");
 			const headerParams = allResolvedParams.filter((p) => p.in === "header");
 
-			const endpointUrlTxt =
-				(config?.endpoints?.value?.includeServer ? serverUrl : "") +
-				endpoint.pathParts
-					.map((part) => {
-						// check if part is a variable
-						if (part[0] === "{" && part[part.length - 1] === "}") {
-							const s = part.replace(/{/, "").replace(/}/, "");
-							part = `\${${s}}`;
-						}
+			const relPathTxt = endpoint.pathParts
+				.map((part) => {
+					// check if part is a variable
+					if (part[0] === "{" && part[part.length - 1] === "}") {
+						const s = part.replace(/{/, "").replace(/}/, "");
+						part = `\${${s}}`;
+					}
 
-						//api/<userId>
-						else if (part[0] === "<" && part[part.length - 1] === ">") {
-							const s = part.replace(/</, "").replace(/>/, "");
-							part = `\${${s}}`;
-						}
+					//api/<userId>
+					else if (part[0] === "<" && part[part.length - 1] === ">") {
+						const s = part.replace(/</, "").replace(/>/, "");
+						part = `\${${s}}`;
+					}
 
-						//api/:userId
-						else if (part[0] === ":") {
-							const s = part.replace(/:/, "");
-							part = `\${${s}}`;
-						}
-						return part;
-					})
-					.join("/");
+					//api/:userId
+					else if (part[0] === ":") {
+						const s = part.replace(/:/, "");
+						part = `\${${s}}`;
+					}
+					return part;
+				})
+				.join("/");
 
-			let endpointUrl = `"${endpointUrlTxt}"`;
+			let params = "";
 			if (endpoint.variables.length > 0) {
-				const params = endpoint.variables
+				params = endpoint.variables
 					.map((v) => {
 						const param = pathParams.find((p) => p.name === v);
 						const schema = resolveSchemaSpec(spec, param?.schema || param);
@@ -1755,6 +1761,14 @@ const processOpenapiSync = async (
 						return `${v}:${tsType}`;
 					})
 					.join(",");
+			}
+
+			const endpointUrlTxt =
+				(config?.endpoints?.value?.includeServer ? serverUrl : "") +
+				relPathTxt;
+
+			let endpointUrl = `"${endpointUrlTxt}"`;
+			if (endpoint.variables.length > 0) {
 				endpointUrl = `(${params})=> \`${endpointUrlTxt}\``;
 			}
 
@@ -2342,14 +2356,36 @@ const processOpenapiSync = async (
 			const pythonEndpointUrl = `"${(config?.endpoints?.value?.includeServer ? serverUrl : "") + endpointPath}"`;
 			const pythonEndpointObjectValue = `Endpoint(\n    method="${method}",\n    operationId="${eSpec?.operationId || ""}",\n    url=${pythonEndpointUrl},\n    tags=[${(eSpec?.tags || []).map((tag: string) => `"${tag}"`).join(", ")}]\n)`;
 
-			const endpointContent = isPython
-				? `${endpointPrefix}${name} = ${pythonEndpointObjectValue}\n${doc ? `${doc}` : ""}\n\n`
-				: `${doc}export const ${endpointPrefix}${name} = ${config?.endpoints?.value?.type === "object" ? JSONStringify(content) : endpointUrl};\n`;
-
-			if (isFolderSplit) {
-				folderGroups[folderName].endpoints += endpointContent;
+			if (isSharedPaths) {
+				const descriptor: SharedPathEndpointDescriptor = {
+					doc,
+					name: `${endpointPrefix}${name}`,
+					method,
+					endpointPath,
+					relPath: treatEndpointUrl(relPathTxt),
+					variables: endpoint.variables,
+					paramSignature: params,
+					isObject: config?.endpoints?.value?.type === "object",
+					content,
+				};
+				if (isFolderSplit) {
+					if (!folderGroups[folderName].endpointDescriptors) {
+						folderGroups[folderName].endpointDescriptors = [];
+					}
+					folderGroups[folderName].endpointDescriptors!.push(descriptor);
+				} else {
+					rootEndpointDescriptors.push(descriptor);
+				}
 			} else {
-				endpointsFileContent += endpointContent;
+				const endpointContent = isPython
+					? `${endpointPrefix}${name} = ${pythonEndpointObjectValue}\n${doc ? `${doc}` : ""}\n\n`
+					: `${doc}export const ${endpointPrefix}${name} = ${config?.endpoints?.value?.type === "object" ? JSONStringify(content) : endpointUrl};\n`;
+
+				if (isFolderSplit) {
+					folderGroups[folderName].endpoints += endpointContent;
+				} else {
+					endpointsFileContent += endpointContent;
+				}
 			}
 
 			// Collect endpoint information for client generation
@@ -2406,11 +2442,11 @@ const processOpenapiSync = async (
 			"from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass Endpoint:\n    method: str\n    operationId: str\n    url: str\n    tags: List[str]\n\n\n\n";
 		// Write files for each folder group
 		for (const [folderName, group] of Object.entries(folderGroups)) {
-			if (group.endpoints || group.types) {
+			if (group.endpoints || group.types || (group.endpointDescriptors && group.endpointDescriptors.length > 0)) {
 				const folderPathForGroup = path.join(folderPath, folderName);
 
 				// Write endpoints file
-				if (group.endpoints) {
+				if (group.endpoints || (group.endpointDescriptors && group.endpointDescriptors.length > 0)) {
 					const endpointsFilePath = path.resolve(
 						rootUsingCwd,
 						folderPathForGroup,
@@ -2419,15 +2455,22 @@ const processOpenapiSync = async (
 					await fs.promises.mkdir(path.dirname(endpointsFilePath), {
 						recursive: true,
 					});
+					const endpointsBody = isSharedPaths
+						? renderEndpointsWithSharedPaths(
+								group.endpointDescriptors || [],
+								serverUrl,
+								Boolean(config?.endpoints?.value?.includeServer),
+							)
+						: (isPython ? `${pythonEndpointsHeader}${group.endpoints}` : group.endpoints);
 					writtenFiles.push(await writeFileWithCustomCode(
 						endpointsFilePath,
-						isPython ? `${pythonEndpointsHeader}${group.endpoints}` : group.endpoints,
+						endpointsBody,
 						config,
 					));
 				}
 
 				// Write types file
-				if (group.types || group.endpoints) {
+				if (group.types || group.endpoints || (group.endpointDescriptors && group.endpointDescriptors.length > 0)) {
 					const typesFilePath = path.resolve(
 						rootUsingCwd,
 						folderPathForGroup,
@@ -2484,7 +2527,7 @@ const processOpenapiSync = async (
 		}
 	}
 
-	if (endpointsFileContent.length > 0) {
+	if (endpointsFileContent.length > 0 || rootEndpointDescriptors.length > 0) {
 		const pythonEndpointsHeader =
 			"from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass Endpoint:\n    method: str\n    operationId: str\n    url: str\n    tags: List[str]\n\n\n\n";
 		// Original behavior - write to single files
@@ -2496,9 +2539,16 @@ const processOpenapiSync = async (
 		await fs.promises.mkdir(path.dirname(endpointsFilePath), {
 			recursive: true,
 		});
+		const endpointsBody = isSharedPaths
+			? renderEndpointsWithSharedPaths(
+					rootEndpointDescriptors,
+					serverUrl,
+					Boolean(config?.endpoints?.value?.includeServer),
+				)
+			: (isPython ? `${pythonEndpointsHeader}${endpointsFileContent}` : endpointsFileContent);
 		writtenFiles.push(await writeFileWithCustomCode(
 			endpointsFilePath,
-			isPython ? `${pythonEndpointsHeader}${endpointsFileContent}` : endpointsFileContent,
+			endpointsBody,
 			config,
 		));
 	}
