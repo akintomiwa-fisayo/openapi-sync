@@ -222,8 +222,8 @@ describe("Client Generation", () => {
 
       expect(client).toContain("async getPetById");
       expect(client).toContain("async createPet");
-      expect(client).toContain("this.client.get");
-      expect(client).toContain("this.client.post");
+      expect(client).toContain("const response: AxiosResponse<IPetResponse> = await this.client.get<IPetResponse>");
+      expect(client).toContain("const response: AxiosResponse<IPetResponse> = await this.client.post<IPetResponse>");
     });
   });
 
