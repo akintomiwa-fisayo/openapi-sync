@@ -292,10 +292,18 @@ export const generateClients = async (
     endpointsImportPath = `${rel}/endpoints`;
   }
 
+  const endpointValueType =
+    config?.endpoints?.value?.type === "object" ? "object" : "string";
+
   // Generate based on type
   switch (clientType) {
     case "fetch":
-      let fetchContent = generateFetchClient(filteredEndpoints, clientConfig);
+      let fetchContent = generateFetchClient(
+        filteredEndpoints,
+        clientConfig,
+        false,
+        endpointValueType
+      );
       // Update import paths to be relative to the destination directory
       fetchContent = fetchContent
         .replace(`} from '../types';`, `} from '${typesImportPath}';`)
@@ -313,7 +321,8 @@ export const generateClients = async (
       let axiosContent = generateAxiosClient(
         filteredEndpoints,
         clientConfig,
-        false
+        false,
+        endpointValueType
       );
       // Update import paths to be relative to the destination directory
       axiosContent = axiosContent
@@ -333,7 +342,8 @@ export const generateClients = async (
       let rqClientContent = generateAxiosClient(
         filteredEndpoints,
         clientConfig,
-        false
+        false,
+        endpointValueType
       );
       // Update import paths to be relative to the destination directory
       rqClientContent = rqClientContent
@@ -374,7 +384,8 @@ export const generateClients = async (
       let swrClientContent = generateAxiosClient(
         filteredEndpoints,
         clientConfig,
-        false
+        false,
+        endpointValueType
       );
       // Update import paths to be relative to the destination directory
       swrClientContent = swrClientContent
@@ -408,7 +419,11 @@ export const generateClients = async (
       break;
 
     case "rtk-query":
-      let rtkContent = generateRTKQuery(filteredEndpoints, clientConfig);
+      let rtkContent = generateRTKQuery(
+        filteredEndpoints,
+        clientConfig,
+        endpointValueType
+      );
       // Update import paths to be relative to the destination directory
       rtkContent = rtkContent
         .replace(`} from '../types';`, `} from '${typesImportPath}';`)
@@ -759,13 +774,17 @@ const generateClientForFolder = async (
     endpointsImportPath = `${rel}/endpoints`;
   }
 
+  const endpointValueType =
+    config?.endpoints?.value?.type === "object" ? "object" : "string";
+
   // Generate based on type
   switch (clientType) {
     case "fetch":
       clientContent = generateFetchClient(
         endpoints,
         clientConfig,
-        isFolderSplit
+        isFolderSplit,
+        endpointValueType
       );
       // Update the import paths
       clientContent = clientContent
@@ -784,7 +803,8 @@ const generateClientForFolder = async (
       clientContent = generateAxiosClient(
         endpoints,
         clientConfig,
-        isFolderSplit
+        isFolderSplit,
+        endpointValueType
       );
       // Update the import paths
       clientContent = clientContent
@@ -804,7 +824,8 @@ const generateClientForFolder = async (
       clientContent = generateAxiosClient(
         endpoints,
         clientConfig,
-        isFolderSplit
+        isFolderSplit,
+        endpointValueType
       );
       // Update the import paths
       clientContent = clientContent
@@ -848,7 +869,8 @@ const generateClientForFolder = async (
       clientContent = generateAxiosClient(
         endpoints,
         clientConfig,
-        isFolderSplit
+        isFolderSplit,
+        endpointValueType
       );
       // Update the import paths
       clientContent = clientContent
@@ -899,7 +921,11 @@ const generateClientForFolder = async (
           }
         : clientConfig;
 
-      hooksContent = generateRTKQuery(endpoints, folderApiConfig);
+      hooksContent = generateRTKQuery(
+        endpoints,
+        folderApiConfig,
+        endpointValueType
+      );
       // Update the import paths
       hooksContent = hooksContent
         .replace(`} from '../types';`, `} from '${typesImportPath}';`)

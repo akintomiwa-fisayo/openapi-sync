@@ -187,6 +187,27 @@ export const generateUrlPath = (path: string, hasParams: boolean): string => {
 };
 
 /**
+ * Build the endpoint URL expression for generated client methods.
+ *
+ * When `endpoints.value.type` is `"object"`, generated endpoint exports have the shape
+ * `{ method, operationId, url, tags }`, so the underlying URL string or path builder
+ * function lives on `.url`. Otherwise the export itself is the string or function.
+ */
+const buildEndpointUrlExpression = (
+  endpointRef: string,
+  pathParams: NonNullable<EndpointInfo["parameters"]>,
+  paramPrefix: string,
+  isObjectEndpoint: boolean
+): string => {
+  const target = isObjectEndpoint ? `${endpointRef}.url` : endpointRef;
+  if (pathParams.length > 0) {
+    const paramArgs = pathParams.map((p) => `${paramPrefix}${p.name}`).join(", ");
+    return `${target}(${paramArgs})`;
+  }
+  return target;
+};
+
+/**
  * Generate Fetch API client code
  *
  * Creates a type-safe Fetch API client with functions for each endpoint.
@@ -195,6 +216,7 @@ export const generateUrlPath = (path: string, hasParams: boolean): string => {
  * @param {EndpointInfo[]} endpoints - Array of endpoint information to generate client methods for
  * @param {IConfigClientGeneration} config - Client generation configuration (baseURL, auth, etc.)
  * @param {boolean} [exportAsDefault=false] - If true, also exports all functions as a default object
+ * @param {"string" | "object"} [endpointValueType="string"] - Endpoint export shape from `endpoints.value.type`
  * @returns {string} Complete TypeScript code for the Fetch API client
  *
  * @example
@@ -208,9 +230,11 @@ export const generateUrlPath = (path: string, hasParams: boolean): string => {
 export const generateFetchClient = (
   endpoints: EndpointInfo[],
   config: IConfigClientGeneration,
-  exportAsDefault: boolean = false
+  exportAsDefault: boolean = false,
+  endpointValueType: "string" | "object" = "string"
 ): string => {
   const isNext = Boolean(config.next || (config as any).type === "next-fetch");
+  const isObjectEndpoint = endpointValueType === "object";
   const baseURL = config.baseURL || "";
   const authConfig = config.auth;
 
@@ -434,15 +458,12 @@ export const generateFetchClient = (
     }
 
     // Build URL using imported endpoint function
-    let urlExpression: string;
-    if (hasPathParams) {
-      // Call endpoint function with path parameters
-      const paramArgs = pathParams.map((p) => `url.${p.name}`).join(", ");
-      urlExpression = `${endpoint.name}_endpoint(${paramArgs})`;
-    } else {
-      // Reference endpoint constant
-      urlExpression = `${endpoint.name}_endpoint`;
-    }
+    const urlExpression = buildEndpointUrlExpression(
+      `${endpoint.name}_endpoint`,
+      pathParams,
+      "url.",
+      isObjectEndpoint
+    );
 
     if (hasQueryParams) {
       content += `  const queryParams = new URLSearchParams();\n`;
@@ -496,6 +517,7 @@ export const generateFetchClient = (
  * @param {EndpointInfo[]} endpoints - Array of endpoint information to generate client methods for
  * @param {IConfigClientGeneration} config - Client generation configuration (baseURL, auth, etc.)
  * @param {boolean} [exportOnlyClass=false] - If true, exports only the class; if false, exports a singleton instance
+ * @param {"string" | "object"} [endpointValueType="string"] - Endpoint export shape from `endpoints.value.type`
  * @returns {string} Complete TypeScript code for the Axios client
  *
  * @example
@@ -509,10 +531,12 @@ export const generateFetchClient = (
 export const generateAxiosClient = (
   endpoints: EndpointInfo[],
   config: IConfigClientGeneration,
-  exportOnlyClass: boolean = false
+  exportOnlyClass: boolean = false,
+  endpointValueType: "string" | "object" = "string"
 ): string => {
   const baseURL = config.baseURL || "";
   const authConfig = config.auth;
+  const isObjectEndpoint = endpointValueType === "object";
 
   let content = `// Generated Axios API Client\n`;
   content += `// This file was auto-generated. Add custom code in the marked sections.\n\n`;
@@ -669,14 +693,13 @@ export const generateAxiosClient = (
     }
 
     // Build URL using imported endpoint function
-    if (hasPathParams) {
-      // Call endpoint function with path parameters
-      const paramArgs = pathParams.map((p) => `url.${p.name}`).join(", ");
-      content += `    const _url = ${endpoint.name}(${paramArgs});\n`;
-    } else {
-      // Reference endpoint constant
-      content += `    const _url = ${endpoint.name};\n`;
-    }
+    const urlExpression = buildEndpointUrlExpression(
+      endpoint.name,
+      pathParams,
+      "url.",
+      isObjectEndpoint
+    );
+    content += `    const _url = ${urlExpression};\n`;
 
     // Build config
     content += `    const config: AxiosRequestConfig = {};\n`;
@@ -1484,6 +1507,7 @@ export const generateSWRHooks = (
  *
  * @param {EndpointInfo[]} endpoints - Array of endpoint information to generate RTK Query endpoints for
  * @param {IConfigClientGeneration} config - Client generation configuration with RTK Query options
+ * @param {"string" | "object"} [endpointValueType="string"] - Endpoint export shape from `endpoints.value.type`
  * @returns {string} Complete TypeScript code for the RTK Query API slice
  *
  * @example
@@ -1495,10 +1519,12 @@ export const generateSWRHooks = (
  */
 export const generateRTKQuery = (
   endpoints: EndpointInfo[],
-  config: IConfigClientGeneration
+  config: IConfigClientGeneration,
+  endpointValueType: "string" | "object" = "string"
 ): string => {
   const apiName = config.rtkQuery?.apiName || "api";
   const baseURL = config.baseURL || "";
+  const isObjectEndpoint = endpointValueType === "object";
 
   let content = `// Generated RTK Query API Slice\n`;
   content += `// This file was auto-generated. Add custom code in the marked sections.\n\n`;
@@ -1622,14 +1648,13 @@ export const generateRTKQuery = (
     content += `) => {\n`;
 
     // Build URL using imported endpoint function
-    if (hasPathParams) {
-      // Call endpoint function with path parameters
-      const paramArgs = pathParams.map((p) => `arg.url.${p.name}`).join(", ");
-      content += `        const url = ${endpoint.name}(${paramArgs});\n`;
-    } else {
-      // Reference endpoint constant
-      content += `        const url = ${endpoint.name};\n`;
-    }
+    const urlExpression = buildEndpointUrlExpression(
+      endpoint.name,
+      pathParams,
+      "arg.url.",
+      isObjectEndpoint
+    );
+    content += `        const url = ${urlExpression};\n`;
 
     content += `        return {\n`;
     content += `          url,\n`;

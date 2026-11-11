@@ -554,4 +554,159 @@ describe("Client Generation", () => {
       expect(clientCode).toContain('baseURL: config.baseURL || "https://petstore3.swagger.io/api/v3"');
     });
   });
+
+  describe("endpoints.value.type === 'object' support", () => {
+    it("should access .url in fetch and next-fetch clients for object endpoints", () => {
+      const fetchCode = generateFetchClient(
+        [mockEndpoints[0], mockEndpoints[2]],
+        { enabled: true, type: "fetch" },
+        false,
+        "object"
+      );
+      expect(fetchCode).toContain("const _url = getPetById_endpoint.url(url.petId);");
+      expect(fetchCode).toContain("const _url = getUsers_endpoint.url;");
+
+      const nextFetchCode = generateFetchClient(
+        [mockEndpoints[0], mockEndpoints[2]],
+        { enabled: true, type: "next-fetch", next: true },
+        false,
+        "object"
+      );
+      expect(nextFetchCode).toContain("const _url = getPetById_endpoint.url(url.petId);");
+      expect(nextFetchCode).toContain("const _url = getUsers_endpoint.url;");
+    });
+
+    it("should access .url in axios client for object endpoints", () => {
+      const axiosCode = generateAxiosClient(
+        [mockEndpoints[0], mockEndpoints[2]],
+        { enabled: true, type: "axios" },
+        false,
+        "object"
+      );
+      expect(axiosCode).toContain("const _url = getPetById.url(url.petId);");
+      expect(axiosCode).toContain("const _url = getUsers.url;");
+    });
+
+    it("should access .url in rtk-query client for object endpoints", () => {
+      const rtkCode = generateRTKQuery(
+        [mockEndpoints[0], mockEndpoints[2]],
+        { enabled: true, type: "rtk-query" },
+        "object"
+      );
+      expect(rtkCode).toContain("const url = getPetById.url(arg.url.petId);");
+      expect(rtkCode).toContain("const url = getUsers.url;");
+    });
+
+    describe("generateClients integration across all client types", () => {
+      const fs = require("fs");
+      const { generateClients } = require("../Openapi-sync/client-generation");
+
+      const allClientTypes: Array<
+        "fetch" | "next-fetch" | "axios" | "react-query" | "swr" | "rtk-query"
+      > = ["fetch", "next-fetch", "axios", "react-query", "swr", "rtk-query"];
+
+      beforeEach(() => {
+        jest.clearAllMocks();
+        fs.promises.mkdir = jest.fn().mockResolvedValue(undefined);
+        fs.promises.writeFile = jest.fn().mockResolvedValue(undefined);
+        fs.promises.readFile = jest.fn().mockRejectedValue(new Error("ENOENT"));
+      });
+
+      it.each(allClientTypes)(
+        "should generate valid %s client in flat mode when endpoints.value.type is 'object'",
+        async (clientType) => {
+          const fullConfig = {
+            api: { petstore: "https://petstore3.swagger.io/api/v3/openapi.json" },
+            endpoints: { value: { type: "object" as const } },
+            clientGeneration: { enabled: true, type: clientType },
+          };
+
+          await generateClients(
+            [mockEndpoints[0], mockEndpoints[2]],
+            fullConfig,
+            fullConfig.clientGeneration,
+            "petstore",
+            "/tmp/out",
+            true
+          );
+
+          const writeCalls = (fs.promises.writeFile as jest.Mock).mock.calls;
+          expect(writeCalls.length).toBeGreaterThan(0);
+
+          const targetSuffix =
+            clientType === "rtk-query" ? "api.ts" : "clients.ts";
+          const clientWrite = writeCalls.find(([filePath]: [string]) =>
+            filePath.endsWith(targetSuffix)
+          );
+          expect(clientWrite).toBeDefined();
+
+          const content = clientWrite[1] as string;
+          if (clientType === "fetch" || clientType === "next-fetch") {
+            expect(content).toContain("getPetById_endpoint.url(url.petId)");
+            expect(content).toContain("getUsers_endpoint.url");
+          } else if (clientType === "rtk-query") {
+            expect(content).toContain("getPetById.url(arg.url.petId)");
+            expect(content).toContain("getUsers.url");
+          } else {
+            expect(content).toContain("getPetById.url(url.petId)");
+            expect(content).toContain("getUsers.url");
+          }
+        }
+      );
+
+      it.each(allClientTypes)(
+        "should generate valid %s client in folder-split mode when endpoints.value.type is 'object'",
+        async (clientType) => {
+          const fullConfig = {
+            api: { petstore: "https://petstore3.swagger.io/api/v3/openapi.json" },
+            folderSplit: { byTags: true },
+            endpoints: { value: { type: "object" as const } },
+            clientGeneration: { enabled: true, type: clientType },
+          };
+
+          await generateClients(
+            [mockEndpoints[0], mockEndpoints[2]],
+            fullConfig,
+            fullConfig.clientGeneration,
+            "petstore",
+            "/tmp/out",
+            true
+          );
+
+          const writeCalls = (fs.promises.writeFile as jest.Mock).mock.calls;
+          const folderTargetSuffix =
+            clientType === "rtk-query" ? "/pet/api.ts" : "/pet/client.ts";
+          const petClientWrite = writeCalls.find(([filePath]: [string]) =>
+            filePath.endsWith(folderTargetSuffix)
+          );
+          expect(petClientWrite).toBeDefined();
+
+          const petContent = petClientWrite[1] as string;
+          if (clientType === "fetch" || clientType === "next-fetch") {
+            expect(petContent).toContain("getPetById_endpoint.url(url.petId)");
+          } else if (clientType === "rtk-query") {
+            expect(petContent).toContain("getPetById.url(arg.url.petId)");
+          } else {
+            expect(petContent).toContain("getPetById.url(url.petId)");
+          }
+
+          const userTargetSuffix =
+            clientType === "rtk-query" ? "/user/api.ts" : "/user/client.ts";
+          const userClientWrite = writeCalls.find(([filePath]: [string]) =>
+            filePath.endsWith(userTargetSuffix)
+          );
+          expect(userClientWrite).toBeDefined();
+
+          const userContent = userClientWrite[1] as string;
+          if (clientType === "fetch" || clientType === "next-fetch") {
+            expect(userContent).toContain("getUsers_endpoint.url");
+          } else if (clientType === "rtk-query") {
+            expect(userContent).toContain("getUsers.url");
+          } else {
+            expect(userContent).toContain("getUsers.url");
+          }
+        }
+      );
+    });
+  });
 });
