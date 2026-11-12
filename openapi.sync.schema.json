@@ -285,6 +285,30 @@
           "enum": ["fetch", "axios", "react-query", "swr", "rtk-query"],
           "description": "Client framework to generate"
         },
+        "returnType": {
+          "description": "Configure custom Promise return types for client endpoint methods (template string or object with template/overrides)",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Template string to wrap or modify response types (e.g. '${type} | undefined')"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "template": {
+                  "type": "string",
+                  "description": "Template string to wrap or modify response types (e.g. '${type} | undefined')"
+                },
+                "overrides": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" },
+                  "description": "Specific return type overrides per endpoint name or operationId"
+                }
+              }
+            }
+          ]
+        },
         "outputDir": {
           "description": "Output directory for generated client files (single path string or a map of API names to output directories)",
           "oneOf": [

@@ -473,10 +473,12 @@ describe("Phase 2 — Code generation correctness", () => {
       expect(clientCode).toContain("const _url = deleteProject(url.projectId);");
 
       // Axios delete called with 2 arguments (_url, config)
-      expect(clientCode).toContain("await this.client.delete<void>(\n      _url,\n      config\n    );");
+      expect(clientCode).toContain("async deleteProject<T = void>(");
+      expect(clientCode).toContain("await this.client.delete<T>(\n      _url,\n      config\n    );");
 
       // Axios post called with 3 arguments (_url, data, config)
-      expect(clientCode).toContain("await this.client.post<IProject>(\n      _url,\n      data,\n      config\n    );");
+      expect(clientCode).toContain("async createProject<T = IProject>(");
+      expect(clientCode).toContain("await this.client.post<T>(\n      _url,\n      data,\n      config\n    );");
     });
 
     it("Fetch client should call endpoint helpers with path arguments", () => {

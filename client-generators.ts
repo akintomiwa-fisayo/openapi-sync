@@ -208,6 +208,62 @@ const buildEndpointUrlExpression = (
 };
 
 /**
+ * Resolves the return type for an endpoint based on configuration
+ *
+ * @param {EndpointInfo} endpoint - The endpoint info
+ * @param {IConfigClientGeneration} config - Client generation configuration
+ * @returns {string} The resolved return type
+ * @public
+ */
+export const resolveEndpointReturnType = (
+  endpoint: EndpointInfo,
+  config: IConfigClientGeneration
+): string => {
+  const baseType = endpoint.responseType || "any";
+  const returnTypeConfig = config.returnType;
+
+  if (!returnTypeConfig) {
+    return baseType;
+  }
+
+  // 1. String template: e.g. "${type} | undefined" or "${responseType} | undefined"
+  if (typeof returnTypeConfig === "string") {
+    return returnTypeConfig
+      .replace(/\$\{type\}/g, baseType)
+      .replace(/\$\{responseType\}/g, baseType);
+  }
+
+  // 2. Object with format function
+  if (typeof returnTypeConfig.format === "function") {
+    const formatted = returnTypeConfig.format({
+      endpoint: endpoint.name,
+      method: endpoint.method,
+      path: endpoint.path,
+      defaultType: baseType,
+    });
+    if (formatted) return formatted;
+  }
+
+  // 3. Object with overrides map: e.g. { "findPetsByTags": "IfindPetsByTags200Response | undefined" }
+  if (returnTypeConfig.overrides) {
+    const override =
+      returnTypeConfig.overrides[endpoint.name] ||
+      (endpoint.operationId ? returnTypeConfig.overrides[endpoint.operationId] : undefined) ||
+      returnTypeConfig.overrides[endpoint.path];
+    if (override) return override;
+  }
+
+  // 4. Object with template: e.g. { template: "${type} | undefined" }
+  if (returnTypeConfig.template) {
+    return returnTypeConfig.template
+      .replace(/\$\{type\}/g, baseType)
+      .replace(/\$\{responseType\}/g, baseType);
+  }
+
+  return baseType;
+};
+
+/**
  * Generate Fetch API client code
  *
  * Creates a type-safe Fetch API client with functions for each endpoint.
@@ -396,7 +452,7 @@ export const generateFetchClient = (
     const hasQueryParams = queryParams.length > 0;
     const hasBody = !!endpoint.requestBody;
     const hasParams = hasPathParams || hasQueryParams || hasBody;
-    const responseType = endpoint.responseType || "any";
+    const resolvedReturnType = resolveEndpointReturnType(endpoint, config);
     const optionsType = isNext ? "NextFetchOptions" : "RequestInit";
 
     // Generate function signature
@@ -411,7 +467,7 @@ export const generateFetchClient = (
     }
     content += ` */\n`;
 
-    content += `export async function ${funcName}(`;
+    content += `export async function ${funcName}<T = ${resolvedReturnType}>(`;
 
     // Build structured params type
     if (hasParams) {
@@ -443,9 +499,9 @@ export const generateFetchClient = (
         content += `  data: ${endpoint.dtoType || "any"};\n`;
       }
 
-      content += `}, options?: ${optionsType}): Promise<${responseType}> {\n`;
+      content += `}, options?: ${optionsType}): Promise<T> {\n`;
     } else {
-      content += `options?: ${optionsType}): Promise<${responseType}> {\n`;
+      content += `options?: ${optionsType}): Promise<T> {\n`;
     }
 
     // Destructure params if needed
@@ -482,7 +538,7 @@ export const generateFetchClient = (
     }
 
     // Make request
-    content += `  return fetchAPI<${responseType}>(_url, {\n`;
+    content += `  return fetchAPI<T>(_url, {\n`;
     content += `    method: '${endpoint.method.toUpperCase()}',\n`;
     content += `    ...(options || {}),\n`;
     if (hasBody) {
@@ -570,6 +626,7 @@ export const generateAxiosClient = (
   content += `  baseURL?: string;\n`;
   content += `  headers?: Record<string, string>;\n`;
   content += `  timeout?: number;\n`;
+  content += `  axiosInstance?: AxiosInstance;\n`;
   content += `}\n\n`;
 
   // Generate error class if enabled
@@ -587,11 +644,11 @@ export const generateAxiosClient = (
   }
 
   // Create axios instance
-  content += `class ApiClient {\n`;
-  content += `  private client: AxiosInstance;\n\n`;
+  content += `export class ApiClient {\n`;
+  content += `  protected client: AxiosInstance;\n\n`;
 
-  content += `  constructor(config: ApiConfig = {}) {\n`;
-  content += `    this.client = axios.create({\n`;
+  content += `  constructor(config: ApiConfig = {}, customClient?: AxiosInstance) {\n`;
+  content += `    this.client = customClient || config.axiosInstance || axios.create({\n`;
   content += `      baseURL: config.baseURL || "${baseURL}",\n`;
   content += `      timeout: config.timeout || 30000,\n`;
   content += `      headers: {\n`;
@@ -600,7 +657,10 @@ export const generateAxiosClient = (
   content += `      },\n`;
   content += `    });\n\n`;
 
-  // Add response interceptor for error handling
+  content += `    this.setupInterceptors();\n`;
+  content += `  }\n\n`;
+
+  content += `  protected setupInterceptors(): void {\n`;
   content += `    // Response interceptor for error handling\n`;
   content += `    this.client.interceptors.response.use(\n`;
   content += `      (response) => response,\n`;
@@ -616,8 +676,20 @@ export const generateAxiosClient = (
   content += `    );\n`;
   content += `  }\n\n`;
 
+  content += `  public get axiosInstance(): AxiosInstance {\n`;
+  content += `    return this.client;\n`;
+  content += `  }\n\n`;
+
+  content += `  public get instance(): AxiosInstance {\n`;
+  content += `    return this.client;\n`;
+  content += `  }\n\n`;
+
   content += `  updateConfig(config: Partial<ApiConfig>) {\n`;
-  content += `    Object.assign(this.client.defaults, config);\n`;
+  content += `    const { axiosInstance, ...rest } = config;\n`;
+  content += `    if (axiosInstance) {\n`;
+  content += `      this.client = axiosInstance;\n`;
+  content += `    }\n`;
+  content += `    Object.assign(this.client.defaults, rest);\n`;
   content += `  }\n\n`;
 
   // Generate endpoint methods
@@ -630,7 +702,7 @@ export const generateAxiosClient = (
     const hasPathParams = pathParams.length > 0;
     const hasQueryParams = queryParams.length > 0;
     const hasBody = !!endpoint.requestBody;
-    const responseType = endpoint.responseType || "any";
+    const resolvedReturnType = resolveEndpointReturnType(endpoint, config);
 
     // Generate function signature
     content += `  /**\n`;
@@ -644,7 +716,7 @@ export const generateAxiosClient = (
     }
     content += `   */\n`;
 
-    content += `  async ${funcName}(`;
+    content += `  async ${funcName}<T = ${resolvedReturnType}>(`;
 
     // Build structured params type
     if (hasPathParams || hasQueryParams || hasBody) {
@@ -681,7 +753,7 @@ export const generateAxiosClient = (
       content += `  }`;
     }
 
-    content += `): Promise<${responseType}> {\n`;
+    content += `): Promise<T> {\n`;
 
     // Destructure params if needed
     if (hasPathParams || hasQueryParams || hasBody) {
@@ -717,7 +789,7 @@ export const generateAxiosClient = (
     const callArgs = isBodyMethod
       ? [`_url`, hasBody ? "data" : "undefined", `config`]
       : [`_url`, `config`];
-    content += `    const response: AxiosResponse<${responseType}> = await this.client.${methodLower}<${responseType}>(\n`;
+    content += `    const response: AxiosResponse<T> = await this.client.${methodLower}<T>(\n`;
     content += callArgs.map((arg) => `      ${arg}`).join(",\n") + `\n`;
     content += `    );\n`;
     content += `    return response.data;\n`;
@@ -837,7 +909,7 @@ export const generateReactQueryHooks = (
     const hasPathParams = pathParams.length > 0;
     const hasQueryParams = queryParams.length > 0;
     const hasBody = !!endpoint.requestBody;
-    const responseType = endpoint.responseType || "any";
+    const responseType = resolveEndpointReturnType(endpoint, config);
 
     if (isQuery) {
       // detect simple pagination patterns (page-based or cursor-based)
@@ -1342,7 +1414,7 @@ export const generateSWRHooks = (
     const hasPathParams = pathParams.length > 0;
     const hasQueryParams = queryParams.length > 0;
     const hasBody = !!endpoint.requestBody;
-    const responseType = endpoint.responseType || "any";
+    const responseType = resolveEndpointReturnType(endpoint, config);
 
     if (isQuery) {
       // Generate useSWR hook
@@ -1589,7 +1661,7 @@ export const generateRTKQuery = (
     const hasPathParams = pathParams.length > 0;
     const hasQueryParams = queryParams.length > 0;
     const hasBody = !!endpoint.requestBody;
-    const responseType = endpoint.responseType || "any";
+    const responseType = resolveEndpointReturnType(endpoint, config);
 
     content += `    ${endpoint.name}: builder.${
       isQuery ? "query" : "mutation"

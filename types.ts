@@ -268,6 +268,36 @@ export type IConfigValidations = {
 };
 
 /**
+ * Configuration for modifying the Promise return type of generated client methods
+ *
+ * @public
+ */
+export type IConfigClientReturnType =
+	| string
+	| {
+			/**
+			 * Template string to wrap or modify response types.
+			 * Use `${type}` or `${responseType}` as placeholder for the default response type.
+			 * @example "${type} | undefined"
+			 */
+			template?: string;
+			/**
+			 * Specific return type overrides per endpoint name, operationId, or path
+			 * @example { "findPetsByTags": "IfindPetsByTags200Response | undefined" }
+			 */
+			overrides?: Record<string, string>;
+			/**
+			 * Custom function to determine the return type for an endpoint (in openapi.sync.ts / openapi.sync.js)
+			 */
+			format?: (data: {
+				endpoint: string;
+				method: Method;
+				path: string;
+				defaultType: string;
+			}) => string | null | undefined;
+	  };
+
+/**
  * Configuration for API client generation
  *
  * Controls generation of type-safe API clients including Fetch, Axios,
@@ -283,6 +313,11 @@ export type IConfigClientGeneration<TApis extends string = string> = {
 	type?: "fetch" | "axios" | "react-query" | "swr" | "rtk-query" | "next-fetch";
 	/** Enable Next.js App Router-friendly fetch options (cache, revalidate, tags) */
 	next?: boolean;
+	/**
+	 * Configure custom Promise return types for client endpoint methods.
+	 * Supports template string (e.g. "${type} | undefined"), per-endpoint overrides, or a custom formatter function.
+	 */
+	returnType?: IConfigClientReturnType;
 	/** Output directory for generated clients (global string or per-API path map) */
 	outputDir?: string | Partial<Record<TApis, string>>;
 	/** Base URL for API requests (global string or per-API URL map) */
