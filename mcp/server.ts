@@ -95,7 +95,7 @@ const log = (...args: any[]) => process.stderr.write(args.join(" ") + "\n");
 const cwd = process.cwd();
 
 // ─────────────────────────────────────────────────────────────────────────────
-let packageVersion = "6.5.2";
+let packageVersion = "6.6.0";
 try {
   const candidates: string[] = [];
   if (process.argv && process.argv[1]) {

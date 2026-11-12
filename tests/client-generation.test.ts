@@ -6,6 +6,7 @@ import {
   generateReactQueryHooks,
   generateSWRHooks,
   generateRTKQuery,
+  resolveEndpointReturnType,
 } from "../client-generators";
 import { IConfigClientGeneration } from "../types";
 
@@ -183,10 +184,29 @@ describe("Client Generation", () => {
       expect(client).toContain("data: ICreatePetDTO");
       expect(client).toContain("body: JSON.stringify(data)");
     });
+
+    it("should support generic return types and returnType config in fetch client", () => {
+      const configDefault: IConfigClientGeneration = {
+        enabled: true,
+        type: "fetch",
+      };
+      const clientDefault = generateFetchClient([mockEndpoints[0]], configDefault);
+      expect(clientDefault).toContain("export async function getPetById<T = IPetResponse>");
+      expect(clientDefault).toContain("): Promise<T> {");
+      expect(clientDefault).toContain("return fetchAPI<T>(_url, {");
+
+      const configCustom: IConfigClientGeneration = {
+        enabled: true,
+        type: "fetch",
+        returnType: "${type} | undefined",
+      };
+      const clientCustom = generateFetchClient([mockEndpoints[0]], configCustom);
+      expect(clientCustom).toContain("export async function getPetById<T = IPetResponse | undefined>");
+    });
   });
 
   describe("generateAxiosClient", () => {
-    it("should generate an axios client class", () => {
+    it("should generate an exported extensible axios client class", () => {
       const config: IConfigClientGeneration = {
         enabled: true,
         type: "axios",
@@ -195,9 +215,31 @@ describe("Client Generation", () => {
       const client = generateAxiosClient([mockEndpoints[0]], config);
 
       expect(client).toContain("import axios");
-      expect(client).toContain("class ApiClient");
-      expect(client).toContain("private client: AxiosInstance");
+      expect(client).toContain("export class ApiClient");
+      expect(client).toContain("protected client: AxiosInstance");
+      expect(client).toContain("axiosInstance?: AxiosInstance");
+      expect(client).toContain("constructor(config: ApiConfig = {}, customClient?: AxiosInstance)");
+      expect(client).toContain("protected setupInterceptors(): void");
+      expect(client).toContain("public get axiosInstance(): AxiosInstance");
+      expect(client).toContain("public get instance(): AxiosInstance");
       expect(client).toContain("export const apiClient = new ApiClient()");
+      expect(client).toContain("export default apiClient");
+    });
+
+    it("should allow extending and subclassing ApiClient in generated code", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        baseURL: "https://api.example.com",
+      };
+      const clientCode = generateAxiosClient([mockEndpoints[0]], config);
+
+      // Verify class declaration and protected members are present for subclassing
+      expect(clientCode).toContain("export class ApiClient {");
+      expect(clientCode).toContain("protected client: AxiosInstance;");
+      expect(clientCode).toContain("protected setupInterceptors(): void {");
+      expect(clientCode).toContain("public get axiosInstance(): AxiosInstance {");
+      expect(clientCode).toContain("public get instance(): AxiosInstance {");
     });
 
     it("should support headers configuration", () => {
@@ -213,17 +255,61 @@ describe("Client Generation", () => {
       expect(client).not.toContain("getAuthToken");
     });
 
-    it("should generate endpoint methods", () => {
+    it("should generate endpoint methods with generic type parameters defaulting to responseType", () => {
       const config: IConfigClientGeneration = {
         enabled: true,
         type: "axios",
       };
       const client = generateAxiosClient(mockEndpoints.slice(0, 2), config);
 
-      expect(client).toContain("async getPetById");
-      expect(client).toContain("async createPet");
-      expect(client).toContain("const response: AxiosResponse<IPetResponse> = await this.client.get<IPetResponse>");
-      expect(client).toContain("const response: AxiosResponse<IPetResponse> = await this.client.post<IPetResponse>");
+      expect(client).toContain("async getPetById<T = IPetResponse>");
+      expect(client).toContain("): Promise<T> {");
+      expect(client).toContain("async createPet<T = IPetResponse>");
+      expect(client).toContain("const response: AxiosResponse<T> = await this.client.get<T>");
+      expect(client).toContain("const response: AxiosResponse<T> = await this.client.post<T>");
+    });
+
+    it("should support returnType template configuration to customize Promise return types", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        returnType: "${type} | undefined",
+      };
+      const client = generateAxiosClient(mockEndpoints.slice(0, 2), config);
+
+      expect(client).toContain("async getPetById<T = IPetResponse | undefined>");
+      expect(client).toContain("async createPet<T = IPetResponse | undefined>");
+    });
+
+    it("should support returnType overrides per endpoint", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        returnType: {
+          overrides: {
+            getPetById: "IPetResponse | undefined",
+          },
+        },
+      };
+      const client = generateAxiosClient(mockEndpoints.slice(0, 2), config);
+
+      expect(client).toContain("async getPetById<T = IPetResponse | undefined>");
+      expect(client).toContain("async createPet<T = IPetResponse>");
+    });
+
+    it("should support returnType format function", () => {
+      const config: IConfigClientGeneration = {
+        enabled: true,
+        type: "axios",
+        returnType: {
+          format: ({ endpoint, defaultType }) =>
+            endpoint === "getPetById" ? `CustomWrap<${defaultType}>` : defaultType,
+        },
+      };
+      const client = generateAxiosClient(mockEndpoints.slice(0, 2), config);
+
+      expect(client).toContain("async getPetById<T = CustomWrap<IPetResponse>>");
+      expect(client).toContain("async createPet<T = IPetResponse>");
     });
   });
 

@@ -1,5 +1,17 @@
 [
   {
+    "version": "6.6.0",
+    "date": "2026-11-12",
+    "type": "minor",
+    "changes": [
+      "export extensible ApiClient class (export class ApiClient) with protected client: AxiosInstance, customizable constructor, and protected interceptor lifecycle hooks across single-spec and multi-spec client generation",
+      "introduce generic type parameters on generated endpoint methods (async ${funcName}<T = ReturnType>(...): Promise<T>) for method-level return type overrides",
+      "support new clientGeneration.returnType configuration supporting template strings (e.g. \"${type} | undefined\"), per-endpoint overrides map, and custom formatter functions",
+      "automatically keep React Query, SWR, and RTK Query hooks in sync with customized endpoint return types",
+      "re-export ApiClient from centralized multi-spec client index files"
+    ]
+  },
+  {
     "version": "6.5.2",
     "date": "2026-11-11",
     "type": "patch",

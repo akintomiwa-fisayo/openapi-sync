@@ -351,6 +351,7 @@ export default config;
 | `endpoints.sharedPaths` | `boolean` | Extract shared URL path helpers and `BASE_URL` in `endpoints.ts` |
 | `clientGeneration.type` | string | Client type to generate (`fetch`, `next-fetch`, `axios`, `react-query`, `swr`, `rtk-query`) |
 | `clientGeneration.baseURL` | `string \| Record<string, string>` | Base URL (or per-API map) for generated client |
+| `clientGeneration.returnType` | `string \| { overrides?: Record<string, string>; format?: Function }` | Custom return type: template string (`"${type} \| undefined"`), overrides map, or formatter |
 | `endpoints.exclude.tags` | `string[]` | Tags to exclude from generation |
 
 ### Protected Specs & Stored Auth (`auth`)

@@ -1152,5 +1152,6 @@ export {
 } from "./Openapi-sync/manifest";
 
 export { resolveClientConfigForApi } from "./Openapi-sync/client-generation";
+export { resolveEndpointReturnType } from "./client-generators";
 
 

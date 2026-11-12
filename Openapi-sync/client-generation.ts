@@ -1033,13 +1033,14 @@ const generateRootAggregatorClient = async (
       clientContent += `export { default as ${safeFolderName}Client } from './${folderName}/client';\n`;
     });
   } else {
-    // For Axios clients, import the classes
+    // For Axios clients, import and re-export the classes
     folderNames.forEach((folderName) => {
       const safeFolderName = folderName.replace(/-/g, "_");
       const className = `${
         safeFolderName.charAt(0).toUpperCase() + safeFolderName.slice(1)
       }ApiClient`;
       clientContent += `import ${className} from './${folderName}/client';\n`;
+      clientContent += `export { ${className} };\n`;
     });
 
     // Create instances from classes
