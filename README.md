@@ -492,6 +492,63 @@ export const getPetById = {
 
 All six client generators (`fetch`, `next-fetch`, `axios`, `react-query`, `swr`, and `rtk-query`) automatically resolve `.url` and `.url(...)` in both flat and folder-split layouts—so you can switch `endpoints.value.type` between `"string"` and `"object"` without broken imports or manual wrapper code.
 
+### Extensible ApiClient Class & Subclassing
+
+Generated Axios clients export the base `ApiClient` class (`export class ApiClient`) in addition to the default singleton instance (`export default apiClient`). Subclass it to configure custom interceptors, authentication headers, error transformations, or logging:
+
+```typescript
+import { ApiClient } from "./src/api/petstore/client/clients";
+
+export class CustomApiClient extends ApiClient {
+  constructor() {
+    super({ baseURL: "https://api.example.com" });
+  }
+
+  protected setupInterceptors(): void {
+    super.setupInterceptors();
+    this.client.interceptors.request.use((config) => {
+      config.headers["X-Custom-Auth"] = "secret-token";
+      return config;
+    });
+  }
+}
+
+export const customClient = new CustomApiClient();
+```
+
+### Method Generics & Customizable Return Types
+
+All generated client methods feature generic type parameters (`async findPets<T = ReturnType>(...): Promise<T>`), allowing method-level return type overrides at call sites:
+
+```typescript
+const res = await apiClient.findPetsByStatus<
+  IfindPetsByStatus200Response | undefined
+>({ query: { status: ["available"] } });
+```
+
+You can also customize return types globally, per-endpoint, or via formatters using `clientGeneration.returnType`:
+
+```typescript
+// openapi.sync.ts
+export default defineConfig({
+  clientGeneration: {
+    enabled: true,
+    type: "axios",
+    // 1. Template string: wraps default types
+    returnType: "${type} | undefined",
+
+    // 2. Or per-endpoint overrides map
+    // returnType: {
+    //   overrides: {
+    //     findPetsByStatus: "IfindPetsByStatus200Response | undefined",
+    //   },
+    // },
+  },
+});
+```
+
+React Query and SWR hooks automatically synchronize with these return types.
+
 ### Custom Code Preservation
 
 Generated clients support custom code sections that are preserved during regeneration:

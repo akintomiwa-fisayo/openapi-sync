@@ -1861,6 +1861,91 @@ export default apiClient;
           language="text"
         />
 
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 mt-8">
+          Extensible ApiClient Class (v6.6.0)
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          Generated Axios clients now export the base class <code>ApiClient</code> directly alongside the default singleton instance. Subclass it to add custom authentication, logging, retry mechanics, or middleware while retaining full type safety across all generated API endpoints:
+        </p>
+        <CodeBlock
+          code={`import { ApiClient } from "./src/api/petstore/client/clients";
+import axios from "axios";
+
+export class CustomApiClient extends ApiClient {
+  constructor() {
+    super({ baseURL: "https://api.example.com" });
+  }
+
+  // Override interceptor setup
+  protected setupInterceptors(): void {
+    super.setupInterceptors();
+    this.client.interceptors.request.use((config) => {
+      config.headers["X-Custom-Header"] = "my-token";
+      return config;
+    });
+  }
+
+  // Access the underlying axios instance
+  public getRawAxios() {
+    return this.axiosInstance; // or this.instance
+  }
+}
+
+export const customClient = new CustomApiClient();`}
+          language="typescript"
+        />
+
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 mt-8">
+          Method Generics & Customizable Return Types (v6.6.0)
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          All generated client methods now feature generic type parameters (<code>&lt;T = DefaultResponse&gt;</code>), enabling method-level overrides at call sites:
+        </p>
+        <CodeBlock
+          code={`// Call-site return type override
+const res = await apiClient.findPetsByStatus<
+  IfindPetsByStatus200Response | undefined
+>({ query: { status: ["available"] } });`}
+          language="typescript"
+        />
+        <p className="text-gray-600 dark:text-gray-300 mb-4 mt-4">
+          You can also customize return types globally or per-endpoint using the <code>clientGeneration.returnType</code> configuration:
+        </p>
+        <CodeBlock
+          code={`// openapi.sync.ts
+import { defineConfig } from "openapi-sync";
+
+export default defineConfig({
+  folder: "./src/api",
+  api: {
+    petstore: "https://petstore3.swagger.io/api/v3/openapi.json",
+  },
+  clientGeneration: {
+    enabled: true,
+    type: "axios",
+    // 1. Template string: wraps every response type
+    // returnType: "\${type} | undefined",
+
+    // 2. Per-endpoint overrides map
+    returnType: {
+      overrides: {
+        findPetsByStatus: "IfindPetsByStatus200Response | undefined",
+      },
+    },
+
+    // 3. Or format function
+    // returnType: {
+    //   format: ({ endpoint, defaultType }) =>
+    //     defaultType === "void" ? "void" : \\\`\\\${defaultType} | undefined\\\`,
+    // },
+  },
+});`}
+          language="typescript"
+        />
+        <p className="text-gray-600 dark:text-gray-300 mb-4 mt-4">
+          Generated React Query and SWR hooks automatically reflect these return types, ensuring full type alignment across your client methods and UI hooks.
+        </p>
+
         <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600 dark:border-blue-500 p-4 rounded mt-6">
           <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
             <strong>💡 Migration Tip:</strong> To get all these improvements,
