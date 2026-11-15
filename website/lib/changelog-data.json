@@ -1,5 +1,15 @@
 [
   {
+    "version": "6.6.1",
+    "date": "2026-11-15",
+    "type": "patch",
+    "changes": [
+      "escape `*/` sequences as `*\\/` across property, schema, and endpoint JSDoc blocks so descriptions, summaries, tags, operationIds, security metadata, and cURL examples containing globs (e.g. `src/**/*.ts`) produce valid TypeScript",
+      "escape `*/` inside generated client and hook JSDoc blocks across Fetch, Axios, React Query, and SWR generators",
+      "harden `renderTypeRefMD` against unmatched block-comment closings"
+    ]
+  },
+  {
     "version": "6.6.0",
     "date": "2026-11-12",
     "type": "minor",

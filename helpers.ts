@@ -186,6 +186,22 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
 };
 
 /**
+ * Escape block-comment closing sequences for safe inclusion inside JSDoc comments.
+ *
+ * Replaces `*` followed by `/` with `*\/` so OpenAPI descriptions, summaries, tags, or examples
+ * containing globs (e.g. `src/**` + `/*.ts`) cannot close a JSDoc block early.
+ *
+ * @param {string} text - Text to escape for JSDoc interpolation
+ * @returns {string} Escaped text safe for JSDoc comments
+ *
+ * @public
+ */
+export const escapeJsDoc = (text: string): string => {
+  if (!text) return text;
+  return text.replace(/\*\//g, "*\\/");
+};
+
+/**
  * Render TypeScript type reference as markdown code block
  *
  * Formats a TypeScript type definition for inclusion in markdown documentation.
@@ -199,18 +215,20 @@ export const JSONStringify = (obj: Record<string, any>, indent = 1) => {
  */
 export const renderTypeRefMD = (typeRef: string, indent = 1) => {
   // Convert all block comments (/* */ and /** */) to single-line comments (//)
-  const sanitizedTypeRef = typeRef.replace(/\/\*\*?[\s\S]*?\*\//g, (match) => {
-    // Extract content between /* and */
-    const content = match
-      .replace(/^\/\*\*?\s*/, "") // Remove opening /* or /**
-      .replace(/\s*\*\/$/, "") // Remove closing */
-      .split("\n")
-      .map((line) => line.replace(/^\s*\*\s?/, "").trim()) // Remove leading * from each line
-      .filter((line) => line.length > 0)
-      .map((line) => `// ${line}`)
-      .join("\n");
-    return content;
-  });
+  const sanitizedTypeRef = escapeJsDoc(
+    typeRef.replace(/\/\*\*?[\s\S]*?\*\//g, (match) => {
+      // Extract content between /* and */
+      const content = match
+        .replace(/^\/\*\*?\s*/, "") // Remove opening /* or /**
+        .replace(/\s*\*\/$/, "") // Remove closing */
+        .split("\n")
+        .map((line) => line.replace(/^\s*\*\s?/, "").trim()) // Remove leading * from each line
+        .filter((line) => line.length > 0)
+        .map((line) => `// ${line}`)
+        .join("\n");
+      return content;
+    })
+  );
 
   return `\n\`\`\`typescript\n${"  ".repeat(indent)}  ${sanitizedTypeRef
     .split("\n")

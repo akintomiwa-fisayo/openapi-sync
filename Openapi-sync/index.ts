@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import {
 	capitalize,
+	escapeJsDoc,
 	getEndpointDetails,
 	isJson,
 	JSONStringify,
@@ -42,6 +43,16 @@ import {
 
 const rootUsingCwd = process.cwd();
 let fetchTimeout: Record<string, null | NodeJS.Timeout> = {};
+
+const formatTypeJsDoc = (description: string): string => {
+	return (
+		" *  " +
+		escapeJsDoc(description)
+			.split("\n")
+			.filter((line: string) => line.trim() !== "")
+			.join(`  \n *${"  ".repeat(1)}`)
+	);
+};
 
 const resolveParameterSpec = (spec: IOpenApiSpec, param: any): any => {
 	if (!param) return param;
@@ -486,12 +497,7 @@ const processOpenapiSync = async (
 						!config?.types?.doc?.disable &&
 						schema.properties?.[key]?.description
 					) {
-						doc =
-							" *  " +
-							schema.properties?.[key].description
-								.split("\n")
-								.filter((line: string) => line.trim() !== "")
-								.join(`  \n *${"  ".repeat(1)}`);
+						doc = formatTypeJsDoc(schema.properties?.[key].description);
 					}
 
 					typeCnt +=
@@ -1130,16 +1136,8 @@ const processOpenapiSync = async (
 				//@ts-expect-error
 				schemas[key]?.description
 			) {
-				const descriptionLines =
-					//@ts-expect-error
-					schemas[key].description
-						.split("\n")
-						.filter((line: string) => line.trim() !== "");
-
-				docTs =
-					" *  " +
-					descriptionLines
-						.join(`  \n *${"  ".repeat(1)}`);
+				//@ts-expect-error
+				docTs = formatTypeJsDoc(schemas[key].description);
 			}
 
 			docPy = buildPythonClassDoc(sourceSchema);
@@ -2301,11 +2299,24 @@ const processOpenapiSync = async (
 
 					doc = `"""\n${pyDocLines.join("\n")}${curl}\n"""\n`;
 				} else {
-					doc = `/**${eSpec?.description ? `\n* ${eSpec?.description}  ` : ""}
+					const safeDescription = eSpec?.description
+						? escapeJsDoc(eSpec.description)
+						: "";
+					const safeSummary = eSpec?.summary ? escapeJsDoc(eSpec.summary) : "";
+					const safeTags = (eSpec?.tags || []).map(escapeJsDoc).join(", ");
+					const safeOperationId = eSpec?.operationId
+						? escapeJsDoc(eSpec.operationId)
+						: "";
+					const safeSecuritySpec = securitySpec
+						? escapeJsDoc(securitySpec)
+						: "";
+					const safeCurl = curl ? escapeJsDoc(curl) : "";
+
+					doc = `/**${safeDescription ? `\n* ${safeDescription}  ` : ""}
  * **Method**: \`${method.toUpperCase()}\`  
- * **Summary**: ${eSpec?.summary || ""}  
- * **Tags**: [${eSpec?.tags?.join(", ") || ""}]  
- * **OperationId**: ${eSpec?.operationId || ""}  ${
+ * **Summary**: ${safeSummary}  
+ * **Tags**: [${safeTags}]  
+ * **OperationId**: ${safeOperationId}  ${
 		pathTypeCnt ? `\n * **Path**: ${renderTypeRefMD(pathTypeCnt)}  ` : ""
  }${
 		queryTypeCnt ? `\n * **Query**: ${renderTypeRefMD(queryTypeCnt)}  ` : ""
@@ -2318,7 +2329,7 @@ const processOpenapiSync = async (
 					)
 					.join("")}`
 			: ""
- }${securitySpec ? `\n * **Security**:  ${securitySpec}\n` : ""}${curl}
+ }${safeSecuritySpec ? `\n * **Security**:  ${safeSecuritySpec}\n` : ""}${safeCurl}
  */\n`;
 				}
 			}

@@ -1,3 +1,4 @@
+import ts from "typescript";
 import {
   EndpointInfo,
   filterEndpoints,
@@ -793,6 +794,62 @@ describe("Client Generation", () => {
           }
         }
       );
+    });
+
+    describe("JSDoc comment escaping", () => {
+      const globEndpoints: EndpointInfo[] = [
+        {
+          name: "listPets",
+          method: "get",
+          path: "/pets",
+          summary: "List pets matching src/**/*.ts",
+          operationId: "listPets",
+          tags: ["glob */ tag"],
+          responses: { "200": { type: "IPet" } },
+          responseType: "IPet",
+        },
+        {
+          name: "createPet",
+          method: "post",
+          path: "/pets",
+          summary: "Create pet matching src/**/*.ts",
+          operationId: "createPet",
+          tags: ["glob */ tag"],
+          requestBody: { type: "ICreatePet", required: true },
+          dtoType: "ICreatePet",
+          responseType: "IPet",
+        },
+      ];
+
+      const assertValidTypeScript = (code: string, filename: string) => {
+        const result = ts.transpileModule(code, {
+          fileName: filename,
+          reportDiagnostics: true,
+          compilerOptions: {
+            target: ts.ScriptTarget.ES2020,
+            module: ts.ModuleKind.ESNext,
+          },
+        });
+        expect(result.diagnostics || []).toEqual([]);
+      };
+
+      it("escapes */ in JSDoc across fetch, axios, react-query, and swr generators", () => {
+        const fetchCode = generateFetchClient(globEndpoints, { enabled: true, type: "fetch" });
+        const axiosCode = generateAxiosClient(globEndpoints, { enabled: true, type: "axios" });
+        const rqCode = generateReactQueryHooks(globEndpoints, { enabled: true, type: "react-query" });
+        const swrCode = generateSWRHooks(globEndpoints, { enabled: true, type: "swr" });
+
+        for (const [code, file] of [
+          [fetchCode, "fetch-client.ts"],
+          [axiosCode, "axios-client.ts"],
+          [rqCode, "rq-hooks.ts"],
+          [swrCode, "swr-hooks.ts"],
+        ] as const) {
+          expect(code).toContain("src/**\\/*.ts");
+          expect(code).toContain("glob *\\/ tag");
+          assertValidTypeScript(code, file);
+        }
+      });
     });
   });
 });
