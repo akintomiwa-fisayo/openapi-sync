@@ -6,6 +6,7 @@ import {
   getEndpointDetails,
   JSONStringify,
   renderTypeRefMD,
+  escapeJsDoc,
   getNestedValue,
 } from "../helpers";
 
@@ -251,6 +252,37 @@ describe("Helper Functions", () => {
 }`;
       const result = renderTypeRefMD(typeRef);
       expect(result).not.toContain("  \n  ");
+    });
+
+    it("should escape unmatched block-comment closings", () => {
+      const typeRef = `{
+  /**
+   * Glob such as src/**\\/*.ts
+   */
+  glob?: string;
+  raw?: string; // unmatched */
+}`;
+      const result = renderTypeRefMD(typeRef);
+      expect(result).toContain("*\\/");
+      expect(result).not.toMatch(/\*\/(?!$)/);
+    });
+  });
+
+  describe("escapeJsDoc", () => {
+    it("should escape */ sequences", () => {
+      expect(escapeJsDoc("Glob such as src/**/*.ts")).toBe(
+        "Glob such as src/**\\/*.ts"
+      );
+      expect(escapeJsDoc("a */ b **/ c */")).toBe(
+        "a *\\/ b **\\/ c *\\/"
+      );
+    });
+
+    it("should return empty or safe strings unchanged", () => {
+      expect(escapeJsDoc("")).toBe("");
+      expect(escapeJsDoc("Normal summary /* open only")).toBe(
+        "Normal summary /* open only"
+      );
     });
   });
 

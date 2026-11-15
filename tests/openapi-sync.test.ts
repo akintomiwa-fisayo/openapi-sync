@@ -1,3 +1,4 @@
+import ts from "typescript";
 import { IConfig, IOpenApiSpec } from "../types";
 import axios from "axios";
 import SwaggerParser from "@apidevtools/swagger-parser";
@@ -994,6 +995,106 @@ describe("OpenapiSync", () => {
       );
 
       expect(mockedFs.promises.writeFile).toHaveBeenCalled();
+    });
+
+    it("escapes */ inside operation, schema, and property descriptions/summaries so generated TS is valid", async () => {
+      const globSpec: IOpenApiSpec = {
+        openapi: "3.0.3",
+        info: { title: "Pets API", version: "1.0.0" },
+        paths: {
+          "/pets": {
+            get: {
+              operationId: "listPets",
+              summary: "List pets matching src/**/*.ts",
+              description: "Glob such as src/**/*.ts",
+              responses: {
+                "200": {
+                  description: "OK",
+                  content: {
+                    "application/json": {
+                      schema: { $ref: "#/components/schemas/Pet" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        components: {
+          schemas: {
+            Pet: {
+              type: "object",
+              description: "Glob such as src/**/*.ts",
+              properties: {
+                id: {
+                  type: "string",
+                  description: "Glob such as src/**/*.ts",
+                },
+              },
+            },
+          },
+        },
+      };
+
+      mockedAxios.create.mockReturnValue({
+        get: jest.fn().mockResolvedValue({ data: globSpec }),
+      } as any);
+      mockedSwaggerParser.validate.mockResolvedValue(globSpec as any);
+      mockedSwaggerParser.parse.mockResolvedValue(globSpec as any);
+
+      jest.doMock("../Openapi-sync/state", () => ({
+        getState: jest.fn().mockReturnValue(null),
+        setState: jest.fn(),
+        resetState: jest.fn(),
+      }));
+
+      jest.isolateModules(() => {
+        OpenapiSync = require("../Openapi-sync").default;
+      });
+
+      await OpenapiSync(
+        "https://example.com/openapi.json",
+        "pets",
+        {
+          ...mockConfig,
+          api: { pets: "https://example.com/openapi.json" },
+          endpoints: { doc: { showCurl: true } },
+        }
+      );
+
+      const writes = (mockedFs.promises.writeFile as jest.Mock).mock.calls;
+      const endpointsWrite = writes.find(([filePath]: [string]) =>
+        filePath.endsWith("endpoints.ts")
+      );
+      const sharedWrite = writes.find(([filePath]: [string]) =>
+        filePath.endsWith(path.join("types", "shared.ts"))
+      );
+      const typesIndexWrite = writes.find(([filePath]: [string]) =>
+        filePath.endsWith(path.join("types", "index.ts"))
+      );
+
+      expect(endpointsWrite).toBeDefined();
+      expect(sharedWrite).toBeDefined();
+      expect(typesIndexWrite).toBeDefined();
+
+      for (const [filePath, content] of [
+        endpointsWrite,
+        sharedWrite,
+        typesIndexWrite,
+      ] as [string, string][]) {
+        const result = ts.transpileModule(content, {
+          fileName: filePath,
+          reportDiagnostics: true,
+          compilerOptions: {
+            target: ts.ScriptTarget.ES2020,
+            module: ts.ModuleKind.ESNext,
+          },
+        });
+        expect(result.diagnostics || []).toEqual([]);
+      }
+
+      expect(endpointsWrite[1]).toContain("src/**\\/*.ts");
+      expect(sharedWrite[1]).toContain("src/**\\/*.ts");
     });
   });
 });

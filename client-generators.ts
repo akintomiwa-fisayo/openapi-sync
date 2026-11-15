@@ -1,5 +1,32 @@
 import { Method } from "axios";
 import { IConfigClientGeneration } from "./types";
+import { escapeJsDoc } from "./helpers";
+
+/**
+ * Format an endpoint's JSDoc block with escaped comment-closing sequences.
+ */
+const buildEndpointJsDoc = (
+  endpoint: EndpointInfo,
+  indent: string = ""
+): string => {
+  const lines: string[] = [`${indent}/**`];
+  if (endpoint.summary) {
+    escapeJsDoc(endpoint.summary)
+      .split("\n")
+      .forEach((line) => {
+        lines.push(`${indent} * ${line}`);
+      });
+  }
+  lines.push(`${indent} * @method ${endpoint.method.toUpperCase()}`);
+  lines.push(`${indent} * @path ${escapeJsDoc(endpoint.path)}`);
+  if (endpoint.tags && endpoint.tags.length > 0) {
+    lines.push(
+      `${indent} * @tags ${endpoint.tags.map(escapeJsDoc).join(", ")}`
+    );
+  }
+  lines.push(`${indent} */`);
+  return `${lines.join("\n")}\n`;
+};
 
 export interface EndpointInfo {
   name: string;
@@ -456,16 +483,7 @@ export const generateFetchClient = (
     const optionsType = isNext ? "NextFetchOptions" : "RequestInit";
 
     // Generate function signature
-    content += `/**\n`;
-    if (endpoint.summary) {
-      content += ` * ${endpoint.summary}\n`;
-    }
-    content += ` * @method ${endpoint.method.toUpperCase()}\n`;
-    content += ` * @path ${endpoint.path}\n`;
-    if (endpoint.tags && endpoint.tags.length > 0) {
-      content += ` * @tags ${endpoint.tags.join(", ")}\n`;
-    }
-    content += ` */\n`;
+    content += buildEndpointJsDoc(endpoint);
 
     content += `export async function ${funcName}<T = ${resolvedReturnType}>(`;
 
@@ -705,16 +723,7 @@ export const generateAxiosClient = (
     const resolvedReturnType = resolveEndpointReturnType(endpoint, config);
 
     // Generate function signature
-    content += `  /**\n`;
-    if (endpoint.summary) {
-      content += `   * ${endpoint.summary}\n`;
-    }
-    content += `   * @method ${endpoint.method.toUpperCase()}\n`;
-    content += `   * @path ${endpoint.path}\n`;
-    if (endpoint.tags && endpoint.tags.length > 0) {
-      content += `   * @tags ${endpoint.tags.join(", ")}\n`;
-    }
-    content += `   */\n`;
+    content += buildEndpointJsDoc(endpoint, "  ");
 
     content += `  async ${funcName}<T = ${resolvedReturnType}>(`;
 
@@ -927,16 +936,7 @@ export const generateReactQueryHooks = (
         endpoint.name.charAt(0).toUpperCase() + endpoint.name.slice(1)
       }`;
 
-      content += `/**\n`;
-      if (endpoint.summary) {
-        content += ` * ${endpoint.summary}\n`;
-      }
-      content += ` * @method ${method}\n`;
-      content += ` * @path ${endpoint.path}\n`;
-      if (endpoint.tags && endpoint.tags.length > 0) {
-        content += ` * @tags ${endpoint.tags.join(", ")}\n`;
-      }
-      content += ` */\n`;
+      content += buildEndpointJsDoc(endpoint);
 
       if (hasPathParams || hasQueryParams) {
         // Build structured params type
@@ -1050,16 +1050,7 @@ export const generateReactQueryHooks = (
         endpoint.name.charAt(0).toUpperCase() + endpoint.name.slice(1)
       }`;
 
-      content += `/**\n`;
-      if (endpoint.summary) {
-        content += ` * ${endpoint.summary}\n`;
-      }
-      content += ` * @method ${method}\n`;
-      content += ` * @path ${endpoint.path}\n`;
-      if (endpoint.tags && endpoint.tags.length > 0) {
-        content += ` * @tags ${endpoint.tags.join(", ")}\n`;
-      }
-      content += ` */\n`;
+      content += buildEndpointJsDoc(endpoint);
 
       // Determine the mutation variables type - use structured params
       let variablesType = "void";
@@ -1422,16 +1413,7 @@ export const generateSWRHooks = (
         endpoint.name.charAt(0).toUpperCase() + endpoint.name.slice(1)
       }`;
 
-      content += `/**\n`;
-      if (endpoint.summary) {
-        content += ` * ${endpoint.summary}\n`;
-      }
-      content += ` * @method ${method}\n`;
-      content += ` * @path ${endpoint.path}\n`;
-      if (endpoint.tags && endpoint.tags.length > 0) {
-        content += ` * @tags ${endpoint.tags.join(", ")}\n`;
-      }
-      content += ` */\n`;
+      content += buildEndpointJsDoc(endpoint);
 
       if (hasPathParams || hasQueryParams) {
         // Build structured params type
@@ -1487,16 +1469,7 @@ export const generateSWRHooks = (
         endpoint.name.charAt(0).toUpperCase() + endpoint.name.slice(1)
       }`;
 
-      content += `/**\n`;
-      if (endpoint.summary) {
-        content += ` * ${endpoint.summary}\n`;
-      }
-      content += ` * @method ${method}\n`;
-      content += ` * @path ${endpoint.path}\n`;
-      if (endpoint.tags && endpoint.tags.length > 0) {
-        content += ` * @tags ${endpoint.tags.join(", ")}\n`;
-      }
-      content += ` */\n`;
+      content += buildEndpointJsDoc(endpoint);
 
       // Determine the mutation arguments type - use structured params
       let argsType = "void";
